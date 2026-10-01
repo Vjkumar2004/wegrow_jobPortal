@@ -17,11 +17,13 @@ export default async function HRDashboardPage() {
 
   return (
     <HRLayout>
-      <HRDashboardClient
-        initialJobs={jobs}
-        initialApplicants={applicants}
-        initialInterviews={interviews}
-      />
+      <React.Suspense fallback={<div className="p-8 text-center text-slate-500">Loading recruiter dashboard...</div>}>
+        <HRDashboardClient
+          initialJobs={jobs}
+          initialApplicants={applicants}
+          initialInterviews={interviews}
+        />
+      </React.Suspense>
     </HRLayout>
   );
 }

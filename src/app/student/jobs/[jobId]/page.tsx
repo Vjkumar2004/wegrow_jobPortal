@@ -31,7 +31,7 @@ export default async function StudentJobDetailsPage({ params }: StudentJobDetail
   const { jobId } = await params;
   const [job, allJobs] = await Promise.all([
     jobsService.getJobById(jobId),
-    jobsService.getJobs({ limit: 4 }),
+    jobsService.getJobs(),
   ]);
 
   if (!job) {

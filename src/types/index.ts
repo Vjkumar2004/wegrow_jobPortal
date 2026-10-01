@@ -27,6 +27,7 @@ export interface Job {
     size?: string;
     industry?: string;
     about?: string;
+    description?: string;
   };
   location: string;
   salaryMin?: number;
