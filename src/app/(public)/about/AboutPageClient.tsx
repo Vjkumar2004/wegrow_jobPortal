@@ -134,7 +134,7 @@ export default function AboutPageClient() {
             <div className="inline-flex items-center gap-2.5 bg-white/10 border border-white/25 backdrop-blur-sm rounded-full px-4 py-2 mb-7">
               <span className="w-2 h-2 rounded-full bg-[#FF9900] animate-pulse" />
               <span className="text-white/90 text-[12px] font-bold tracking-widest uppercase">
-                Sivakasi & Srivilliputtur's Premier IT Training Institute
+                Sivakasi &amp; Srivilliputtur&apos;s Premier IT Training Institute
               </span>
             </div>
 
