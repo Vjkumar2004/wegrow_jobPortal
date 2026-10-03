@@ -1,5 +1,4 @@
-import React from "react";
-import { PublicLayout } from "@/layouts/PublicLayout";
+﻿import React from "react";
 import { BookOpen, Code2, Video, FileText, Download, Sparkles } from "lucide-react";
 import { Button } from "@/components/common/Button";
 
@@ -45,7 +44,6 @@ export default function ResourcesPage() {
   ];
 
   return (
-    <PublicLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <span className="text-xs font-bold uppercase tracking-wider text-[#0756A8] bg-blue-100 px-3 py-1 rounded-full">
@@ -85,6 +83,6 @@ export default function ResourcesPage() {
           ))}
         </div>
       </div>
-    </PublicLayout>
   );
 }
+

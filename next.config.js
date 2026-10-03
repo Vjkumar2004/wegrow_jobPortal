@@ -14,6 +14,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "unavatar.io",
       },
+      {
+        protocol: "https",
+        hostname: "upload.wikimedia.org",
+      },
     ],
   },
 };

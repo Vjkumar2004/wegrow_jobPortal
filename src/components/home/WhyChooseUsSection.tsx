@@ -195,12 +195,12 @@ export default function WhyChooseUsSection() {
       />
 
       {/* Inner Full-Width Content Container */}
-      <div style={{ maxWidth: "1400px", width: "100%", margin: "0 auto", padding: "0 36px", position: "relative", zIndex: 10 }}>
+      <div className="max-w-[1400px] w-full mx-auto px-5 sm:px-8 lg:px-9 relative" style={{ zIndex: 10 }}>
         {/* Content Grid: Left Column (Content & 4x2 Grid) + Right Column (Image & Graphics) */}
         <div className="grid grid-cols-1 lg:grid-cols-[58%_42%] items-center gap-10">
           
           {/* LEFT COLUMN */}
-          <div>
+          <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
             {/* 2. Pill Badge: arrow icon + WHY CHOOSE US */}
             <div
               style={{
@@ -235,7 +235,7 @@ export default function WhyChooseUsSection() {
               style={{
                 fontFamily: "'Poppins', sans-serif",
                 fontWeight: 800,
-                fontSize: "clamp(32px, 3.2vw, 44px)",
+                fontSize: "clamp(26px, 3.2vw, 44px)",
                 color: "#0B1F4B",
                 lineHeight: 1.18,
                 margin: "0 0 12px",
@@ -251,27 +251,20 @@ export default function WhyChooseUsSection() {
               style={{
                 fontFamily: "'Poppins', sans-serif",
                 fontWeight: 400,
-                fontSize: "16px",
+                fontSize: "15px",
                 color: "#6B7694",
-                margin: "0 0 44px",
+                margin: "0 0 36px",
                 lineHeight: 1.6,
+                maxWidth: "600px",
               }}
             >
               More than just a job portal - we help you grow, learn and succeed.
             </p>
 
-            {/* 5. Features Grid: 4 columns x 2 rows */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                columnGap: "32px",
-                rowGap: "40px",
-              }}
-              className="grid-cols-2 sm:grid-cols-2 md:grid-cols-4"
-            >
+            {/* 5. Features Grid: responsive - 2 cols on mobile, 4 on desktop */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 sm:gap-x-8 gap-y-8 w-full">
               {features.map((item, idx) => (
-                <div key={idx} className="feature-item">
+                <div key={idx} className="feature-item flex flex-col items-center lg:items-start text-center lg:text-left">
                   <div
                     className="feature-icon-tile"
                     style={{ background: item.bg, color: item.color }}
@@ -285,11 +278,11 @@ export default function WhyChooseUsSection() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN */}
+          {/* RIGHT COLUMN — hidden on mobile/tablet, shown on lg+ only */}
           <div
+            className="hidden lg:flex"
             style={{
               position: "relative",
-              display: "flex",
               alignItems: "flex-end",
               justifyContent: "center",
               minHeight: "540px",

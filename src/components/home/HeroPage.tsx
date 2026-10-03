@@ -6,8 +6,8 @@ import Link from "next/link";
 import WhyChooseUsSection from "./WhyChooseUsSection";
 import ForEmployersSection from "./ForEmployersSection";
 import MobileAppSection from "./MobileAppSection";
-import { Footer } from "@/components/common/Footer";
-import { PublicNavbar } from "@/components/common/PublicNavbar";
+import TopCompaniesHiringSection from "./TopCompaniesHiringSection";
+
 
 /* ═══════════════════════════════════════════════════════
    SVG ICONS
@@ -87,19 +87,19 @@ const CheckIcon = () => (
 const StatItem = ({ icon, number, label, isLast = false }: {
   icon: React.ReactNode; number: string; label: string; isLast?: boolean;
 }) => (
-  <div className={`flex items-center gap-4 py-5 px-6 flex-1 ${!isLast ? "border-r border-slate-100" : ""}`}>
-    <div className="w-12 h-12 rounded-2xl bg-[#FFE9D6] flex items-center justify-center text-[#FF6B00] shrink-0">
+  <div className={`flex items-center gap-3 sm:gap-4 py-3.5 sm:py-5 px-3.5 sm:px-6 flex-1 ${!isLast ? "lg:border-r border-slate-100" : ""}`}>
+    <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-[#FFE9D6] flex items-center justify-center text-[#FF6B00] shrink-0">
       {icon}
     </div>
-    <div>
-      <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "22px", color: "#0B1F4B", lineHeight: 1.2 }}>{number}</div>
-      <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: "13px", color: "#5B6580", marginTop: "2px" }}>{label}</div>
+    <div className="min-w-0">
+      <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "clamp(16px, 1.8vw, 22px)", color: "#0B1F4B", lineHeight: 1.2 }}>{number}</div>
+      <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: "clamp(11px, 1vw, 13px)", color: "#5B6580", marginTop: "2px" }} className="truncate">{label}</div>
     </div>
   </div>
 );
 
 /* ═══════════════════════════════════════════════════════
-   COMPANY LOGO (styled text)
+   COMPANY LOGO (prominent brand card)
 ═══════════════════════════════════════════════════════ */
 const CompanyLogo = ({ name, color, bg, category, jobs, logoUrl }: {
   name: string; color: string; bg: string; category?: string; jobs?: string; logoUrl?: string;
@@ -110,10 +110,10 @@ const CompanyLogo = ({ name, color, bg, category, jobs, logoUrl }: {
     <a
       href="/companies"
       style={{ textDecoration: "none" }}
-      className="group flex items-center gap-4 px-5 py-4 bg-white rounded-2xl border border-slate-200/80 shadow-[0_4px_20px_rgba(11,31,75,0.05)] hover:shadow-[0_12px_32px_rgba(11,31,75,0.12)] hover:-translate-y-1.5 transition-all duration-300 min-w-[270px]"
+      className="group flex items-center gap-5 px-6 py-5 bg-white rounded-2xl border border-slate-200/90 shadow-[0_6px_24px_rgba(11,31,75,0.06)] hover:shadow-[0_16px_36px_rgba(11,31,75,0.14)] hover:-translate-y-1.5 transition-all duration-300 min-w-[310px]"
     >
       <div
-        className="w-14 h-14 rounded-xl flex items-center justify-center font-bold text-base tracking-tight shrink-0 overflow-hidden bg-white shadow-inner p-2 border border-slate-100 transition-transform duration-300 group-hover:scale-105"
+        className="w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-base tracking-tight shrink-0 overflow-hidden bg-white shadow-xs p-2.5 border border-slate-100 transition-transform duration-300 group-hover:scale-105"
       >
         {logoUrl && !imgError ? (
           <img
@@ -125,7 +125,7 @@ const CompanyLogo = ({ name, color, bg, category, jobs, logoUrl }: {
           />
         ) : (
           <div
-            className="w-full h-full rounded-lg flex items-center justify-center font-bold text-sm"
+            className="w-full h-full rounded-xl flex items-center justify-center font-bold text-base"
             style={{ background: bg, color }}
           >
             {name.slice(0, 3)}
@@ -133,22 +133,22 @@ const CompanyLogo = ({ name, color, bg, category, jobs, logoUrl }: {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-1.5 mb-0.5">
-          <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "15px", color: "#0B1F4B" }} className="truncate">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "17px", color: "#0B1F4B" }} className="truncate">
             {name}
           </span>
-          <span className="flex items-center gap-1 shrink-0">
+          <span className="flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span style={{ fontFamily: "'Poppins',sans-serif", fontSize: "10px", color: "#059669", fontWeight: 600 }}>Hiring</span>
+            <span style={{ fontFamily: "'Poppins',sans-serif", fontSize: "11px", color: "#059669", fontWeight: 700 }}>Hiring</span>
           </span>
         </div>
-        <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: "12px", color: "#5B6580" }} className="truncate font-medium">
+        <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: "13px", color: "#5B6580" }} className="truncate font-medium">
           {category || "Technology"}
         </div>
         {jobs && (
-          <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: "12px", color: "#FF6B00", fontWeight: 700, marginTop: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: "13px", color: "#FF6B00", fontWeight: 700, marginTop: "4px", display: "flex", alignItems: "center", gap: "5px" }}>
             <span>{jobs}</span>
-            <span className="text-[10px] text-slate-400 group-hover:translate-x-0.5 transition-transform duration-200">→</span>
+            <span className="text-xs text-slate-400 group-hover:translate-x-1 transition-transform duration-200">→</span>
           </div>
         )}
       </div>
@@ -157,7 +157,7 @@ const CompanyLogo = ({ name, color, bg, category, jobs, logoUrl }: {
 };
 
 /* ═══════════════════════════════════════════════════════
-   STEP CARD
+   PREMIUM PROFESSIONAL STEP CARD (Modern & Vector Only)
 ═══════════════════════════════════════════════════════ */
 const StepCard = ({
   step,
@@ -183,179 +183,105 @@ const StepCard = ({
   borderColor?: string;
 }) => (
   <div
-    className="group relative bg-white rounded-[28px] p-8 transition-all duration-300 hover:-translate-y-2.5 flex flex-col justify-between overflow-hidden"
-    style={{
-      border: `1.5px solid #EEF0F5`,
-      boxShadow: "0 10px 30px rgba(11,31,75,0.06)",
-    }}
+    className="group relative bg-white rounded-[24px] sm:rounded-[28px] p-6 sm:p-8 transition-all duration-300 hover:-translate-y-2 flex flex-col justify-between overflow-hidden border border-slate-100/90 shadow-[0_8px_30px_rgba(11,31,75,0.05)] hover:shadow-[0_16px_40px_rgba(11,31,75,0.10)]"
   >
     {/* Top decorative gradient glow accent */}
     <div
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: "5px",
-        background: bgGradient,
-      }}
+      className="absolute top-0 left-0 right-0 h-[4px] transition-all duration-300 group-hover:h-[6px]"
+      style={{ background: bgGradient }}
     />
 
     {/* Background ambient radial glow on hover */}
     <div
-      className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-      style={{
-        position: "absolute",
-        top: "-80px",
-        right: "-80px",
-        width: "220px",
-        height: "220px",
-        borderRadius: "50%",
-        background: lightBg,
-        filter: "blur(40px)",
-        zIndex: 0,
-      }}
+      className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none absolute -top-20 -right-20 w-48 h-48 rounded-full blur-3xl z-0"
+      style={{ background: lightBg }}
     />
 
     {/* Big stylish step number watermark */}
     <div
-      style={{
-        position: "absolute",
-        top: "22px",
-        right: "26px",
-        fontFamily: "'Poppins', sans-serif",
-        fontSize: "72px",
-        fontWeight: 900,
-        color: "#0B1F4B",
-        opacity: 0.05,
-        lineHeight: 1,
-        pointerEvents: "none",
-        userSelect: "none",
-        zIndex: 1,
-      }}
+      className="absolute top-5 right-6 font-['Poppins',sans-serif] text-5xl sm:text-6xl font-[900] text-[#0B1F4B]/5 pointer-events-none select-none z-1 leading-none"
     >
       0{step}
     </div>
 
-    <div style={{ position: "relative", zIndex: 2 }}>
-      {/* Top Header Row */}
-      <div className="flex items-center justify-between gap-4 mb-7">
-        {/* Glow Icon Box */}
-        <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg transition-transform duration-300 group-hover:scale-110 group-hover:rotate-2"
-          style={{
-            background: bgGradient,
-            boxShadow: `0 8px 22px ${accentColor}35`,
-          }}
-        >
-          {icon}
-        </div>
-
+    <div className="relative z-10 flex flex-col items-center text-center">
+      {/* Top Header Row with Centered Icon and Tag */}
+      <div className="flex flex-col items-center gap-3 mb-5 w-full">
         {/* Phase Pill Tag */}
         <span
+          className="font-['Poppins',sans-serif] text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider"
           style={{
-            fontFamily: "'Poppins', sans-serif",
-            fontSize: "11px",
-            fontWeight: 700,
             color: accentColor,
             background: lightBg,
             border: `1px solid ${borderColor}`,
-            padding: "6px 14px",
-            borderRadius: "999px",
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
           }}
         >
           {tag}
         </span>
+
+        {/* Vector Icon Box */}
+        <div
+          className="w-16 h-16 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-md transition-transform duration-300 group-hover:scale-105 my-1"
+          style={{
+            background: bgGradient,
+            boxShadow: `0 8px 20px ${accentColor}30`,
+          }}
+        >
+          {icon}
+        </div>
       </div>
 
       {/* Title */}
-      <h3
-        style={{
-          fontFamily: "'Poppins', sans-serif",
-          fontWeight: 800,
-          fontSize: "21px",
-          color: "#0B1F4B",
-          marginBottom: "12px",
-          lineHeight: 1.3,
-        }}
-      >
+      <h3 className="font-['Poppins',sans-serif] font-bold text-lg sm:text-[21px] text-[#0B1F4B] mb-2.5 leading-snug">
         {title}
       </h3>
 
       {/* Description */}
-      <p
-        style={{
-          fontFamily: "'Poppins', sans-serif",
-          fontSize: "14px",
-          color: "#5B6580",
-          lineHeight: 1.65,
-          marginBottom: "24px",
-        }}
-      >
+      <p className="font-['Poppins',sans-serif] text-[13px] sm:text-sm text-[#5B6580] leading-relaxed mb-6 font-normal max-w-[340px]">
         {desc}
       </p>
 
       {/* Key Feature List */}
-      <div
-        style={{
-          background: "#F8FAFC",
-          borderRadius: "16px",
-          padding: "16px 18px",
-          border: "1px solid #EEF2F6",
-        }}
-        className="space-y-2.5"
-      >
+      <div className="bg-[#F8FAFC] rounded-2xl p-4 sm:p-4.5 border border-slate-100 space-y-2.5 w-full text-left">
         {highlights.map((h, i) => (
           <div
             key={i}
-            className="flex items-center gap-2.5 text-xs text-[#3E4A68]"
-            style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 500 }}
+            className="flex items-center gap-2.5 text-xs text-[#3E4A68] font-['Poppins',sans-serif] font-medium"
           >
             <span
-              className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
+              className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 font-bold text-[10px]"
               style={{
                 background: lightBg,
                 color: accentColor,
-                fontSize: "10px",
-                fontWeight: 800,
                 border: `1px solid ${borderColor}`,
               }}
             >
               ✓
             </span>
-            <span className="font-semibold text-[13px] text-[#223354]">{h}</span>
+            <span className="font-semibold text-xs text-[#223354]">{h}</span>
           </div>
         ))}
       </div>
     </div>
 
-    {/* Footer Navigation link */}
-    <div
-      className="mt-8 pt-4 flex items-center justify-between text-xs"
-      style={{ borderTop: "1px solid #F1F4F9", position: "relative", zIndex: 2 }}
-    >
+    {/* Footer Link */}
+    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs relative z-10 w-full">
       <div className="flex items-center gap-2">
         <span
           className="w-2 h-2 rounded-full"
           style={{ background: accentColor }}
         />
-        <span style={{ fontFamily: "'Poppins', sans-serif", color: "#64748B", fontWeight: 600 }}>
+        <span className="font-['Poppins',sans-serif] text-slate-500 font-semibold">
           Phase 0{step}
         </span>
       </div>
       <a
         href="/student/login"
-        style={{
-          fontFamily: "'Poppins', sans-serif",
-          color: accentColor,
-          fontWeight: 700,
-          textDecoration: "none",
-        }}
-        className="flex items-center gap-1.5 group-hover:translate-x-1.5 transition-transform duration-200"
+        className="font-['Poppins',sans-serif] font-bold flex items-center gap-1.5 transition-transform duration-200 group-hover:translate-x-1"
+        style={{ color: accentColor }}
       >
-        Get Started <ArrowRightIcon />
+        <span>Get Started</span>
+        <ArrowRightIcon />
       </a>
     </div>
   </div>
@@ -583,52 +509,36 @@ export default function HeroPage() {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
-        @keyframes marqueeReverse {
-          0% { transform: translateX(-50%); }
-          100% { transform: translateX(0); }
-        }
 
         .marquee-track {
           display: flex;
-          gap: 20px;
+          gap: 24px;
           width: max-content;
-          animation: marquee 32s linear infinite;
+          animation: marquee 38s linear infinite;
         }
         .marquee-track:hover {
-          animation-play-state: paused;
-        }
-        .marquee-track-reverse {
-          display: flex;
-          gap: 20px;
-          width: max-content;
-          animation: marqueeReverse 36s linear infinite;
-        }
-        .marquee-track-reverse:hover {
           animation-play-state: paused;
         }
       `}</style>
 
       <div className="hero-page">
 
-        {/* ══════════════ UNIFIED PUBLIC NAVBAR (Used across all pages) ══════════════ */}
-        <PublicNavbar />
 
-        {/* ── Above‑the‑fold wrapper: fills exactly 100vh (navbar + hero + stats) ── */}
-        <div style={{ height: "calc(100vh - 64px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        {/* ── Above‑the‑fold wrapper: fills desktop height on lg+, smooth flow on mobile ── */}
+        <div className="flex flex-col overflow-visible lg:overflow-hidden lg:h-[calc(100vh-64px)] lg:min-h-[640px]">
 
           {/* ══════════════ HERO ════════════════════════════════════════════════ */}
-          <section id="hero-search" style={{ width: "100%", flex: 1, overflow: "hidden", minHeight: 0 }}>
-            <div style={{ maxWidth: "1400px", margin: "0 auto", display: "grid", gridTemplateColumns: "46% 54%", alignItems: "center", height: "100%" }}
-              className="grid-cols-1 lg:grid-cols-[46%_54%]">
+          <section id="hero-search" className="w-full flex-1 overflow-visible lg:overflow-hidden py-8 sm:py-12 lg:py-0 flex items-center">
+            <div className="max-w-[1400px] w-full mx-auto grid grid-cols-1 lg:grid-cols-[48%_52%] items-center h-full">
 
-              {/* LEFT */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "48px 32px 48px 48px" }}
-                className="order-2 lg:order-1">
+              {/* HERO CONTENT: Centered on mobile/tablet, left-aligned on desktop */}
+              <div className="flex flex-col items-center lg:items-start text-center lg:text-left gap-4 sm:gap-5 px-5 sm:px-8 lg:pl-12 lg:pr-6 py-6 lg:py-8 max-w-2xl lg:max-w-none mx-auto lg:mx-0 w-full">
 
                 {/* Badge */}
                 <div style={{
-                  display: "inline-flex", alignItems: "center", gap: "7px", alignSelf: "flex-start",
-                  background: "#FFE9D6", borderRadius: "999px", padding: "8px 16px",
+                  display: "inline-flex", alignItems: "center", gap: "7px",
+                  background: "#FFE9D6", borderRadius: "999px", padding: "7px 16px",
                   fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: "13px", color: "#0B1F4B"
                 }}>
                   <span style={{ color: "#FF6B00" }}><GraduationIcon /></span>
@@ -637,58 +547,44 @@ export default function HeroPage() {
 
                 {/* Heading */}
                 <h1 style={{
-                  fontFamily: "'Poppins',sans-serif", fontWeight: 800, lineHeight: 1.1, color: "#0B1F4B",
-                  fontSize: "clamp(36px, 4.2vw, 60px)", margin: 0
+                  fontFamily: "'Poppins',sans-serif", fontWeight: 800, lineHeight: 1.15, color: "#0B1F4B",
+                  fontSize: "clamp(30px, 4.2vw, 56px)", margin: 0
                 }}>
-                  Find the Right<br />
-                  <span style={{ color: "#FF6B00" }}>Opportunities</span><br />
+                  Find the Right<br className="hidden sm:inline" />{" "}
+                  <span style={{ color: "#FF6B00" }}>Opportunities</span><br className="hidden sm:inline" />{" "}
                   Build a Brighter Future
                 </h1>
 
                 {/* Paragraph */}
                 <p style={{
                   fontFamily: "'Poppins',sans-serif", fontWeight: 500, color: "#5B6580",
-                  fontSize: "clamp(14px, 1.1vw, 16.5px)", lineHeight: 1.7, margin: 0, maxWidth: "480px"
+                  fontSize: "clamp(13.5px, 1.1vw, 16px)", lineHeight: 1.65, margin: 0, maxWidth: "520px"
                 }}>
                   Explore top jobs, internships and career opportunities from trusted companies.
                   Build your profile, apply easily and track your progress – all in one place.
                 </p>
 
                 {/* Search bar */}
-                <div style={{
-                  background: "white", borderRadius: "14px", padding: "6px",
-                  boxShadow: "0 8px 32px rgba(11,31,75,0.10)", display: "flex", alignItems: "center", gap: "8px", maxWidth: "520px"
-                }}>
-                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "8px", padding: "0 12px" }}>
+                <div className="bg-white rounded-2xl p-2 shadow-[0_10px_30px_rgba(11,31,75,0.07)] flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full max-w-[540px] border border-slate-100">
+                  <div className="flex-1 flex items-center gap-2.5 px-3 py-1">
                     <span style={{ color: "#FF6B00", flexShrink: 0 }}><SearchIcon /></span>
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       placeholder="Search jobs, skills, companies..."
-                      style={{
-                        width: "100%", background: "transparent", border: "none", outline: "none",
-                        fontFamily: "'Poppins',sans-serif", fontWeight: 500, fontSize: "14px",
-                        color: "#0B1F4B", height: "40px"
-                      }}
+                      className="w-full bg-transparent border-none outline-none font-['Poppins',sans-serif] font-medium text-sm text-[#0B1F4B] h-10"
                     />
                   </div>
-                  <button className="search-btn">Search Jobs →</button>
+                  <button className="search-btn justify-center w-full sm:w-auto shadow-md shadow-[#FF6B00]/20">Search Jobs →</button>
                 </div>
 
-                {/* Tags */}
-                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", maxWidth: "520px" }}>
-                  <span style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: "13px", color: "#0B1F4B", flexShrink: 0 }}>
-                    Popular Searches:
-                  </span>
-                  {tags.map(t => (
-                    <a key={t} href={`/jobs?search=${encodeURIComponent(t)}`} className="chip">{t}</a>
-                  ))}
-                </div>
+
               </div>
 
-              {/* RIGHT — image with decorative shapes */}
-              <div style={{ position: "relative", height: "100%", overflow: "visible" }} className="order-1 lg:order-2">
+
+              {/* RIGHT — image with decorative shapes (STRICTLY DESKTOP ONLY: lg:block, completely omitted from flow on mobile) */}
+              <div className="hidden lg:block relative h-full min-h-[480px] w-full overflow-hidden select-none">
 
                 {/* Blue circle — behind right of image */}
                 <div style={{
@@ -728,7 +624,7 @@ export default function HeroPage() {
                     fill
                     className="object-contain object-bottom"
                     priority
-                    sizes="(max-width: 768px) 100vw, 55vw"
+                    sizes="(max-width: 1024px) 0vw, 50vw"
                   />
                 </div>
 
@@ -747,44 +643,44 @@ export default function HeroPage() {
                 </div>
 
                 {/* Floating card 1 — 1000+ Jobs (left side) */}
-                <div className="float-card fa" style={{ top: "34%", left: "-4px", zIndex: 30, minWidth: "180px" }}>
+                <div className="float-card fa scale-90 sm:scale-100" style={{ top: "34%", left: "4px", zIndex: 30, minWidth: "160px" }}>
                   <div style={{
-                    width: "40px", height: "40px", borderRadius: "12px", background: "#FFE9D6",
+                    width: "36px", height: "36px", borderRadius: "10px", background: "#FFE9D6",
                     display: "flex", alignItems: "center", justifyContent: "center", color: "#FF6B00", flexShrink: 0
                   }}>
-                    <BriefcaseIcon s={19} />
+                    <BriefcaseIcon s={18} />
                   </div>
                   <div>
-                    <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "15px", color: "#0B1F4B", lineHeight: 1.2 }}>1000+</div>
-                    <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: "11px", color: "#5B6580" }}>Active Job Opportunities</div>
+                    <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "14px", color: "#0B1F4B", lineHeight: 1.2 }}>1000+</div>
+                    <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: "10px", color: "#5B6580" }}>Active Opportunities</div>
                   </div>
                 </div>
 
                 {/* Floating card 2 — Verified (top right) */}
-                <div className="float-card fb" style={{ top: "14%", right: "2%", zIndex: 30, minWidth: "162px" }}>
+                <div className="float-card fb scale-90 sm:scale-100" style={{ top: "10%", right: "4px", zIndex: 30, minWidth: "148px" }}>
                   <div style={{
-                    width: "40px", height: "40px", borderRadius: "12px", background: "#EEF3FF",
+                    width: "36px", height: "36px", borderRadius: "10px", background: "#EEF3FF",
                     display: "flex", alignItems: "center", justifyContent: "center", color: "#1E4FA3", flexShrink: 0
                   }}>
                     <ShieldIcon />
                   </div>
                   <div>
-                    <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "15px", color: "#0B1F4B", lineHeight: 1.2 }}>Verified</div>
-                    <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: "11px", color: "#5B6580" }}>Companies</div>
+                    <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "14px", color: "#0B1F4B", lineHeight: 1.2 }}>Verified</div>
+                    <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: "10px", color: "#5B6580" }}>Companies</div>
                   </div>
                 </div>
 
                 {/* Floating card 3 — Easy Applications (right lower) */}
-                <div className="float-card fc" style={{ bottom: "20%", right: "2%", zIndex: 30, minWidth: "162px" }}>
+                <div className="float-card fc scale-90 sm:scale-100" style={{ bottom: "16%", right: "4px", zIndex: 30, minWidth: "148px" }}>
                   <div style={{
-                    width: "40px", height: "40px", borderRadius: "12px", background: "#FFE9D6",
+                    width: "36px", height: "36px", borderRadius: "10px", background: "#FFE9D6",
                     display: "flex", alignItems: "center", justifyContent: "center", color: "#FF6B00", flexShrink: 0
                   }}>
                     <TrendIcon />
                   </div>
                   <div>
-                    <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "15px", color: "#0B1F4B", lineHeight: 1.2 }}>Easy</div>
-                    <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: "11px", color: "#5B6580" }}>Applications</div>
+                    <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: "14px", color: "#0B1F4B", lineHeight: 1.2 }}>Easy</div>
+                    <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: "10px", color: "#5B6580" }}>Applications</div>
                   </div>
                 </div>
 
@@ -807,13 +703,9 @@ export default function HeroPage() {
             </div>
           </section>
 
-          {/* ══════════════ STATS BAR ═══════════════════════════════════════════ */}
-          <section style={{ padding: "0 32px 20px", maxWidth: "1400px", margin: "0 auto", width: "100%", flexShrink: 0 }}>
-            <div style={{
-              background: "white", borderRadius: "18px", overflow: "hidden",
-              boxShadow: "0 8px 36px rgba(11,31,75,0.08)", display: "grid", gridTemplateColumns: "repeat(4,1fr)"
-            }}
-              className="grid-cols-2 md:grid-cols-4">
+          {/* ══════════════ STATS BAR (RESPONSIVE) ═══════════════════════════════ */}
+          <section className="px-4 sm:px-6 lg:px-8 pb-8 lg:pb-6 pt-2 max-w-[1400px] mx-auto w-full shrink-0">
+            <div className="bg-white rounded-2xl overflow-hidden shadow-[0_8px_30px_rgba(11,31,75,0.06)] grid grid-cols-2 lg:grid-cols-4 border border-slate-100 divide-y divide-x-0 sm:divide-y-0 divide-slate-100">
               <StatItem icon={<BriefcaseIcon s={22} />} number="5,000+" label="Job Openings" />
               <StatItem icon={<BuildingIcon s={22} />} number="1,200+" label="Trusted Companies" />
               <StatItem icon={<UsersIcon s={22} />} number="50,000+" label="Students Placed" />
@@ -823,118 +715,13 @@ export default function HeroPage() {
 
         </div> {/* end above-the-fold wrapper */}
 
-        {/* ══════════════ TOP COMPANIES HIRING (MARQUEE) ═════════════════════ */}
-        <section id="companies-section" style={{ padding: "70px 0 80px", background: "#FFFFFF", borderTop: "1px solid #EEF0F5", borderBottom: "1px solid #EEF0F5", overflow: "hidden" }}>
-          <div style={{ maxWidth: "860px", margin: "0 auto", padding: "0 32px 36px", textAlign: "center" }}>
-            {/* Pill Badge */}
-            <div style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "10px",
-              padding: "8px 18px",
-              borderRadius: "999px",
-              background: "#FFE9D6",
-              border: "1px solid rgba(255,107,0,0.2)",
-              marginBottom: "16px"
-            }}>
-              <span style={{
-                width: "9px",
-                height: "9px",
-                borderRadius: "50%",
-                background: "#FF6B00",
-                boxShadow: "0 0 0 3px rgba(255,107,0,0.25)"
-              }} />
-              <span style={{
-                fontFamily: "'Poppins',sans-serif",
-                fontSize: "13px",
-                fontWeight: 700,
-                color: "#FF6B00",
-                letterSpacing: "0.12em",
-                textTransform: "uppercase"
-              }}>
-                Featured Employers
-              </span>
-            </div>
+        {/* ══════════════ TOP COMPANIES HIRING (PIXEL-PERFECT SECTION) ═════════════════════ */}
+        <TopCompaniesHiringSection />
 
-            {/* Big Title */}
-            <h2 style={{
-              fontFamily: "'Poppins',sans-serif",
-              fontWeight: 800,
-              fontSize: "clamp(30px, 3.4vw, 44px)",
-              color: "#0B1F4B",
-              lineHeight: 1.2,
-              margin: "0 0 14px",
-              letterSpacing: "-0.5px"
-            }}>
-              Top Companies <span style={{ color: "#FF6B00" }}>Actively Hiring</span>
-            </h2>
-
-            {/* Subtitle */}
-            <p style={{
-              fontFamily: "'Poppins',sans-serif",
-              fontSize: "16px",
-              color: "#5B6580",
-              lineHeight: 1.6,
-              margin: "0 auto 24px",
-              maxWidth: "680px",
-              fontWeight: 400
-            }}>
-              Get placed in world-leading tech giants, high-growth startups, and Fortune 500 enterprises partnering with WeGrow.
-            </p>
-
-            {/* Action Button */}
-            <div style={{ display: "flex", justifyContent: "center" }}>
-              <a
-                href="/companies"
-                style={{
-                  fontFamily: "'Poppins',sans-serif",
-                  fontWeight: 600,
-                  fontSize: "15px",
-                  color: "#0B1F4B",
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  padding: "12px 24px",
-                  borderRadius: "12px",
-                  background: "#F8FAFC",
-                  border: "1.5px solid #E2E8F0",
-                  transition: "all 0.25s ease"
-                }}
-                className="hover:border-[#FF6B00] hover:text-[#FF6B00] hover:shadow-md hover:bg-white"
-              >
-                Explore All 1,200+ Companies
-                <span style={{ color: "#FF6B00" }}><ArrowRightIcon /></span>
-              </a>
-            </div>
-          </div>
-
-          {/* Marquee viewport with gradient mask */}
-          <div style={{ position: "relative", width: "100%", overflow: "hidden" }}>
-            {/* Left & Right gradient edge fades */}
-            <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: "160px", background: "linear-gradient(to right, #FFFFFF, rgba(255,255,255,0))", zIndex: 10, pointerEvents: "none" }} />
-            <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: "160px", background: "linear-gradient(to left, #FFFFFF, rgba(255,255,255,0))", zIndex: 10, pointerEvents: "none" }} />
-
-            {/* Row 1: Leftward marquee */}
-            <div className="marquee-track" style={{ marginBottom: "20px" }}>
-              {companies.concat(companies).map((c, i) => (
-                <CompanyLogo key={`row1-${c.name}-${i}`} {...c} />
-              ))}
-            </div>
-
-            {/* Row 2: Rightward marquee */}
-            <div className="marquee-track-reverse">
-              {companies.slice(5).concat(companies.slice(0, 5)).concat(companies.slice(5)).concat(companies.slice(0, 5)).map((c, i) => (
-                <CompanyLogo key={`row2-${c.name}-${i}`} {...c} />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ══════════════ HOW IT WORKS ═════════════════════════════════════════ */}
-        <section id="how-it-works" style={{ padding: "80px 32px 100px", maxWidth: "1400px", margin: "0 auto", position: "relative" }}>
+        {/* ══════════════ HOW IT WORKS (RESPONSIVE) ═════════════════════════════ */}
+        <section id="how-it-works" className="px-5 sm:px-8 py-16 sm:py-24 max-w-[1400px] mx-auto relative">
           {/* Section header */}
-          <div style={{ textAlign: "center", marginBottom: "50px", maxWidth: "700px", margin: "0 auto 50px" }}>
+          <div className="text-center mb-10 sm:mb-14 max-w-[700px] mx-auto">
             <div style={{
               display: "inline-flex",
               alignItems: "center",
@@ -982,10 +769,7 @@ export default function HeroPage() {
           </div>
 
           {/* Steps grid */}
-          <div
-            style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "28px", position: "relative" }}
-            className="grid-cols-1 md:grid-cols-3"
-          >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-7 relative">
             <StepCard
               step="1"
               tag="Step 01 • Onboarding"
@@ -1047,8 +831,7 @@ export default function HeroPage() {
         {/* ══════════════ MOBILE APP SECTION ════════════════════════════════ */}
         <MobileAppSection />
 
-        {/* ══════════════ WEGROW FOOTER ═════════════════════════════════════ */}
-        <Footer />
+
 
       </div>
     </>

@@ -29,15 +29,73 @@ export const adminService = {
       const response = await apiClient.get("/admin/companies");
       return response.data?.data || response.data;
     } catch {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("wegrow_companies");
+        if (stored) {
+          try {
+            return JSON.parse(stored);
+          } catch {
+            // fallback
+          }
+        }
+      }
       return MOCK_COMPANIES;
+    }
+  },
+
+  async registerCompany(company: Partial<Company>): Promise<Company> {
+    const newCompany: Company = {
+      id: `comp-${Date.now()}`,
+      name: company.name || "Untitled Organization",
+      logo: company.logo || "",
+      description: company.description || "",
+      website: company.website || "",
+      industry: company.industry || "Information Technology",
+      location: company.location || "Bengaluru, Karnataka",
+      size: company.size || "50 - 200 employees",
+      about: company.about || company.description || "",
+      status: "Pending", // Direct to Pending moderation state
+      activeJobsCount: 0,
+      joinedDate: new Date().toISOString().split("T")[0],
+      tagline: company.tagline,
+      culture: company.culture,
+      hrEmail: company.hrEmail,
+      hrPhone: company.hrPhone,
+      recruiterName: company.recruiterName,
+      recruiterAvatar: company.recruiterAvatar,
+    };
+
+    try {
+      const response = await apiClient.post("/admin/companies/register", newCompany);
+      return response.data?.data || newCompany;
+    } catch {
+      if (typeof window !== "undefined") {
+        const existing = localStorage.getItem("wegrow_companies");
+        const list: Company[] = existing ? JSON.parse(existing) : [...MOCK_COMPANIES];
+        const updatedList = [newCompany, ...list];
+        localStorage.setItem("wegrow_companies", JSON.stringify(updatedList));
+      }
+      return newCompany;
     }
   },
 
   async updateCompanyStatus(companyId: string, status: "Approved" | "Suspended" | "Pending"): Promise<boolean> {
     try {
       await apiClient.patch(`/admin/companies/${companyId}/status`, { status });
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("wegrow_companies");
+        const list: Company[] = stored ? JSON.parse(stored) : [...MOCK_COMPANIES];
+        const updated = list.map((c) => (c.id === companyId ? { ...c, status } : c));
+        localStorage.setItem("wegrow_companies", JSON.stringify(updated));
+      }
       return true;
     } catch {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("wegrow_companies");
+        const list: Company[] = stored ? JSON.parse(stored) : [...MOCK_COMPANIES];
+        const updated = list.map((c) => (c.id === companyId ? { ...c, status } : c));
+        localStorage.setItem("wegrow_companies", JSON.stringify(updated));
+      }
       return true;
     }
   },

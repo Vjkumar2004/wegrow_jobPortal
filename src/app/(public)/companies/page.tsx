@@ -1,5 +1,4 @@
-import React from "react";
-import { PublicLayout } from "@/layouts/PublicLayout";
+﻿import React from "react";
 import { jobsService } from "@/services/jobs.service";
 import { CompanyCard } from "@/components/jobs/CompanyCard";
 import { Building2, Search } from "lucide-react";
@@ -13,7 +12,6 @@ export default async function CompaniesPage() {
   const companies = await jobsService.getCompanies();
 
   return (
-    <PublicLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="mb-8">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-[#0756A8] text-xs font-bold uppercase tracking-wider mb-2">
@@ -33,6 +31,6 @@ export default async function CompaniesPage() {
           ))}
         </div>
       </div>
-    </PublicLayout>
   );
 }
+

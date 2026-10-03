@@ -1,5 +1,4 @@
-import React from "react";
-import { PublicLayout } from "@/layouts/PublicLayout";
+﻿import React from "react";
 import { jobsService } from "@/services/jobs.service";
 import JobsClient from "./JobsClient";
 
@@ -25,8 +24,7 @@ export default async function JobsPage(props: JobsPageProps) {
   const initialJobs = await jobsService.getJobs(resolvedSearchParams);
 
   return (
-    <PublicLayout>
       <JobsClient initialJobs={initialJobs} initialParams={resolvedSearchParams} />
-    </PublicLayout>
   );
 }
+

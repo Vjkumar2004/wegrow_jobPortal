@@ -164,6 +164,12 @@ export interface Company {
   status: CompanyApprovalStatus;
   activeJobsCount: number;
   joinedDate: string;
+  tagline?: string;
+  culture?: string;
+  hrEmail?: string;
+  hrPhone?: string;
+  recruiterName?: string;
+  recruiterAvatar?: string;
 }
 
 export interface StudentDashboardStats {
@@ -362,3 +368,13 @@ export interface StudentApplicationsPageData {
   };
 }
 
+export interface StudentAdmin {
+  id: string;
+  name: string;
+  email: string;
+  college: string;
+  gradYear: string;
+  completionPercentage: number;
+  applicationsCount: number;
+  status: string;
+}

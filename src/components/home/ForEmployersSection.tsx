@@ -235,14 +235,14 @@ export default function ForEmployersSection() {
       />
 
       {/* Container */}
-      <div style={{ maxWidth: "1400px", width: "100%", margin: "0 auto", padding: "0 36px", position: "relative", zIndex: 10 }}>
+      <div className="max-w-[1400px] w-full mx-auto px-5 sm:px-8 lg:px-9 relative" style={{ zIndex: 10 }}>
         <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] items-center gap-10">
           
-          {/* LEFT COLUMN (Image Side) */}
+          {/* LEFT COLUMN (Image Side) — hidden on mobile/tablet */}
           <div
+            className="hidden lg:flex"
             style={{
               position: "relative",
-              display: "flex",
               alignItems: "flex-end",
               justifyContent: "center",
               minHeight: "540px",
@@ -434,7 +434,7 @@ export default function ForEmployersSection() {
           </div>
 
           {/* RIGHT COLUMN (Content Side) */}
-          <div style={{ paddingLeft: "10px" }}>
+          <div className="lg:pl-3 flex flex-col items-center lg:items-start text-center lg:text-left">
             {/* 1. Pill Badge */}
             <div
               style={{
@@ -509,13 +509,11 @@ export default function ForEmployersSection() {
             {/* 4. Features list: 2 columns x 3 rows */}
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
                 columnGap: "28px",
                 rowGap: "22px",
                 marginBottom: "36px",
               }}
-              className="grid-cols-1 sm:grid-cols-2"
+              className="grid grid-cols-1 sm:grid-cols-2 w-full text-left"
             >
               {/* Row 1 Left */}
               <div className="employer-feature-item">
@@ -605,7 +603,7 @@ export default function ForEmployersSection() {
             </div>
 
             {/* 5. Buttons row */}
-            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "center", marginBottom: "32px" }}>
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 mb-8 w-full">
               <a href="/hr/register" className="btn-post-job">
                 Post a Job →
               </a>
@@ -624,6 +622,7 @@ export default function ForEmployersSection() {
                 paddingTop: "24px",
                 borderTop: "1.5px solid #EEF2F8",
               }}
+              className="justify-center lg:justify-start w-full"
             >
               <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
                 <span style={{ color: "#059669", fontSize: "16px" }}>✓</span>

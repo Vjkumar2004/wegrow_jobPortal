@@ -241,11 +241,11 @@ export default function MobileAppSection() {
       />
 
       {/* Main Container */}
-      <div style={{ maxWidth: "1380px", width: "100%", margin: "0 auto", padding: "0 40px", position: "relative", zIndex: 10 }}>
-        <div className="grid grid-cols-1 lg:grid-cols-[52%_48%] items-center gap-12 lg:gap-14">
+      <div className="max-w-[1380px] w-full mx-auto px-5 sm:px-8 lg:px-10 relative" style={{ zIndex: 10 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[52%_48%] items-center gap-10 lg:gap-14">
           
           {/* ═══════════════ LEFT COLUMN (Content, Features, App Store Buttons) ═══════════════ */}
-          <div>
+          <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
             {/* 1. Pill Badge */}
             <div style={{ marginBottom: "18px" }}>
               <div className="active-badge-pill">
@@ -323,9 +323,8 @@ export default function MobileAppSection() {
 
             {/* 4. Feature Cards Grid */}
             <div
+              className="grid grid-cols-1 sm:grid-cols-2 w-full text-left"
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
                 gap: "14px",
                 marginBottom: "36px",
                 maxWidth: "540px",
@@ -376,10 +375,10 @@ export default function MobileAppSection() {
               ))}
             </div>
 
-            {/* 5. Store buttons row */}
-            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "center" }}>
+            {/* 5. Store buttons: vertical on mobile, horizontal on sm+ */}
+            <div className="flex flex-col sm:flex-row gap-3.5 sm:gap-4 items-center justify-center lg:justify-start w-full max-w-[340px] sm:max-w-none">
               {/* Google Play Store Button */}
-              <a href="#" className="google-play-btn" style={{ minWidth: "205px", height: "64px" }}>
+              <a href="#" className="google-play-btn w-full sm:w-auto justify-center sm:justify-start" style={{ minWidth: "210px", height: "64px" }}>
                 <div style={{ position: "relative", width: "28px", height: "30px", flexShrink: 0 }}>
                   <Image
                     src="/google-play-icon.svg"
@@ -418,7 +417,7 @@ export default function MobileAppSection() {
               </a>
 
               {/* Apple App Store Button (Disabled look) */}
-              <div className="app-store-btn" title="Coming soon to the Apple App Store" style={{ minWidth: "205px", height: "64px" }}>
+              <div className="app-store-btn w-full sm:w-auto justify-center sm:justify-start" title="Coming soon to the Apple App Store" style={{ minWidth: "210px", height: "64px" }}>
                 <div style={{ position: "relative", width: "26px", height: "30px", flexShrink: 0, opacity: 0.55 }}>
                   <Image
                     src="/apple-icon.svg"
@@ -458,11 +457,11 @@ export default function MobileAppSection() {
             </div>
           </div>
 
-          {/* ═══════════════ RIGHT COLUMN (High-Res Smartphone Mockup Image section-5.png) ═══════════════ */}
+          {/* ═══════════════ RIGHT COLUMN (Phone Mockup) — hidden on mobile/tablet ═══════════════ */}
           <div
+            className="hidden lg:flex"
             style={{
               position: "relative",
-              display: "flex",
               alignItems: "center",
               justifyContent: "center",
               minHeight: "580px",

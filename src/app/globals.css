@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+  /* Offset anchor scrolling so sections aren't hidden under the sticky navbar */
+  scroll-padding-top: 80px;
+}
+
+
 :root {
   --background: 40 33% 98%;
   --foreground: 222 47% 11%;
