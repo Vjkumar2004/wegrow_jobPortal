@@ -1,3 +1,5 @@
+"use client";
+
 import React, { ReactNode } from "react";
 import { FolderSearch, AlertTriangle } from "lucide-react";
 import { Button } from "./Button";

@@ -22,8 +22,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { authService } from "@/services/auth.service";
+import { PageLoader } from "@/components/common/PageLoader";
 
-export default function AdminLoginPage() {
+function AdminLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason");
@@ -352,5 +353,21 @@ export default function AdminLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <PageLoader
+          label="WeGrow Skill Campus"
+          subLabel="Loading admin portal..."
+          fullScreen={true}
+        />
+      }
+    >
+      <AdminLoginContent />
+    </React.Suspense>
   );
 }
