@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   BarChart3,
@@ -96,41 +97,20 @@ export default function HRReportsClient({ initialReports }: { initialReports?: P
   const [selectedPeriod, setSelectedPeriod] = useState<"Last 3 Months" | "Last 6 Months" | "Year 2026">("Last 6 Months");
   const [chartType, setChartType] = useState<"bar" | "trend">("bar");
   const [isMounted, setIsMounted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [reportData, setReportData] = useState<HRReportsData>(() => {
-    if (initialReports && typeof initialReports.totalApplicants === "number") {
-      return {
-        ...EMPTY_HR_REPORTS_DATA,
-        ...initialReports,
-      } as HRReportsData;
-    }
-    return EMPTY_HR_REPORTS_DATA;
+
+  React.useEffect(() => { setIsMounted(true); }, []);
+
+  const initialData: HRReportsData =
+    initialReports && typeof initialReports.totalApplicants === "number"
+      ? ({ ...EMPTY_HR_REPORTS_DATA, ...initialReports } as HRReportsData)
+      : EMPTY_HR_REPORTS_DATA;
+
+  const { data: reportData = initialData, isFetching: loading } = useQuery<HRReportsData>({
+    queryKey: ["hr-reports"],
+    queryFn: () => hrService.getReports(),
+    initialData: initialData.totalApplicants > 0 ? initialData : undefined,
+    staleTime: 60_000,
   });
-
-  useEffect(() => {
-    setIsMounted(true);
-    let isCancelled = false;
-
-    async function loadRealAnalytics() {
-      setLoading(true);
-      try {
-        const realData = await hrService.getReports();
-        if (!isCancelled && realData) {
-          setReportData(realData);
-        }
-      } catch (err) {
-        console.error("Failed to load HR reports from API:", err);
-      } finally {
-        if (!isCancelled) setLoading(false);
-      }
-    }
-
-    loadRealAnalytics();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
 
   // Filter velocity months based on selected dropdown
   const filteredVelocity = useMemo(() => {

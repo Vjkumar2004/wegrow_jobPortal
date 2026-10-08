@@ -166,6 +166,7 @@ export const applicationsService = {
 
       const res = appsResult.status === "fulfilled" ? appsResult.value : null;
       const resData = res?.data?.data;
+      console.log("[applications.service] raw response:", JSON.stringify(res?.data)?.slice(0, 400));
       const rawItems: BackendStudentApplication[] =
         (Array.isArray(resData?.items) ? resData.items : null) ??
         (Array.isArray(resData?.applications) ? resData.applications : null) ??

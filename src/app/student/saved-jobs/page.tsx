@@ -1,38 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { studentService } from "@/services/student.service";
 import { JobCard } from "@/components/jobs/JobCard";
-import { Bookmark, ChevronRight, Briefcase } from "lucide-react";
+import { Bookmark, Briefcase } from "lucide-react";
 import { Job } from "@/types";
 
 export default function StudentSavedJobsPage() {
-  const [savedJobs, setSavedJobs] = useState<Job[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    studentService
-      .getSavedJobs()
-      .then((data) => {
-        if (isMounted) {
-          setSavedJobs(data);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to load saved jobs client-side:", err);
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { data: savedJobs = [] } = useQuery<Job[]>({
+    queryKey: ["student-saved-jobs"],
+    queryFn: () => studentService.getSavedJobs(),
+    staleTime: 30_000,
+  });
 
   return (
     <div className="p-4 sm:p-6 lg:p-7 space-y-6 max-w-7xl mx-auto w-full">

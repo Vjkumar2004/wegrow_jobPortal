@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   FileText,
   Upload,
@@ -21,55 +22,45 @@ interface ResumeItem {
   createdAt?: string;
 }
 
+async function fetchResumeData(): Promise<ResumeItem | null> {
+  const list = await studentService.getResumes();
+  if (Array.isArray(list) && list.length > 0) {
+    const top = list[0];
+    return {
+      id: top.id,
+      fileName: top.fileName || "Resume.pdf",
+      fileSize: top.fileSize ? `${(Number(top.fileSize) / (1024 * 1024)).toFixed(2)} MB` : undefined,
+      fileUrl: top.fileUrl,
+      createdAt: top.createdAt,
+    };
+  }
+  const profile = await studentService.getProfile();
+  if (profile.resumeName || profile.resumeUrl || profile.resumeId) {
+    return {
+      id: profile.resumeId,
+      fileName: profile.resumeName || "Resume.pdf",
+      fileUrl: profile.resumeUrl,
+    };
+  }
+  return null;
+}
+
 export default function StudentResumePage() {
-  const [activeResume, setActiveResume] = useState<ResumeItem | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const { data: activeResume = null, isLoading } = useQuery<ResumeItem | null>({
+    queryKey: ["student-resumes"],
+    queryFn: fetchResumeData,
+    staleTime: 60_000,
+  });
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
   };
-
-  const loadResumeData = async () => {
-    setIsLoading(true);
-    try {
-      // First check getResumes list
-      const list = await studentService.getResumes();
-      if (Array.isArray(list) && list.length > 0) {
-        const top = list[0];
-        setActiveResume({
-          id: top.id,
-          fileName: top.fileName || "Resume.pdf",
-          fileSize: top.fileSize ? `${(Number(top.fileSize) / (1024 * 1024)).toFixed(2)} MB` : undefined,
-          fileUrl: top.fileUrl,
-          createdAt: top.createdAt,
-        });
-      } else {
-        // Fallback to student profile
-        const profile = await studentService.getProfile();
-        if (profile.resumeName || profile.resumeUrl || profile.resumeId) {
-          setActiveResume({
-            id: profile.resumeId,
-            fileName: profile.resumeName || "Resume.pdf",
-            fileUrl: profile.resumeUrl,
-          });
-        } else {
-          setActiveResume(null);
-        }
-      }
-    } catch {
-      setActiveResume(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadResumeData();
-  }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -93,7 +84,7 @@ export default function StudentResumePage() {
     try {
       const res = await studentService.uploadResumeFile(file);
       showToast(res.fileName ? `"${res.fileName}" uploaded to Cloudflare R2 successfully!` : "Resume uploaded successfully!");
-      await loadResumeData();
+      await queryClient.invalidateQueries({ queryKey: ["student-resumes"] });
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || "Failed to upload resume to Cloudflare R2";
       showToast(msg, "error");

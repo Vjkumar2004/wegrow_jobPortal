@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
   Check,
@@ -9,94 +10,87 @@ import {
   Clock,
   Sparkles,
   Inbox,
-  Filter,
 } from "lucide-react";
 import { studentService } from "@/services/student.service";
 import { StudentNotificationItem } from "@/types";
 import { getCompanyLogoProxyUrl } from "@/lib/utils";
 
+const DEMO_NOTIFICATIONS = [
+  {
+    id: "n-1",
+    title: "Application Shortlisted 🎉",
+    subtitle: "Zoho • Frontend Developer",
+    message: "Congratulations! The hiring manager has shortlisted your application for Frontend Developer.",
+    timeAgo: "2 hours ago",
+    type: "green",
+    companyName: "Zoho",
+    read: false,
+  },
+  {
+    id: "n-2",
+    title: "Interview Scheduled 📅",
+    subtitle: "TCS • Software Engineer",
+    message: "Your technical interview round has been set for Sep 25 at 10:00 AM IST via Google Meet.",
+    timeAgo: "1 day ago",
+    type: "blue",
+    companyName: "TCS",
+    read: false,
+  },
+  {
+    id: "n-3",
+    title: "New Job Match 🚀",
+    subtitle: "Freshworks • React Developer",
+    message: "New opening in Frontend Engineering posted this week matching your profile.",
+    timeAgo: "2 days ago",
+    type: "orange",
+    companyName: "Freshworks",
+    read: true,
+  },
+  {
+    id: "n-4",
+    title: "Application Under Review",
+    subtitle: "Infosys • React Developer",
+    message: "Your application has been received and screening is currently in progress.",
+    timeAgo: "3 days ago",
+    type: "purple",
+    companyName: "Infosys",
+    read: true,
+  },
+];
+
 type FilterTab = "ALL" | "UNREAD" | "INTERVIEW" | "APPLICATION";
 
 export default function StudentNotificationsPage() {
-  const [notifications, setNotifications] = useState<StudentNotificationItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
 
-  useEffect(() => {
-    let isMounted = true;
-    studentService
-      .getNotifications()
-      .then((data) => {
-        if (isMounted) {
-          if (data && data.length > 0) {
-            setNotifications(data);
-          } else {
-            // Default demo notifications
-            setNotifications([
-              {
-                id: "n-1",
-                title: "Application Shortlisted 🎉",
-                subtitle: "Zoho • Frontend Developer",
-                message:
-                  "Congratulations! The hiring manager has shortlisted your application for Frontend Developer.",
-                timeAgo: "2 hours ago",
-                type: "green",
-                companyName: "Zoho",
-                read: false,
-              },
-              {
-                id: "n-2",
-                title: "Interview Scheduled 📅",
-                subtitle: "TCS • Software Engineer",
-                message:
-                  "Your technical interview round has been set for Sep 25 at 10:00 AM IST via Google Meet.",
-                timeAgo: "1 day ago",
-                type: "blue",
-                companyName: "TCS",
-                read: false,
-              },
-              {
-                id: "n-3",
-                title: "New Job Match 🚀",
-                subtitle: "Freshworks • React Developer",
-                message:
-                  "New opening in Frontend Engineering posted this week matching your profile.",
-                timeAgo: "2 days ago",
-                type: "orange",
-                companyName: "Freshworks",
-                read: true,
-              },
-              {
-                id: "n-4",
-                title: "Application Under Review",
-                subtitle: "Infosys • React Developer",
-                message:
-                  "Your application has been received and screening is currently in progress.",
-                timeAgo: "3 days ago",
-                type: "purple",
-                companyName: "Infosys",
-                read: true,
-              },
-            ]);
-          }
-        }
-      })
-      .catch(() => {
-        // Fallback
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
+  const { data: fetchedNotifications, isLoading } = useQuery<StudentNotificationItem[]>({
+    queryKey: ["student-notifications"],
+    queryFn: () => studentService.getNotifications(),
+    staleTime: 15_000,
+  });
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const [localOverrides, setLocalOverrides] = useState<Record<string, boolean>>({});
+
+  const baseNotifications: StudentNotificationItem[] =
+    fetchedNotifications && fetchedNotifications.length > 0
+      ? fetchedNotifications
+      : (DEMO_NOTIFICATIONS as StudentNotificationItem[]);
+
+  const notifications = baseNotifications.map((n) =>
+    localOverrides[n.id] !== undefined ? { ...n, read: localOverrides[n.id] } : n
+  );
 
   const markAllRead = async () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setLocalOverrides((prev) => {
+      const next = { ...prev };
+      notifications.forEach((n) => { next[n.id] = true; });
+      return next;
+    });
     try {
       await studentService.markAllNotificationsAsRead();
+      queryClient.invalidateQueries({ queryKey: ["student-notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["student-unread-notifs"] });
       window.dispatchEvent(new CustomEvent("notificationsUpdated"));
     } catch (e) {
       console.error("Failed to mark all as read:", e);
@@ -105,11 +99,11 @@ export default function StudentNotificationsPage() {
 
   const handleNotificationClick = async (item: StudentNotificationItem) => {
     if (!item.read && item.id && !item.id.startsWith("n-")) {
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === item.id ? { ...n, read: true } : n))
-      );
+      setLocalOverrides((prev) => ({ ...prev, [item.id]: true }));
       try {
         await studentService.markNotificationAsRead(item.id);
+        queryClient.invalidateQueries({ queryKey: ["student-notifications"] });
+        queryClient.invalidateQueries({ queryKey: ["student-unread-notifs"] });
         window.dispatchEvent(new CustomEvent("notificationsUpdated"));
       } catch (e) {
         console.error("Failed to mark as read:", e);
