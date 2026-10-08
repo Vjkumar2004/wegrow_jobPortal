@@ -119,6 +119,10 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [pathname]);
 
+  React.useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   return (
     <AuthGuard allowedRoles={["ADMIN"]} loginRoute="/admin/login">
       <div className="min-h-screen bg-[#F7F9FD] text-[#0B1F4B] font-['Poppins',sans-serif] flex flex-col">
@@ -207,12 +211,41 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
       {/* 2. BODY LAYOUT: FIXED STICKY SIDEBAR + DYNAMIC CONTENT */}
       {/* ============================================================== */}
       <div className="flex flex-1 relative">
-        {/* Left Sidebar (240px fixed, matching student layout) */}
+        {/* Mobile Backdrop Overlay with smooth fade animation */}
+        <div
+          className={`fixed inset-0 bg-[#0B1F4B]/60 backdrop-blur-xs z-[90] lg:hidden transition-opacity duration-300 ease-in-out ${
+            mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
+          onClick={() => setMobileMenuOpen(false)}
+        />
+
+        {/* Left Sidebar (smooth left-to-right slide drawer, 100% solid white) */}
         <aside
-          className={`fixed lg:sticky top-[66px] left-0 z-30 h-[calc(100vh-66px)] w-[240px] bg-white border-r border-[#EEF1F7] flex flex-col justify-between p-4 overflow-y-auto transition-transform duration-200 ease-in-out shrink-0 ${
-            mobileMenuOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
+          style={{ backgroundColor: "#ffffff" }}
+          className={`fixed lg:sticky top-0 lg:top-[66px] left-0 z-[100] lg:z-30 h-full lg:h-[calc(100vh-66px)] w-[270px] sm:w-[240px] bg-white border-r border-[#EEF1F7] flex flex-col justify-between p-4 overflow-y-auto transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform shadow-2xl lg:shadow-none shrink-0 ${
+            mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
           }`}
         >
+          {/* Mobile Drawer Header with Logo & Close Button (hidden on desktop) */}
+          <div className="flex items-center justify-between pb-3.5 mb-2 border-b border-[#EEF1F7] lg:hidden">
+            <div className="relative w-32 h-8">
+              <Image
+                src="/image.png"
+                alt="WeGrow Skill Campus"
+                fill
+                className="object-contain object-left"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-1.5 rounded-lg text-[#6B7694] hover:text-[#0B1F4B] hover:bg-[#F1F4F9] transition-colors cursor-pointer"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
           {/* Navigation Links */}
           <nav className="space-y-1">
             {menuItems.map((item) => {
@@ -281,7 +314,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         </aside>
 
         {/* Dynamic Content Area */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-[calc(100vh-66px)] overflow-x-hidden">
           <main className="flex-1 min-w-0 w-full">{children}</main>
         </div>
       </div>

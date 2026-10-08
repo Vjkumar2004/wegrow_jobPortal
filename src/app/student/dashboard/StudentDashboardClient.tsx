@@ -48,7 +48,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import { authService } from "@/services/auth.service";
-import { getCompanyLogoUrl, getCompanyLogoProxyUrl, getNameInitials } from "@/lib/utils";
+import { getCompanyLogoUrl, getCompanyLogoProxyUrl, getNameInitials, getAvatarUrl } from "@/lib/utils";
 
 // Application status data for Donut Chart
 const DONUT_DATA = [
@@ -208,7 +208,7 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         onError={(e) => {
                           const fallbackUrl = student.id
-                            ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1"}/media/avatar/${student.id}`
+                            ? getAvatarUrl(student.id)
                             : "";
                           if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
                             e.currentTarget.src = fallbackUrl;

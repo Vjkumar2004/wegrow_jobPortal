@@ -53,8 +53,14 @@ export const PageLoader: React.FC<PageLoaderProps> = ({
         />
 
         {/* Center Logo Capsule */}
-        <div className="relative w-16 h-16 rounded-2xl bg-white shadow-md flex items-center justify-center p-2.5 border border-slate-100 overflow-hidden">
-          <div className="relative w-full h-full">
+        <div
+          className="relative w-16 h-16 rounded-2xl bg-white shadow-md flex items-center justify-center p-2.5 border border-slate-100 overflow-hidden"
+          style={{ width: "64px", height: "64px", position: "relative" }}
+        >
+          <div
+            className="relative w-full h-full"
+            style={{ width: "100%", height: "100%", position: "relative" }}
+          >
             <Image
               src="/image.png"
               alt="WeGrow Skill Campus"

@@ -102,7 +102,16 @@ export function mapBackendJobToFrontend(bj: BackendPublicJob): Job {
     deadline: bj.deadline || undefined,
     openings: bj.openings || 1,
     status: (bj.status === "PUBLISHED" ? "Published" : "Draft") as "Published" | "Draft",
-    applicantsCount: 0,
+    applicantsCount:
+      typeof (bj as any).applicantsCount === "number"
+        ? (bj as any).applicantsCount
+        : typeof (bj as any).applicationsCount === "number"
+        ? (bj as any).applicationsCount
+        : typeof bj._count?.applications === "number"
+        ? bj._count.applications
+        : Array.isArray((bj as any).applications)
+        ? (bj as any).applications.length
+        : 0,
     hasApplied: Boolean((bj as any).hasApplied),
     applicationId: (bj as any).applicationId || undefined,
   };
@@ -208,7 +217,7 @@ export const jobsService = {
 
   async getBrowseJobsPageData(params?: JobFilterParams): Promise<import("@/types").StudentBrowseJobsPageData> {
     try {
-      const jobs = await this.getJobs(params);
+      const jobs = await this.getJobs({ limit: 100, ...params });
       const studentBrowseItems = jobs.map((j) => ({
         id: j.id,
         title: j.title,

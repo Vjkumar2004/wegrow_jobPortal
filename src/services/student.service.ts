@@ -137,21 +137,21 @@ export const studentService = {
             data.avatar ||
             data.photoUrl ||
             (data.avatarStorageKey && data.id
-              ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1"}/media/avatar/${data.id}`
+              ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${data.id}`
               : undefined),
           avatar:
             data.avatarUrl ||
             data.avatar ||
             data.photoUrl ||
             (data.avatarStorageKey && data.id
-              ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1"}/media/avatar/${data.id}`
+              ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${data.id}`
               : undefined),
           photoUrl:
             data.avatarUrl ||
             data.avatar ||
             data.photoUrl ||
             (data.avatarStorageKey && data.id
-              ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1"}/media/avatar/${data.id}`
+              ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${data.id}`
               : undefined),
           completionPercentage,
           checklist,
@@ -794,43 +794,185 @@ export const studentService = {
     }
 
     try {
-      const [apps, interviews] = await Promise.all([
+      const [appsRes, interviewsRes, profileRes, jobsRes] = await Promise.all([
         apiClient.get<any>("/students/me/applications").catch(() => null),
         apiClient.get<any>("/students/me/interviews").catch(() => null),
+        apiClient.get<any>("/students/me").catch(() => null),
+        apiClient.get<any>("/jobs").catch(() => null),
       ]);
 
-      const _appRaw: any = apps?.data?.data;
+      const _appRaw: any = appsRes?.data?.data;
       const appItems: any[] =
         (Array.isArray(_appRaw?.items) ? _appRaw.items : null) ??
         (Array.isArray(_appRaw?.applications) ? _appRaw.applications : null) ??
         (Array.isArray(_appRaw) ? _appRaw : []);
-      const interviewItems = interviews?.data?.data?.items || [];
 
-      const shortlisted = appItems.filter((a) => a.status === "SHORTLISTED").length;
-      const offers = appItems.filter((a) => a.status === "SELECTED" || a.status === "OFFERED").length;
-      const successRate = appItems.length > 0 ? `${Math.round((shortlisted / appItems.length) * 100)}%` : "0%";
+      const _intRaw: any = interviewsRes?.data?.data;
+      const interviewItems: any[] =
+        (Array.isArray(_intRaw?.items) ? _intRaw.items : null) ??
+        (Array.isArray(_intRaw) ? _intRaw : []);
+
+      const profileData: any = profileRes?.data?.data?.profile || profileRes?.data?.data?.student || profileRes?.data?.data;
+      const _jobRaw: any = jobsRes?.data?.data;
+      const jobItems: any[] =
+        (Array.isArray(_jobRaw?.items) ? _jobRaw.items : null) ??
+        (Array.isArray(_jobRaw?.jobs) ? _jobRaw.jobs : null) ??
+        (Array.isArray(_jobRaw) ? _jobRaw : []);
+
+      const shortlistedCount = appItems.filter((a) =>
+        ["SHORTLISTED", "INTERVIEW", "SELECTED", "OFFERED"].includes(a.status)
+      ).length;
+      const offersCount = appItems.filter((a) => ["SELECTED", "OFFERED"].includes(a.status)).length;
+      const totalApps = appItems.length;
+      const successRate = totalApps > 0 ? `${Math.round((shortlistedCount / totalApps) * 100)}%` : "0%";
+
+      // 1. Compute dynamic monthly trends from REAL application and interview dates across 2026
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const monthlyMap = new Map<string, { applied: number; shortlisted: number; interviews: number }>();
+      monthNames.forEach((m) => monthlyMap.set(m, { applied: 0, shortlisted: 0, interviews: 0 }));
+
+      appItems.forEach((a) => {
+        if (!a.appliedAt) return;
+        const d = new Date(a.appliedAt);
+        const m = d.toLocaleDateString("en-US", { month: "short" });
+        if (monthlyMap.has(m)) {
+          const entry = monthlyMap.get(m)!;
+          entry.applied++;
+          if (["SHORTLISTED", "INTERVIEW", "SELECTED", "OFFERED"].includes(a.status)) {
+            entry.shortlisted++;
+          }
+        }
+      });
+
+      interviewItems.forEach((i: any) => {
+        const dateStr = i.scheduledStartAt || i.createdAt;
+        if (!dateStr) return;
+        const d = new Date(dateStr);
+        const m = d.toLocaleDateString("en-US", { month: "short" });
+        if (monthlyMap.has(m)) {
+          const entry = monthlyMap.get(m)!;
+          entry.interviews++;
+        }
+      });
+
+      const monthlyTrends = monthNames.map((month) => ({
+        month,
+        ...monthlyMap.get(month)!,
+      }));
+
+      // 2. Compute interview breakdown from REAL interviews
+      const interviewCounts: Record<string, number> = {
+        "Technical Round": 0,
+        "HR Discussion": 0,
+        "Coding Assessment": 0,
+        "Managerial Round": 0,
+      };
+
+      interviewItems.forEach((i: any) => {
+        const type = String(i.type || "").toUpperCase();
+        if (type.includes("HR") || type === "HR_DISCUSSION") {
+          interviewCounts["HR Discussion"]++;
+        } else if (type.includes("ASSESS") || type === "ASSESSMENT") {
+          interviewCounts["Coding Assessment"]++;
+        } else if (type.includes("BEHAVIOR") || type.includes("MANAGE")) {
+          interviewCounts["Managerial Round"]++;
+        } else {
+          interviewCounts["Technical Round"]++;
+        }
+      });
+
+      const interviewBreakdown = [
+        { type: "Technical Round", count: interviewCounts["Technical Round"], color: "#1E5BE0" },
+        { type: "HR Discussion", count: interviewCounts["HR Discussion"], color: "#22B573" },
+        { type: "Coding Assessment", count: interviewCounts["Coding Assessment"], color: "#FF6B00" },
+        { type: "Managerial Round", count: interviewCounts["Managerial Round"], color: "#8B5CF6" },
+      ];
+
+      // 3. Compute recruitment funnel from REAL student applications
+      const underReviewCount = appItems.filter((a) => ["APPLIED", "UNDER_REVIEW", "SCREENING"].includes(a.status)).length;
+      const interviewCount = interviewItems.length || appItems.filter((a) => ["INTERVIEW", "SELECTED", "OFFERED"].includes(a.status)).length;
+      const calcPct = (cnt: number) => (totalApps > 0 ? Math.round((cnt / totalApps) * 100) : 0);
+
+      const statusFunnel = [
+        { stage: "Submitted", count: totalApps, percentage: totalApps > 0 ? 100 : 0, color: "#1E5BE0" },
+        { stage: "Under Review", count: underReviewCount, percentage: calcPct(underReviewCount), color: "#6366F1" },
+        { stage: "Shortlisted", count: shortlistedCount, percentage: calcPct(shortlistedCount), color: "#FF6B00" },
+        { stage: "Interview Calls", count: interviewCount, percentage: calcPct(interviewCount), color: "#22B573" },
+        { stage: "Final Offers", count: offersCount, percentage: calcPct(offersCount), color: "#8B5CF6" },
+      ];
+
+      // 4. Compute applied role conversion ONLY for roles actually applied to
+      const domainMap = new Map<string, { applied: number; shortlisted: number }>();
+      appItems.forEach((a) => {
+        const roleTitle = (a.job?.title || a.jobTitle || "Role").trim();
+        const current = domainMap.get(roleTitle) || { applied: 0, shortlisted: 0 };
+        current.applied++;
+        if (["SHORTLISTED", "INTERVIEW", "SELECTED", "OFFERED"].includes(a.status)) {
+          current.shortlisted++;
+        }
+        domainMap.set(roleTitle, current);
+      });
+
+      const domainPerformance = Array.from(domainMap.entries()).map(([domain, val]) => ({
+        domain,
+        applications: val.applied,
+        shortlisted: val.shortlisted,
+        rate: val.applied > 0 ? `${Math.round((val.shortlisted / val.applied) * 100)}%` : "0%",
+      }));
+
+      // 5. In-demand skills calculated directly from active platform job posts
+      const skillDemandMap = new Map<string, number>();
+      const totalPublishedJobs = jobItems.length;
+      jobItems.forEach((j: any) => {
+        const jobSkills = [
+          ...(Array.isArray(j.jobSkills) ? j.jobSkills.map((js: any) => js.skill?.name || js.name) : []),
+          ...(Array.isArray(j.skills) ? j.skills : []),
+        ].filter(Boolean);
+
+        jobSkills.forEach((sk: string) => {
+          skillDemandMap.set(sk, (skillDemandMap.get(sk) || 0) + 1);
+        });
+      });
+
+      const topSkillsDemand = Array.from(skillDemandMap.entries())
+        .map(([skill, matchCount]) => ({
+          skill,
+          matchCount,
+          percentage: totalPublishedJobs > 0 ? Math.round((matchCount / totalPublishedJobs) * 100) : 0,
+        }))
+        .sort((a, b) => b.matchCount - a.matchCount)
+        .slice(0, 8);
+
+      // 6. Real average turnaround calculation
+      let totalDiffDays = 0;
+      let matchedCount = 0;
+      interviewItems.forEach((i: any) => {
+        const app = appItems.find((a) => a.id === i.applicationId);
+        if (app?.appliedAt && (i.createdAt || i.scheduledStartAt)) {
+          const diffMs = Math.max(0, new Date(i.createdAt || i.scheduledStartAt).getTime() - new Date(app.appliedAt).getTime());
+          const days = Math.max(0.1, +(diffMs / (1000 * 60 * 60 * 24)).toFixed(1));
+          totalDiffDays += days;
+          matchedCount++;
+        }
+      });
+      const avgResponseDays = matchedCount > 0 ? +(totalDiffDays / matchedCount).toFixed(1) : 0;
+      const profileViews = typeof profileData?.viewsCount === "number" ? profileData.viewsCount : 0;
 
       return {
         summary: {
-          totalApplications: appItems.length,
-          shortlisted,
+          totalApplications: totalApps,
+          shortlisted: shortlistedCount,
           interviews: interviewItems.length,
-          offers,
+          offers: offersCount,
           successRate,
-          profileViews: 0,
-          avgResponseDays: 0,
+          profileViews,
+          avgResponseDays,
         },
-        monthlyTrends: [],
-        statusFunnel: [
-          { stage: "Submitted", count: appItems.length, percentage: 100, color: "#1E5BE0" },
-          { stage: "Under Review", count: appItems.filter((a) => a.status === "UNDER_REVIEW" || a.status === "APPLIED").length, percentage: 0, color: "#6366F1" },
-          { stage: "Shortlisted", count: shortlisted, percentage: 0, color: "#FF6B00" },
-          { stage: "Interview Calls", count: interviewItems.length, percentage: 0, color: "#22B573" },
-          { stage: "Final Offers", count: offers, percentage: 0, color: "#8B5CF6" },
-        ],
-        domainPerformance: [],
-        interviewBreakdown: [],
-        topSkillsDemand: [],
+        monthlyTrends,
+        statusFunnel,
+        domainPerformance,
+        interviewBreakdown,
+        topSkillsDemand,
       };
     } catch {
       return {
@@ -843,7 +985,14 @@ export const studentService = {
           profileViews: 0,
           avgResponseDays: 0,
         },
-        monthlyTrends: [],
+        monthlyTrends: [
+          { month: "May", applied: 0, shortlisted: 0, interviews: 0 },
+          { month: "Jun", applied: 0, shortlisted: 0, interviews: 0 },
+          { month: "Jul", applied: 0, shortlisted: 0, interviews: 0 },
+          { month: "Aug", applied: 0, shortlisted: 0, interviews: 0 },
+          { month: "Sep", applied: 0, shortlisted: 0, interviews: 0 },
+          { month: "Oct", applied: 0, shortlisted: 0, interviews: 0 },
+        ],
         statusFunnel: [],
         domainPerformance: [],
         interviewBreakdown: [],
@@ -1171,6 +1320,7 @@ export const studentService = {
           companyLogo: getCompanyLogoUrl(n.company, n.companyId || n.company?.id) || undefined,
           companyId: n.companyId || n.company?.id || undefined,
           read: Boolean(n.read || n.isRead),
+          linkUrl: n.linkUrl || undefined,
         }));
       }
     } catch {
@@ -1184,6 +1334,48 @@ export const studentService = {
       return [];
     }
   },
+
+  /**
+   * PATCH /api/v1/students/me/notifications/read-all
+   */
+
+  /**
+   * GET /api/v1/students/me/notifications unread count
+   */
+  async getUnreadCount(): Promise<number> {
+    try {
+      const res = await apiClient.get<any>("/students/me/notifications");
+      if (typeof res.data?.data?.unreadCount === "number") {
+        return res.data.data.unreadCount;
+      }
+      const items = res.data?.data?.items || res.data?.data;
+      if (Array.isArray(items)) {
+        return items.filter((n: any) => !n.read && !n.isRead).length;
+      }
+    } catch {
+      // Fallback
+    }
+    return 0;
+  },
+  async markAllNotificationsAsRead(): Promise<void> {
+    try {
+      await apiClient.patch("/students/me/notifications/read-all");
+    } catch (err) {
+      console.error("Failed to mark all notifications as read", err);
+    }
+  },
+
+  /**
+   * PATCH /api/v1/students/me/notifications/:id/read
+   */
+  async markNotificationAsRead(id: string): Promise<void> {
+    try {
+      await apiClient.patch(`/students/me/notifications/${id}/read`);
+    } catch (err) {
+      console.error("Failed to mark notification as read", err);
+    }
+  },
+
 };
 
 export default studentService;

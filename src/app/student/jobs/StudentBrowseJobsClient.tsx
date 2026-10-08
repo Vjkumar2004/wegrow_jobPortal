@@ -21,6 +21,7 @@ import {
   Check,
   ArrowRight,
   Filter,
+  Loader2,
 } from "lucide-react";
 import { StudentBrowseJobsPageData, StudentBrowseJobItem } from "@/types";
 import { jobsService } from "@/services/jobs.service";
@@ -50,15 +51,17 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
   const [totalCount, setTotalCount] = useState(initialData.totalJobsCount);
   const [profileCompletion, setProfileCompletion] = useState(initialData.profileCompletion);
 
+  const [isSearching, setIsSearching] = useState(false);
+
   // Sync client-side jobs data and profile completion on mount
   useEffect(() => {
     let isMounted = true;
     jobsService
-      .getBrowseJobsPageData()
+      .getBrowseJobsPageData({ limit: 100 })
       .then((freshData) => {
         if (isMounted && freshData?.jobs && freshData.jobs.length > 0) {
           setJobs(mergeAppliedFromStorage(freshData.jobs));
-          setTotalCount(freshData.totalJobsCount);
+          setTotalCount(freshData.totalJobsCount || freshData.jobs.length);
         }
       })
       .catch(() => {});
@@ -87,7 +90,7 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
   const [selectedExperience, setSelectedExperience] = useState("All");
   const [selectedWorkMode, setSelectedWorkMode] = useState("All");
   const [selectedSalary, setSelectedSalary] = useState("All");
-  const [activeQuickFilter, setActiveQuickFilter] = useState("Fresher");
+  const [activeQuickFilter, setActiveQuickFilter] = useState("");
   const [sortBy, setSortBy] = useState("Newest First");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
@@ -104,6 +107,66 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
     setBookmarks((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  // Helper to parse numerical LPA from salary string
+  const getSalaryLPA = (text?: string): number => {
+    if (!text) return 0;
+    const match = text.match(/(\d+(\.\d+)?)/g);
+    if (!match || match.length === 0) return 0;
+    return Math.max(...match.map(Number));
+  };
+
+  // Debounced search with live backend sync
+  useEffect(() => {
+    if (!searchTerm.trim()) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearching(true);
+        const res = await jobsService.getBrowseJobsPageData({
+          search: searchTerm.trim(),
+          limit: 100,
+        });
+        if (res?.jobs && res.jobs.length > 0) {
+          setJobs((prev) => {
+            const merged = mergeAppliedFromStorage(res.jobs);
+            const existingMap = new Map(prev.map((j) => [j.id, j]));
+            merged.forEach((j) => existingMap.set(j.id, j));
+            return Array.from(existingMap.values());
+          });
+        }
+      } catch (err) {
+        console.warn("Backend search fallback to client data", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handleImmediateSearch = async () => {
+    if (!searchTerm.trim()) return;
+    try {
+      setIsSearching(true);
+      const res = await jobsService.getBrowseJobsPageData({
+        search: searchTerm.trim(),
+        limit: 100,
+      });
+      if (res?.jobs && res.jobs.length > 0) {
+        setJobs((prev) => {
+          const merged = mergeAppliedFromStorage(res.jobs);
+          const existingMap = new Map(prev.map((j) => [j.id, j]));
+          merged.forEach((j) => existingMap.set(j.id, j));
+          return Array.from(existingMap.values());
+        });
+      }
+    } catch {
+      // client-side filtering already handles it
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   // Quick Filter options
   const quickFilters = [
     "Fresher",
@@ -118,55 +181,142 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
     "Data Analyst",
   ];
 
-  // Dynamic live client filtering over jobs list
+  // Dynamic live client filtering over jobs list with smart multi-token search
   const filteredJobs = jobs.filter((job) => {
-    // Search query check
+    // 1. Search query multi-field token matching
     if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase();
-      const matchTitle = job.title.toLowerCase().includes(q);
-      const matchComp = job.company.name.toLowerCase().includes(q);
-      const matchSkills = job.skills.some((s) => s.toLowerCase().includes(q));
-      if (!matchTitle && !matchComp && !matchSkills) return false;
+      const tokens = searchTerm.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const title = (job.title || "").toLowerCase();
+      const compName = (job.company?.name || "").toLowerCase();
+      const loc = (job.location || "").toLowerCase();
+      const jt = (job.jobType || "").toLowerCase();
+      const wm = (job.workMode || "").toLowerCase();
+      const exp = (job.experience || "").toLowerCase();
+      const sal = (job.salaryText || "").toLowerCase();
+      const skills = Array.isArray(job.skills) ? job.skills.map((s) => (s || "").toLowerCase()) : [];
+
+      const matchesAllTokens = tokens.every((token) => {
+        return (
+          title.includes(token) ||
+          compName.includes(token) ||
+          loc.includes(token) ||
+          jt.includes(token) ||
+          wm.includes(token) ||
+          exp.includes(token) ||
+          sal.includes(token) ||
+          skills.some((s) => s.includes(token))
+        );
+      });
+
+      if (!matchesAllTokens) return false;
     }
 
-    // Dropdown filters
-    if (selectedLocation !== "All" && !job.location.toLowerCase().includes(selectedLocation.toLowerCase())) {
-      return false;
-    }
-    if (selectedJobType !== "All" && job.jobType !== selectedJobType) {
-      return false;
-    }
-    if (selectedWorkMode !== "All" && job.workMode !== selectedWorkMode) {
-      return false;
+    // 2. Location filter
+    if (selectedLocation !== "All") {
+      const jobLoc = (job.location || "").toLowerCase();
+      const selLoc = selectedLocation.toLowerCase();
+      if (!jobLoc.includes(selLoc)) return false;
     }
 
-    // Quick filter check
+    // 3. Job Type filter
+    if (selectedJobType !== "All") {
+      if ((job.jobType || "").toLowerCase() !== selectedJobType.toLowerCase()) {
+        return false;
+      }
+    }
+
+    // 4. Work Mode filter
+    if (selectedWorkMode !== "All") {
+      if ((job.workMode || "").toLowerCase() !== selectedWorkMode.toLowerCase()) {
+        return false;
+      }
+    }
+
+    // 5. Experience filter
+    if (selectedExperience !== "All") {
+      const expStr = (job.experience || "").toLowerCase();
+      if (selectedExperience === "0-1 Years" && !expStr.includes("0-1") && !expStr.includes("0-") && !expStr.includes("fresher") && !expStr.includes("entry")) {
+        return false;
+      }
+      if (selectedExperience === "0-2 Years" && !expStr.includes("0-1") && !expStr.includes("0-2") && !expStr.includes("0-") && !expStr.includes("1-2") && !expStr.includes("fresher")) {
+        return false;
+      }
+      if (selectedExperience === "1-3 Years" && !expStr.includes("1-3") && !expStr.includes("1-2") && !expStr.includes("2-3") && !expStr.includes("2+")) {
+        return false;
+      }
+      if (selectedExperience === "3+ Years" && !expStr.includes("3+") && !expStr.includes("3-5") && !expStr.includes("4+") && !expStr.includes("5+") && !expStr.includes("senior")) {
+        return false;
+      }
+    }
+
+    // 6. Salary filter
+    if (selectedSalary !== "All") {
+      const lpa = getSalaryLPA(job.salaryText);
+      if (selectedSalary === "3-6" && (lpa < 3 || lpa > 6)) return false;
+      if (selectedSalary === "6-10" && (lpa < 6 || lpa > 10)) return false;
+      if (selectedSalary === "10+" && lpa < 10) return false;
+    }
+
+    // 7. Quick filter check
     if (activeQuickFilter) {
       const qf = activeQuickFilter.toLowerCase();
-      if (qf === "fresher" && !job.experience.toLowerCase().includes("0-")) {
-        // Allow
-      } else if (qf === "internship" && job.jobType !== "Internship") {
-        return false;
-      } else if (qf === "full time" && job.jobType !== "Full Time") {
-        return false;
-      } else if (qf === "remote" && job.workMode !== "Remote") {
-        return false;
-      } else if (qf === "chennai" && !job.location.includes("Chennai")) {
-        return false;
-      } else if (qf === "bangalore" && !job.location.includes("Bangalore")) {
-        return false;
-      } else if (qf === "design" && !job.title.toLowerCase().includes("design")) {
-        return false;
-      } else if (qf === "data analyst" && !job.title.toLowerCase().includes("data")) {
-        return false;
+      if (qf === "fresher") {
+        const exp = (job.experience || "").toLowerCase();
+        if (!exp.includes("0-") && !exp.includes("fresher") && !exp.includes("entry") && !exp.includes("0 year")) return false;
+      } else if (qf === "internship") {
+        if ((job.jobType || "").toLowerCase() !== "internship") return false;
+      } else if (qf === "full time") {
+        if ((job.jobType || "").toLowerCase() !== "full time") return false;
+      } else if (qf === "remote") {
+        if ((job.workMode || "").toLowerCase() !== "remote" && !(job.location || "").toLowerCase().includes("remote")) return false;
+      } else if (qf === "chennai") {
+        if (!(job.location || "").toLowerCase().includes("chennai")) return false;
+      } else if (qf === "bangalore") {
+        const loc = (job.location || "").toLowerCase();
+        if (!loc.includes("bangalore") && !loc.includes("bengaluru")) return false;
+      } else if (qf === "it") {
+        const combined = `${job.title} ${(job.skills || []).join(" ")}`.toLowerCase();
+        if (!combined.includes("it") && !combined.includes("software") && !combined.includes("developer") && !combined.includes("engineer") && !combined.includes("tech")) return false;
+      } else if (qf === "marketing") {
+        const combined = `${job.title} ${(job.skills || []).join(" ")}`.toLowerCase();
+        if (!combined.includes("marketing") && !combined.includes("sales") && !combined.includes("growth") && !combined.includes("seo")) return false;
+      } else if (qf === "design") {
+        const combined = `${job.title} ${(job.skills || []).join(" ")}`.toLowerCase();
+        if (!combined.includes("design") && !combined.includes("ui") && !combined.includes("ux")) return false;
+      } else if (qf === "data analyst") {
+        const combined = `${job.title} ${(job.skills || []).join(" ")}`.toLowerCase();
+        if (!combined.includes("data") && !combined.includes("analyst") && !combined.includes("analytics")) return false;
       }
     }
 
     return true;
   });
 
+  // Sort filtered jobs
+  const sortedFilteredJobs = [...filteredJobs].sort((a, b) => {
+    if (sortBy === "Salary High to Low") {
+      return getSalaryLPA(b.salaryText) - getSalaryLPA(a.salaryText);
+    }
+    if (sortBy === "Relevance" && searchTerm.trim()) {
+      const q = searchTerm.trim().toLowerCase();
+      const aTitleScore = a.title.toLowerCase().includes(q) ? 2 : 0;
+      const bTitleScore = b.title.toLowerCase().includes(q) ? 2 : 0;
+      const aCompScore = a.company.name.toLowerCase().includes(q) ? 1 : 0;
+      const bCompScore = b.company.name.toLowerCase().includes(q) ? 1 : 0;
+      return (bTitleScore + bCompScore) - (aTitleScore + aCompScore);
+    }
+    return 0;
+  });
+
   // Active filters list for removable chips
   const activeFilterChips: Array<{ key: string; label: string; onRemove: () => void }> = [];
+  if (searchTerm.trim()) {
+    activeFilterChips.push({
+      key: "search",
+      label: `Keyword: "${searchTerm}"`,
+      onRemove: () => setSearchTerm(""),
+    });
+  }
   if (selectedLocation !== "All") {
     activeFilterChips.push({
       key: "loc",
@@ -202,6 +352,13 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
       onRemove: () => setSelectedSalary("All"),
     });
   }
+  if (activeQuickFilter) {
+    activeFilterChips.push({
+      key: "qf",
+      label: `Quick: ${activeQuickFilter}`,
+      onRemove: () => setActiveQuickFilter(""),
+    });
+  }
 
   return (
     <div className="flex-1 flex flex-col xl:flex-row min-w-0 p-4 sm:p-6 lg:p-7 gap-5 overflow-hidden font-['Poppins',sans-serif] text-[#0B1F4B]">
@@ -220,7 +377,10 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
 
           <div className="flex items-center gap-3 self-start md:self-auto shrink-0">
             <span className="text-[14px] font-[500] text-[#0B1F4B]">
-              {totalCount} Jobs Found
+              <strong className="font-bold text-[#1E5BE0]">{sortedFilteredJobs.length}</strong> {sortedFilteredJobs.length === 1 ? "Job" : "Jobs"} Found
+              {(searchTerm.trim() || selectedLocation !== "All" || selectedJobType !== "All" || selectedWorkMode !== "All" || selectedExperience !== "All" || selectedSalary !== "All" || activeQuickFilter) ? (
+                <span className="text-xs text-[#6B7694] ml-1.5 font-normal">(Filtered from {jobs.length})</span>
+              ) : null}
             </span>
 
             {/* Sort Dropdown */}
@@ -271,16 +431,47 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
 
         {/* 2. Filter Card (white, 14px radius, padding 16px) */}
         <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] space-y-3.5">
-          {/* Full-width Search Input (48px height) */}
-          <div className="relative">
+          {/* Full-width Search Input with interactive clear and search action */}
+          <div className="relative flex items-center">
             <Search className="w-5 h-5 text-[#6B7694] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Job title, keyword, or company (e.g. React, TCS, Software Engineer...)"
-              className="w-full h-[48px] bg-[#F4F6FA] text-sm text-[#0B1F4B] placeholder-[#6B7694] pl-12 pr-4 rounded-[10px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0] transition-all"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleImmediateSearch();
+              }}
+              placeholder="Job title, company, skills, or location (e.g. React, Zoho, Chennai, Remote...)"
+              className="w-full h-[50px] bg-[#F4F6FA] text-sm text-[#0B1F4B] placeholder-[#6B7694] pl-12 pr-28 rounded-[12px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0] transition-all"
             />
+            <div className="absolute right-2.5 flex items-center gap-1.5">
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="p-1.5 rounded-full text-[#6B7694] hover:text-[#0B1F4B] hover:bg-[#E3E8F0] transition cursor-pointer"
+                  title="Clear search"
+                  aria-label="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+              {isSearching ? (
+                <div className="px-3 py-1.5 bg-[#1E5BE0]/10 rounded-[8px] flex items-center gap-1 text-[12px] font-medium text-[#1E5BE0]">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span className="hidden sm:inline">Searching</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleImmediateSearch}
+                  className="px-3.5 py-1.5 bg-[#1E5BE0] hover:bg-[#1848B5] text-white text-[12px] font-semibold rounded-[8px] transition cursor-pointer shadow-xs flex items-center gap-1"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Search</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Row of 5 Dropdowns (equal width, 48px height) */}
@@ -439,15 +630,34 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
         )}
 
         {/* 4. Jobs Grid (3 Columns or List Rows) */}
-        {filteredJobs.length === 0 ? (
+        {sortedFilteredJobs.length === 0 ? (
           <div className="bg-white rounded-[14px] p-12 text-center border border-[#EEF1F7] shadow-sm">
             <div className="w-16 h-16 rounded-full bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center mx-auto mb-4">
               <Search className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-[#0B1F4B]">No matching jobs found</h3>
+            <h3 className="text-lg font-bold text-[#0B1F4B]">
+              {searchTerm.trim() ? `No jobs found matching "${searchTerm}"` : "No matching jobs found"}
+            </h3>
             <p className="text-sm text-[#6B7694] mt-1 max-w-sm mx-auto">
               Try adjusting your search keywords, location filters, or experience range to explore more opportunities.
             </p>
+            {(searchTerm.trim() || selectedLocation !== "All" || selectedJobType !== "All" || selectedWorkMode !== "All" || selectedExperience !== "All" || selectedSalary !== "All" || activeQuickFilter) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedLocation("All");
+                  setSelectedJobType("All");
+                  setSelectedExperience("All");
+                  setSelectedWorkMode("All");
+                  setSelectedSalary("All");
+                  setActiveQuickFilter("");
+                  setSearchTerm("");
+                }}
+                className="mt-4 px-5 py-2.5 bg-[#1E5BE0] hover:bg-[#1848B5] text-white text-xs font-semibold rounded-[10px] transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <span>Clear Search & Reset All Filters</span>
+              </button>
+            )}
           </div>
         ) : (
           <div
@@ -457,7 +667,7 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
                 : "space-y-4"
             }
           >
-            {filteredJobs.map((job) => (
+            {sortedFilteredJobs.map((job) => (
               <div
                 key={job.id}
                 className={`bg-white rounded-[14px] p-[18px] border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:border-[#1E5BE0]/40 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between ${

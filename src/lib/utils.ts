@@ -5,13 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const _API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:5000/api/v1";
+import { API_BASE_URL, LIVE_API_URL, LOCAL_API_URL } from "./api/client";
 
 export function getCompanyLogoProxyUrl(companyId: string): string {
-  return `${_API_BASE}/media/company-logo/${companyId}`;
+  return `${API_BASE_URL}/media/company-logo/${companyId}`;
+}
+
+export function getAvatarUrl(studentId?: string): string {
+  if (!studentId) return "";
+  return `${API_BASE_URL}/media/avatar/${studentId}`;
 }
 
 export function formatDate(dateString: string): string {

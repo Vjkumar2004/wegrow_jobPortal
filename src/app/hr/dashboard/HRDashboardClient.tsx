@@ -22,6 +22,8 @@ import {
   Award,
   Download,
   AlertCircle,
+  Video,
+  X,
 } from "lucide-react";
 import {
   PieChart,
@@ -41,6 +43,7 @@ import PostJobModal from "@/components/hr/PostJobModal";
 import CompanyProfileSubSection from "@/components/hr/CompanyProfileSubSection";
 import { authService } from "@/services/auth.service";
 import { hrService } from "@/services/hr.service";
+import { applicationsService } from "@/services/applications.service";
 import { getNameInitials } from "@/lib/utils";
 
 interface HRDashboardClientProps {
@@ -63,6 +66,105 @@ export default function HRDashboardClient({
   const [pipelinePeriod, setPipelinePeriod] = useState("Last 6 Months");
   const [isPostJobModalOpen, setIsPostJobModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const scheduledAppIds = React.useMemo(() => {
+    return new Set(interviews.map((i) => i.applicationId).filter(Boolean));
+  }, [interviews]);
+
+  // Schedule Interview Modal state
+  const [selectedApplicant, setSelectedApplicant] = useState<Application | null>(null);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [interviewDate, setInterviewDate] = useState(() => new Date(Date.now() + 86400000).toISOString().split("T")[0]);
+  const [interviewTime, setInterviewTime] = useState("11:30 AM");
+  const [interviewType, setInterviewType] = useState<"Technical" | "HR Discussion" | "Managerial" | "Screening">("Technical");
+  const [meetingLink, setMeetingLink] = useState("https://meet.google.com/wegrow-interview");
+  const [interviewNotes, setInterviewNotes] = useState("");
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const updateStatus = async (appId: string, newStatus: any) => {
+    try {
+      await applicationsService.updateApplicationStatus(appId, newStatus);
+      setApplicants((prev) =>
+        prev.map((a) => (a.id === appId ? { ...a, status: newStatus } : a))
+      );
+      showToast(`Candidate status updated to "${newStatus}"!`);
+      if (selectedApplicant && selectedApplicant.id === appId) {
+        setSelectedApplicant((prev) => (prev ? { ...prev, status: newStatus } : null));
+      }
+    } catch {
+      showToast(`Failed to update candidate status.`);
+    }
+  };
+
+  const openScheduleModal = (app: Application) => {
+    setSelectedApplicant(app);
+    setInterviewDate(new Date(Date.now() + 86400000).toISOString().split("T")[0]);
+    setMeetingLink("https://meet.google.com/wegrow-interview");
+    setInterviewNotes("");
+    setScheduleModalOpen(true);
+  };
+
+  const handleStatusChange = async (app: Application, newStatus: string) => {
+    if (newStatus === "Interview") {
+      if (scheduledAppIds.has(app.id)) {
+        await updateStatus(app.id, "Interview");
+        return;
+      }
+      openScheduleModal(app);
+      return;
+    }
+    await updateStatus(app.id, newStatus);
+  };
+
+  const handleScheduleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedApplicant) return;
+
+    try {
+      let startIso = new Date(Date.now() + 86400000).toISOString();
+      let endIso = new Date(Date.now() + 86400000 + 3600000).toISOString();
+      if (interviewDate) {
+        let hours = 11, minutes = 30;
+        const match = interviewTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+        if (match) {
+          hours = parseInt(match[1], 10);
+          minutes = parseInt(match[2], 10);
+          const meridiem = match[3]?.toUpperCase();
+          if (meridiem === "PM" && hours < 12) hours += 12;
+          if (meridiem === "AM" && hours === 12) hours = 0;
+        }
+        const d = new Date(interviewDate);
+        d.setHours(hours, minutes, 0, 0);
+        startIso = d.toISOString();
+        endIso = new Date(d.getTime() + 60 * 60 * 1000).toISOString();
+      }
+
+      const scheduled = await hrService.scheduleInterview({
+        applicationId: selectedApplicant.id,
+        candidateName: selectedApplicant.applicantName,
+        candidateEmail: selectedApplicant.applicantEmail,
+        jobTitle: selectedApplicant.jobTitle,
+        date: interviewDate,
+        time: interviewTime,
+        type: interviewType,
+        meetingLink,
+        notes: interviewNotes,
+        scheduledStartAt: startIso,
+        scheduledEndAt: endIso,
+      });
+
+      setInterviews((prev) => [scheduled, ...prev]);
+      await updateStatus(selectedApplicant.id, "Interview");
+      setScheduleModalOpen(false);
+      showToast(`Interview invite scheduled & status updated to "Interview"!`);
+    } catch (err: any) {
+      showToast(err?.message || "Failed to schedule interview.");
+    }
+  };
 
   // Fetch latest HR jobs, applicants, and interviews using client-side auth token
   React.useEffect(() => {
@@ -651,7 +753,7 @@ export default function HRDashboardClient({
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                   const fallbackUrl = app.applicantId
-                                    ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1"}/media/avatar/${app.applicantId}`
+                                    ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${app.applicantId}`
                                     : "";
                                   if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
                                     e.currentTarget.src = fallbackUrl;
@@ -685,25 +787,46 @@ export default function HRDashboardClient({
                         {app.applicantCollege || "College not specified"}
                       </td>
                       <td className="py-3.5 px-3.5">
-                        <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                            app.status === "Shortlisted"
-                              ? "bg-[#E8F8EF] text-[#22B573]"
-                              : app.status === "Interview"
-                              ? "bg-[#FFF0E6] text-[#FF6B00]"
-                              : "bg-[#E8F0FF] text-[#1E5BE0]"
-                          }`}
+                        <select
+                          value={app.status}
+                          onChange={(e) => handleStatusChange(app, e.target.value)}
+                          className="bg-[#F1F4F9] hover:bg-[#E3EEFF] text-[#0B1F4B] text-[11px] font-semibold px-2 py-1 rounded-[6px] border border-[#E3E8F0] focus:outline-none focus:ring-1 focus:ring-[#1E5BE0]/30 cursor-pointer transition-colors"
                         >
-                          {app.status}
-                        </span>
+                          <option value="Under Review">Under Review</option>
+                          <option value="Shortlisted">Shortlisted</option>
+                          <option value="Interview">Interview</option>
+                          <option value="Selected">Selected</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
                       </td>
                       <td className="py-3.5 px-3.5 text-right">
-                        <Link
-                          href="/hr/applicants"
-                          className="inline-flex items-center px-3 py-1.5 border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white rounded-[8px] text-[11px] font-semibold transition-colors"
-                        >
-                          Review
-                        </Link>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {scheduledAppIds.has(app.id) ? (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8] rounded-[6px] text-[11px] font-semibold select-none shadow-2xs"
+                              title="Interview already scheduled"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span className="hidden sm:inline">Scheduled</span>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => openScheduleModal(app)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#1E5BE0] text-white hover:bg-[#1546B0] rounded-[6px] text-[11px] font-semibold transition-colors cursor-pointer"
+                              title="Schedule Assessment / Interview"
+                            >
+                              <Calendar className="w-3 h-3" />
+                              <span className="hidden sm:inline">Schedule</span>
+                            </button>
+                          )}
+                          <Link
+                            href="/hr/applicants"
+                            className="inline-flex items-center px-2 py-1 text-[#6B7694] hover:text-[#1E5BE0] hover:bg-[#F1F4F9] rounded-[6px] text-[11px] font-semibold transition-colors"
+                          >
+                            Review
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -780,10 +903,127 @@ export default function HRDashboardClient({
               Schedule Drive Opening →
             </button>
           </div>
+       </div>
+       </div>
+       </>
+       )}
+
+      {/* SCHEDULE INTERVIEW MODAL */}
+      {scheduleModalOpen && selectedApplicant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B1F4B]/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-[20px] max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-[#EEF1F7] space-y-5">
+            <div className="flex items-center justify-between border-b border-[#EEF1F7] pb-4">
+              <div>
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1E5BE0] bg-[#E8F0FF] px-2.5 py-0.5 rounded-full mb-1">
+                  <Video className="w-3.5 h-3.5" />
+                  Live Interview Setup
+                </div>
+                <h3 className="text-lg font-bold text-[#0B1F4B]">
+                  Schedule Interview Round
+                </h3>
+                <p className="text-xs text-[#6B7694]">
+                  Candidate: <strong className="text-[#0B1F4B]">{selectedApplicant.applicantName}</strong> • {selectedApplicant.jobTitle}
+                </p>
+              </div>
+              <button
+                onClick={() => setScheduleModalOpen(false)}
+                className="p-1.5 rounded-lg text-[#6B7694] hover:bg-[#F1F4F9] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleScheduleSubmit} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-[#0B1F4B] mb-1.5">
+                    Interview Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={interviewDate}
+                    onChange={(e) => setInterviewDate(e.target.value)}
+                    className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] px-3 py-2.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-[#0B1F4B] mb-1.5">
+                    Interview Time *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={interviewTime}
+                    onChange={(e) => setInterviewTime(e.target.value)}
+                    placeholder="e.g. 11:30 AM"
+                    className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] px-3 py-2.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-[#0B1F4B] mb-1.5">
+                    Interview Type *
+                  </label>
+                  <select
+                    value={interviewType}
+                    onChange={(e) => setInterviewType(e.target.value as any)}
+                    className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] px-3 py-2.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20"
+                  >
+                    <option value="Technical">Technical Round</option>
+                    <option value="HR Discussion">HR Discussion</option>
+                    <option value="Managerial">Managerial Round</option>
+                    <option value="Screening">Screening Assessment</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-[#0B1F4B] mb-1.5">
+                    Google Meet / Video Link *
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    value={meetingLink}
+                    onChange={(e) => setMeetingLink(e.target.value)}
+                    className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] px-3 py-2.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[#0B1F4B] mb-1.5">
+                  Internal Notes & Evaluation Criteria
+                </label>
+                <textarea
+                  rows={3}
+                  value={interviewNotes}
+                  onChange={(e) => setInterviewNotes(e.target.value)}
+                  placeholder="Focus on data structures, system design, and prior internship experience..."
+                  className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] px-3 py-2 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 resize-none"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-[#EEF1F7] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setScheduleModalOpen(false)}
+                  className="px-4 py-2 rounded-[8px] font-semibold text-[#6B7694] hover:bg-[#F1F4F9] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-[8px] font-bold bg-[#1E5BE0] hover:bg-[#1546B0] text-white shadow-sm transition-colors cursor-pointer"
+                >
+                  Confirm & Move to Interview Round
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
-      </>
       )}
-    </div>
-  );
-}
+     </div>
+   );
+ }

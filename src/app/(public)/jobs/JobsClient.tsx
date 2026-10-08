@@ -24,6 +24,7 @@ import {
   ArrowUpRight,
   ShieldCheck,
   Share2,
+  X,
 } from "lucide-react";
 
 import { authService } from "@/services/auth.service";
@@ -207,8 +208,24 @@ export default function JobsClient({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#014E9C] focus:ring-2 focus:ring-[#014E9C]/15 outline-none transition-all"
+                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#014E9C] focus:ring-2 focus:ring-[#014E9C]/15 outline-none transition-all"
               />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    startTransition(() => {
+                      router.push("/jobs");
+                    });
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-full transition cursor-pointer"
+                  title="Clear search"
+                  aria-label="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             {/* Location Select (2 Cols) */}

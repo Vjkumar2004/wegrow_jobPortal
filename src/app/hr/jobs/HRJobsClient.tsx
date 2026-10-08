@@ -34,7 +34,7 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
   useEffect(() => {
     hrService.getMyJobs()
       .then((data) => {
-        if (data && data.length > 0) setJobs(data);
+        if (Array.isArray(data)) setJobs(data);
       })
       .catch((err) => console.error("Failed to fetch HR jobs:", err))
       .finally(() => setIsLoading(false));

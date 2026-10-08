@@ -1,10 +1,16 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from "axios";
 
-// Primary API URL configuration
+// Constants for Live and Local backends
+export const LIVE_API_URL = "https://wegrow-jobportal-backend.vercel.app/api/v1";
+export const LOCAL_API_URL = "http://localhost:5000/api/v1";
+
+// Primary API URL configuration with smart environment auto-detection
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:5000/api/v1";
+  (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+    ? LIVE_API_URL
+    : LOCAL_API_URL);
 
 // Storage keys
 export const ACCESS_TOKEN_KEY = "auth_token";

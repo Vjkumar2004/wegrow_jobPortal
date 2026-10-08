@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   BarChart3,
@@ -16,6 +16,7 @@ import {
   Clock,
   ArrowUpRight,
   Zap,
+  Loader2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -32,6 +33,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { hrService } from "@/services/hr.service";
 
 interface HRReportsData {
   jobsPosted: number;
@@ -59,40 +61,97 @@ interface HRReportsData {
   }>;
 }
 
-export default function HRReportsClient({ initialReports }: { initialReports: any }) {
-  const [selectedPeriod, setSelectedPeriod] = useState("Last 6 Months");
-  const [chartType, setChartType] = useState<"bar" | "trend">("bar");
+const EMPTY_HR_REPORTS_DATA: HRReportsData = {
+  jobsPosted: 0,
+  totalApplicants: 0,
+  shortlisted: 0,
+  interviewsScheduled: 0,
+  selectedCandidates: 0,
+  offerAcceptanceRate: "0%",
+  monthlyVelocity: [
+    { month: "Jan", applications: 0, shortlisted: 0, offers: 0 },
+    { month: "Feb", applications: 0, shortlisted: 0, offers: 0 },
+    { month: "Mar", applications: 0, shortlisted: 0, offers: 0 },
+    { month: "Apr", applications: 0, shortlisted: 0, offers: 0 },
+    { month: "May", applications: 0, shortlisted: 0, offers: 0 },
+    { month: "Jun", applications: 0, shortlisted: 0, offers: 0 },
+    { month: "Jul", applications: 0, shortlisted: 0, offers: 0 },
+    { month: "Aug", applications: 0, shortlisted: 0, offers: 0 },
+    { month: "Sep", applications: 0, shortlisted: 0, offers: 0 },
+    { month: "Oct", applications: 0, shortlisted: 0, offers: 0 },
+    { month: "Nov", applications: 0, shortlisted: 0, offers: 0 },
+    { month: "Dec", applications: 0, shortlisted: 0, offers: 0 },
+  ],
+  funnelStages: [
+    { stage: "Submitted Profiles", count: 0, percentage: 0, color: "#1E5BE0" },
+    { stage: "Screening Passed", count: 0, percentage: 0, color: "#6366F1" },
+    { stage: "Shortlisted for Interview", count: 0, percentage: 0, color: "#FF6B00" },
+    { stage: "Technical Video Rounds", count: 0, percentage: 0, color: "#22B573" },
+    { stage: "Final Offer Releases", count: 0, percentage: 0, color: "#8B5CF6" },
+  ],
+  collegeSourceDistribution: [],
+};
 
-  // Rich fallback recruitment analytics matching corporate standards
-  const reportData: HRReportsData = {
-    jobsPosted: initialReports?.jobsPosted || 6,
-    totalApplicants: initialReports?.totalApplicants || 84,
-    shortlisted: initialReports?.shortlisted || 28,
-    interviewsScheduled: initialReports?.interviewsScheduled || 16,
-    selectedCandidates: initialReports?.selectedCandidates || 6,
-    offerAcceptanceRate: "85.7%",
-    monthlyVelocity: [
-      { month: "Nov 2025", applications: 18, shortlisted: 6, offers: 1 },
-      { month: "Dec 2025", applications: 25, shortlisted: 8, offers: 2 },
-      { month: "Jan 2026", applications: 32, shortlisted: 11, offers: 2 },
-      { month: "Feb 2026", applications: 28, shortlisted: 9, offers: 1 },
-      { month: "Mar 2026", applications: 45, shortlisted: 16, offers: 4 },
-      { month: "Apr 2026", applications: 22, shortlisted: 7, offers: 2 },
-    ],
-    funnelStages: [
-      { stage: "Submitted Profiles", count: 84, percentage: 100, color: "#1E5BE0" },
-      { stage: "Screening Passed", count: 52, percentage: 61.9, color: "#6366F1" },
-      { stage: "Shortlisted for Interview", count: 28, percentage: 33.3, color: "#FF6B00" },
-      { stage: "Technical Video Rounds", count: 16, percentage: 19.0, color: "#22B573" },
-      { stage: "Final Offer Releases", count: 6, percentage: 7.1, color: "#8B5CF6" },
-    ],
-    collegeSourceDistribution: [
-      { college: "NIT Trichy", candidates: 34, color: "#1E5BE0" },
-      { college: "IIT Madras", candidates: 22, color: "#FF6B00" },
-      { college: "Anna University", candidates: 18, color: "#22B573" },
-      { college: "PSG Tech Coimbatore", candidates: 10, color: "#8B5CF6" },
-    ],
-  };
+export default function HRReportsClient({ initialReports }: { initialReports?: Partial<HRReportsData> | null }) {
+  const [selectedPeriod, setSelectedPeriod] = useState<"Last 3 Months" | "Last 6 Months" | "Year 2026">("Last 6 Months");
+  const [chartType, setChartType] = useState<"bar" | "trend">("bar");
+  const [isMounted, setIsMounted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [reportData, setReportData] = useState<HRReportsData>(() => {
+    if (initialReports && typeof initialReports.totalApplicants === "number") {
+      return {
+        ...EMPTY_HR_REPORTS_DATA,
+        ...initialReports,
+      } as HRReportsData;
+    }
+    return EMPTY_HR_REPORTS_DATA;
+  });
+
+  useEffect(() => {
+    setIsMounted(true);
+    let isCancelled = false;
+
+    async function loadRealAnalytics() {
+      setLoading(true);
+      try {
+        const realData = await hrService.getReports();
+        if (!isCancelled && realData) {
+          setReportData(realData);
+        }
+      } catch (err) {
+        console.error("Failed to load HR reports from API:", err);
+      } finally {
+        if (!isCancelled) setLoading(false);
+      }
+    }
+
+    loadRealAnalytics();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  // Filter velocity months based on selected dropdown
+  const filteredVelocity = useMemo(() => {
+    const list = reportData.monthlyVelocity || [];
+    if (list.length === 0) return [];
+    if (selectedPeriod === "Last 3 Months") {
+      // Show Aug, Sep, Oct (or last 3 items)
+      return list.length >= 10 ? list.slice(7, 10) : list.slice(-3);
+    }
+    if (selectedPeriod === "Last 6 Months") {
+      // Show May through Oct (or last 6 items)
+      return list.length >= 10 ? list.slice(4, 10) : list.slice(-6);
+    }
+    return list; // Year 2026: all months
+  }, [reportData.monthlyVelocity, selectedPeriod]);
+
+  // Conversion rate computation
+  const shortlistRate = useMemo(() => {
+    if (!reportData.totalApplicants) return 0;
+    return Math.round((reportData.shortlisted / reportData.totalApplicants) * 100);
+  }, [reportData.totalApplicants, reportData.shortlisted]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-7 space-y-6 max-w-7xl mx-auto w-full font-['Poppins',sans-serif]">
@@ -106,14 +165,21 @@ export default function HRReportsClient({ initialReports }: { initialReports: an
             Recruitment Funnel & Sourcing Metrics
           </h1>
           <p className="text-sm text-[#6B7694] mt-1">
-            Analyze campus applicant flow, interview conversion, and partner college hiring yields.
+            Real-time campus applicant flow, interview conversion, and partner college hiring yields.
           </p>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          {loading && (
+            <div className="inline-flex items-center gap-1.5 text-xs text-[#6B7694]">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1E5BE0]" />
+              <span>Updating...</span>
+            </div>
+          )}
+
           <select
             value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
+            onChange={(e) => setSelectedPeriod(e.target.value as any)}
             className="bg-white border border-[#E3E8F0] text-[#0B1F4B] text-xs font-semibold px-3 py-2 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 shadow-xs cursor-pointer"
           >
             <option value="Last 3 Months">Last 3 Months</option>
@@ -123,7 +189,7 @@ export default function HRReportsClient({ initialReports }: { initialReports: an
 
           <button
             type="button"
-            onClick={() => alert("Downloading corporate placement drive summary (PDF)...")}
+            onClick={() => window.print()}
             className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#1E5BE0] hover:bg-[#1546B0] text-white text-xs font-semibold rounded-[10px] transition-colors shadow-sm cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
@@ -134,6 +200,7 @@ export default function HRReportsClient({ initialReports }: { initialReports: an
 
       {/* 2. Top Metric Cards (5 Cards: Applied, Shortlisted, Interviews, Hires, Offer Acceptance) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+        {/* Applicants */}
         <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:shadow-md transition">
           <div className="flex items-center justify-between text-[#6B7694]">
             <span className="text-[11px] font-bold uppercase tracking-wider">Applicants</span>
@@ -144,9 +211,12 @@ export default function HRReportsClient({ initialReports }: { initialReports: an
           <div className="text-2xl sm:text-3xl font-extrabold text-[#0B1F4B] mt-2">
             {reportData.totalApplicants}
           </div>
-          <span className="text-[11px] text-[#22B573] font-semibold mt-1 block">+18 this month</span>
+          <span className="text-[11px] text-[#22B573] font-semibold mt-1 block">
+            {reportData.totalApplicants > 0 ? `+${reportData.totalApplicants} total received` : "No applicants yet"}
+          </span>
         </div>
 
+        {/* Shortlisted */}
         <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:shadow-md transition">
           <div className="flex items-center justify-between text-[#6B7694]">
             <span className="text-[11px] font-bold uppercase tracking-wider">Shortlisted</span>
@@ -157,9 +227,12 @@ export default function HRReportsClient({ initialReports }: { initialReports: an
           <div className="text-2xl sm:text-3xl font-extrabold text-[#FF6B00] mt-2">
             {reportData.shortlisted}
           </div>
-          <span className="text-[11px] text-[#6B7694] mt-1 block">33.3% conversion</span>
+          <span className="text-[11px] text-[#6B7694] mt-1 block">
+            {shortlistRate}% conversion
+          </span>
         </div>
 
+        {/* Interviews */}
         <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:shadow-md transition">
           <div className="flex items-center justify-between text-[#6B7694]">
             <span className="text-[11px] font-bold uppercase tracking-wider">Interviews</span>
@@ -170,9 +243,12 @@ export default function HRReportsClient({ initialReports }: { initialReports: an
           <div className="text-2xl sm:text-3xl font-extrabold text-[#1E5BE0] mt-2">
             {reportData.interviewsScheduled}
           </div>
-          <span className="text-[11px] text-[#1E5BE0] font-semibold mt-1 block">Completed / live</span>
+          <span className="text-[11px] text-[#1E5BE0] font-semibold mt-1 block">
+            {reportData.interviewsScheduled === 1 ? "1 active round" : `${reportData.interviewsScheduled} active rounds`}
+          </span>
         </div>
 
+        {/* Offers Made */}
         <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:shadow-md transition">
           <div className="flex items-center justify-between text-[#6B7694]">
             <span className="text-[11px] font-bold uppercase tracking-wider">Offers Made</span>
@@ -183,9 +259,12 @@ export default function HRReportsClient({ initialReports }: { initialReports: an
           <div className="text-2xl sm:text-3xl font-extrabold text-[#22B573] mt-2">
             {reportData.selectedCandidates}
           </div>
-          <span className="text-[11px] text-[#22B573] font-semibold mt-1 block">Final campus hires</span>
+          <span className="text-[11px] text-[#22B573] font-semibold mt-1 block">
+            {reportData.selectedCandidates === 1 ? "1 campus hire" : `${reportData.selectedCandidates} campus hires`}
+          </span>
         </div>
 
+        {/* Acceptance */}
         <div className="col-span-2 sm:col-span-1 bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:shadow-md transition">
           <div className="flex items-center justify-between text-[#6B7694]">
             <span className="text-[11px] font-bold uppercase tracking-wider">Acceptance</span>
@@ -196,7 +275,7 @@ export default function HRReportsClient({ initialReports }: { initialReports: an
           <div className="text-2xl sm:text-3xl font-extrabold text-[#8B5CF6] mt-2">
             {reportData.offerAcceptanceRate}
           </div>
-          <span className="text-[11px] text-[#8B5CF6] font-semibold mt-1 block">Offer to join</span>
+          <span className="text-[11px] text-[#8B5CF6] font-semibold mt-1 block">Offer to join rate</span>
         </div>
       </div>
 
@@ -208,7 +287,7 @@ export default function HRReportsClient({ initialReports }: { initialReports: an
             <div>
               <h2 className="text-base font-bold text-[#0B1F4B]">Monthly Candidate Pipeline Velocity</h2>
               <p className="text-xs text-[#6B7694] mt-0.5">
-                Applications received vs shortlisted candidates vs offers extended.
+                Real timeline of applications received, shortlisted candidates, and offers extended.
               </p>
             </div>
 
@@ -235,55 +314,62 @@ export default function HRReportsClient({ initialReports }: { initialReports: an
           </div>
 
           <div className="h-[280px] w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              {chartType === "bar" ? (
-                <BarChart data={reportData.monthlyVelocity} barGap={6} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF1F7" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fill: "#6B7694", fontSize: 11, fontFamily: "Poppins" }}
-                    axisLine={{ stroke: "#EEF1F7" }}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fill: "#6B7694", fontSize: 11, fontFamily: "Poppins" }}
-                    axisLine={{ stroke: "#EEF1F7" }}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#0B1F4B",
-                      color: "#FFFFFF",
-                      borderRadius: 10,
-                      border: "none",
-                      fontSize: 12,
-                      fontFamily: "Poppins",
-                      padding: "8px 12px",
-                    }}
-                  />
-                  <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: 12, fontSize: 12 }} />
-                  <Bar dataKey="applications" name="Applications" fill="#1E5BE0" radius={[6, 6, 0, 0]} maxBarSize={30} />
-                  <Bar dataKey="shortlisted" name="Shortlisted" fill="#FF6B00" radius={[6, 6, 0, 0]} maxBarSize={30} />
-                  <Bar dataKey="offers" name="Offers" fill="#22B573" radius={[6, 6, 0, 0]} maxBarSize={30} />
-                </BarChart>
-              ) : (
-                <AreaChart data={reportData.monthlyVelocity} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF1F7" />
-                  <XAxis dataKey="month" tick={{ fill: "#6B7694", fontSize: 11, fontFamily: "Poppins" }} />
-                  <YAxis tick={{ fill: "#6B7694", fontSize: 11, fontFamily: "Poppins" }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#0B1F4B",
-                      color: "#FFFFFF",
-                      borderRadius: 10,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Area type="monotone" dataKey="applications" stroke="#1E5BE0" fill="#1E5BE0" fillOpacity={0.25} />
-                  <Area type="monotone" dataKey="shortlisted" stroke="#FF6B00" fill="#FF6B00" fillOpacity={0.25} />
-                </AreaChart>
-              )}
-            </ResponsiveContainer>
+            {isMounted ? (
+              <ResponsiveContainer width="100%" height="100%">
+                {chartType === "bar" ? (
+                  <BarChart data={filteredVelocity} barGap={6} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF1F7" />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fill: "#6B7694", fontSize: 11, fontFamily: "Poppins" }}
+                      axisLine={{ stroke: "#EEF1F7" }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fill: "#6B7694", fontSize: 11, fontFamily: "Poppins" }}
+                      axisLine={{ stroke: "#EEF1F7" }}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0B1F4B",
+                        color: "#FFFFFF",
+                        borderRadius: 10,
+                        border: "none",
+                        fontSize: 12,
+                        fontFamily: "Poppins",
+                        padding: "8px 12px",
+                      }}
+                    />
+                    <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: 12, fontSize: 12 }} />
+                    <Bar dataKey="applications" name="Applications" fill="#1E5BE0" radius={[6, 6, 0, 0]} maxBarSize={30} />
+                    <Bar dataKey="shortlisted" name="Shortlisted" fill="#FF6B00" radius={[6, 6, 0, 0]} maxBarSize={30} />
+                    <Bar dataKey="offers" name="Offers" fill="#22B573" radius={[6, 6, 0, 0]} maxBarSize={30} />
+                  </BarChart>
+                ) : (
+                  <AreaChart data={filteredVelocity} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF1F7" />
+                    <XAxis dataKey="month" tick={{ fill: "#6B7694", fontSize: 11, fontFamily: "Poppins" }} />
+                    <YAxis allowDecimals={false} tick={{ fill: "#6B7694", fontSize: 11, fontFamily: "Poppins" }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0B1F4B",
+                        color: "#FFFFFF",
+                        borderRadius: 10,
+                        fontSize: 12,
+                      }}
+                    />
+                    <Area type="monotone" dataKey="applications" stroke="#1E5BE0" fill="#1E5BE0" fillOpacity={0.25} />
+                    <Area type="monotone" dataKey="shortlisted" stroke="#FF6B00" fill="#FF6B00" fillOpacity={0.25} />
+                  </AreaChart>
+                )}
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full w-full flex items-center justify-center bg-gray-50/50 rounded-lg">
+                <Loader2 className="w-5 h-5 text-[#1E5BE0] animate-spin" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -293,60 +379,82 @@ export default function HRReportsClient({ initialReports }: { initialReports: an
             <div className="flex items-center justify-between border-b border-[#EEF1F7] pb-3">
               <h2 className="text-base font-bold text-[#0B1F4B]">College Sourcing Yield</h2>
               <span className="text-xs font-semibold text-[#1E5BE0] bg-[#E8F0FF] px-2 py-0.5 rounded-full">
-                4 Campuses
+                {reportData.collegeSourceDistribution.length}{" "}
+                {reportData.collegeSourceDistribution.length === 1 ? "Campus" : "Campuses"}
               </span>
             </div>
             <p className="text-xs text-[#6B7694] mt-2">
-              Distribution of applied students by top engineering institutions.
+              Distribution of applied students by partner colleges.
             </p>
           </div>
 
           <div className="h-[200px] w-full relative flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={reportData.collegeSourceDistribution}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={80}
-                  paddingAngle={4}
-                  dataKey="candidates"
-                >
-                  {reportData.collegeSourceDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#0B1F4B",
-                    color: "#FFFFFF",
-                    borderRadius: 8,
-                    fontSize: 11,
-                    fontFamily: "Poppins",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-extrabold text-[#0B1F4B] leading-none">
-                {reportData.totalApplicants}
-              </span>
-              <span className="text-[10px] uppercase font-semibold text-[#6B7694] mt-0.5">Students</span>
-            </div>
+            {reportData.collegeSourceDistribution.length > 0 && isMounted ? (
+              <>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={reportData.collegeSourceDistribution}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={80}
+                      paddingAngle={4}
+                      dataKey="candidates"
+                    >
+                      {reportData.collegeSourceDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0B1F4B",
+                        color: "#FFFFFF",
+                        borderRadius: 8,
+                        fontSize: 11,
+                        fontFamily: "Poppins",
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xl font-extrabold text-[#0B1F4B] leading-none">
+                    {reportData.totalApplicants}
+                  </span>
+                  <span className="text-[10px] uppercase font-semibold text-[#6B7694] mt-0.5">
+                    {reportData.totalApplicants === 1 ? "Student" : "Students"}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center p-4">
+                <Users className="w-8 h-8 text-[#6B7694]/40 mb-2" />
+                <p className="text-xs text-[#6B7694]">No campus applicant data yet</p>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#EEF1F7]">
-            {reportData.collegeSourceDistribution.map((item) => (
-              <div key={item.college} className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                <div className="text-[11px] truncate">
-                  <span className="text-[#0B1F4B] font-medium block truncate">{item.college}</span>
-                  <span className="text-[#6B7694]">{item.candidates} applied</span>
+          {reportData.collegeSourceDistribution.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2 pt-2 border-t border-[#EEF1F7] max-h-36 overflow-y-auto">
+              {reportData.collegeSourceDistribution.map((item) => (
+                <div key={item.college} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                    <span className="text-[11px] text-[#0B1F4B] font-medium truncate" title={item.college}>
+                      {item.college}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-[#6B7694] shrink-0 font-semibold">
+                    {item.candidates} {item.candidates === 1 ? "applied" : "applied"}
+                  </span>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="pt-2 border-t border-[#EEF1F7] text-center">
+              <span className="text-[11px] text-[#6B7694]">College names appear as students apply</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -356,11 +464,12 @@ export default function HRReportsClient({ initialReports }: { initialReports: an
           <div>
             <h2 className="text-base font-bold text-[#0B1F4B]">Applicant Conversion Funnel</h2>
             <p className="text-xs text-[#6B7694] mt-0.5">
-              Candidate drop-off and progression through campus hiring stages.
+              Candidate drop-off and progression through company recruitment stages.
             </p>
           </div>
           <span className="text-xs font-bold text-[#22B573] bg-[#E8F8EF] px-2.5 py-1 rounded-md">
-            {reportData.selectedCandidates} Hires Confirmed
+            {reportData.selectedCandidates}{" "}
+            {reportData.selectedCandidates === 1 ? "Hire Confirmed" : "Hires Confirmed"}
           </span>
         </div>
 

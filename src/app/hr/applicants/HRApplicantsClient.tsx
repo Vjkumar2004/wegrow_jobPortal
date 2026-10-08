@@ -40,10 +40,19 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
   const [applicants, setApplicants] = useState<Application[]>(initialApplicants);
   const [activeTab, setActiveTab] = useState("All");
 
+  const [scheduledAppIds, setScheduledAppIds] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     hrService.getApplicants().then((data) => {
-      if (data.length > 0) setApplicants(data);
+      if (data && data.length > 0) setApplicants(data);
     });
+
+    hrService.getInterviews().then((ints) => {
+      if (Array.isArray(ints)) {
+        const ids = new Set(ints.map((i) => i.applicationId).filter(Boolean));
+        setScheduledAppIds(ids);
+      }
+    }).catch(() => {});
   }, []);
   const [searchTerm, setSearchTerm] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -53,7 +62,12 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
 
   // Schedule Interview form
-  const [interviewDate, setInterviewDate] = useState("2026-10-15");
+  const getTomorrowDate = () => {
+    const d = new Date(Date.now() + 86400000);
+    return d.toISOString().split("T")[0];
+  };
+
+  const [interviewDate, setInterviewDate] = useState(getTomorrowDate);
   const [interviewTime, setInterviewTime] = useState("11:30 AM");
   const [interviewType, setInterviewType] = useState<"Technical" | "HR Discussion" | "Managerial" | "Screening">("Technical");
   const [meetingLink, setMeetingLink] = useState("https://meet.google.com/wegrow-interview");
@@ -77,28 +91,70 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
 
   const openScheduleModal = (app: Application) => {
     setSelectedApplicant(app);
+    setInterviewDate(getTomorrowDate());
+    setMeetingLink("https://meet.google.com/wegrow-interview");
+    setInterviewNotes("");
     setScheduleModalOpen(true);
+  };
+
+  const handleStatusChange = async (app: Application, newStatus: string) => {
+    if (newStatus === "Interview") {
+      // If already scheduled, just update status
+      if (scheduledAppIds.has(app.id)) {
+        await updateStatus(app.id, "Interview");
+        return;
+      }
+      // If not yet scheduled, open the schedule modal immediately!
+      openScheduleModal(app);
+      return;
+    }
+    await updateStatus(app.id, newStatus);
   };
 
   const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedApplicant) return;
 
-    await hrService.scheduleInterview({
-      applicationId: selectedApplicant.id,
-      candidateName: selectedApplicant.applicantName,
-      candidateEmail: selectedApplicant.applicantEmail,
-      jobTitle: selectedApplicant.jobTitle,
-      date: interviewDate,
-      time: interviewTime,
-      type: interviewType,
-      meetingLink,
-      notes: interviewNotes,
-    });
+    try {
+      let startIso = new Date(Date.now() + 86400000).toISOString();
+      let endIso = new Date(Date.now() + 86400000 + 3600000).toISOString();
+      if (interviewDate) {
+        let hours = 11, minutes = 30;
+        const match = interviewTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+        if (match) {
+          hours = parseInt(match[1], 10);
+          minutes = parseInt(match[2], 10);
+          const meridiem = match[3]?.toUpperCase();
+          if (meridiem === "PM" && hours < 12) hours += 12;
+          if (meridiem === "AM" && hours === 12) hours = 0;
+        }
+        const d = new Date(interviewDate);
+        d.setHours(hours, minutes, 0, 0);
+        startIso = d.toISOString();
+        endIso = new Date(d.getTime() + 60 * 60 * 1000).toISOString();
+      }
 
-    await updateStatus(selectedApplicant.id, "Interview");
-    setScheduleModalOpen(false);
-    showToast(`Interview invite scheduled & status updated to "Interview"!`);
+      await hrService.scheduleInterview({
+        applicationId: selectedApplicant.id,
+        candidateName: selectedApplicant.applicantName,
+        candidateEmail: selectedApplicant.applicantEmail,
+        jobTitle: selectedApplicant.jobTitle,
+        date: interviewDate,
+        time: interviewTime,
+        type: interviewType,
+        meetingLink,
+        notes: interviewNotes,
+        scheduledStartAt: startIso,
+        scheduledEndAt: endIso,
+      });
+
+      setScheduledAppIds((prev) => new Set([...prev, selectedApplicant.id]));
+      await updateStatus(selectedApplicant.id, "Interview");
+      setScheduleModalOpen(false);
+      showToast(`Interview invite scheduled & status updated to "Interview"!`);
+    } catch (err: any) {
+      showToast(err?.message || "Failed to schedule interview.");
+    }
   };
 
   // Filter logic
@@ -234,7 +290,7 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 const fallbackUrl = app.applicantId
-                                  ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1"}/media/avatar/${app.applicantId}`
+                                  ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${app.applicantId}`
                                   : "";
                                 if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
                                   e.currentTarget.src = fallbackUrl;
@@ -303,7 +359,7 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                       <div className="inline-block relative">
                         <select
                           value={app.status}
-                          onChange={(e) => updateStatus(app.id, e.target.value)}
+                          onChange={(e) => handleStatusChange(app, e.target.value)}
                           className="bg-[#F1F4F9] hover:bg-[#E3EEFF] text-[#0B1F4B] text-xs font-semibold px-3 py-1.5 rounded-[8px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 cursor-pointer transition-colors"
                         >
                           <option value="Under Review">Under Review</option>
@@ -347,15 +403,26 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                           <span className="hidden sm:inline">CV</span>
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => openScheduleModal(app)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1E5BE0] text-white hover:bg-[#1546B0] rounded-[8px] text-xs font-semibold transition-colors cursor-pointer"
-                          title="Schedule Assessment / Interview"
-                        >
-                          <Calendar className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">Schedule</span>
-                        </button>
+                        {/* Schedule Button or Scheduled Badge */}
+                        {scheduledAppIds.has(app.id) ? (
+                          <span
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8] rounded-[8px] text-xs font-semibold shadow-2xs select-none"
+                            title="Interview already scheduled"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Scheduled</span>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openScheduleModal(app)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1E5BE0] text-white hover:bg-[#1546B0] rounded-[8px] text-xs font-semibold transition-colors cursor-pointer"
+                            title="Schedule Assessment / Interview"
+                          >
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Schedule</span>
+                          </button>
+                        )}
 
                         <button
                           type="button"

@@ -82,8 +82,13 @@ export interface Interview {
   companyId?: string;
   candidateName: string;
   candidateEmail: string;
+  candidateCollege?: string;
+  candidateAvatar?: string;
+  candidatePhone?: string;
   date: string;
   time: string;
+  scheduledStartAt?: string;
+  scheduledEndAt?: string;
   type: InterviewType;
   meetingLink?: string;
   status: 'Upcoming' | 'Completed' | 'Cancelled';
@@ -257,6 +262,7 @@ export interface StudentNotificationItem {
   companyLogo?: string;
   companyId?: string;
   read?: boolean;
+  linkUrl?: string;
 }
 
 export interface StudentDashboardData {

@@ -16,7 +16,6 @@ import {
   LogOut,
   Menu,
   X,
-  Search,
   ChevronDown,
   Headphones,
 } from "lucide-react";
@@ -56,6 +55,10 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
       if (comp?.logoUrl) setHrCompanyLogoUrl(comp.logoUrl);
     }).catch(() => {});
   }, [isInsideShell]);
+
+  React.useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   // If already inside the shell, only render children
   if (isInsideShell) {
@@ -114,18 +117,6 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
             </Link>
           </div>
 
-          {/* Center: Wide search input (~560px, #F1F4F9, 12px radius) */}
-          <div className="hidden md:flex flex-1 max-w-[560px] mx-auto">
-            <div className="relative w-full">
-              <Search className="w-4 h-4 text-[#6B7694] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search candidates, skills, college batches, job openings..."
-                className="w-full bg-[#F1F4F9] text-sm text-[#0B1F4B] placeholder-[#6B7694] pl-11 pr-4 py-2.5 rounded-[12px] border-none focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 transition-all"
-              />
-            </div>
-          </div>
-
           {/* Right: Recruiter Badge, Notification, Profile, Chevron */}
           <div className="flex items-center gap-3 sm:gap-4 shrink-0">
             <span className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-[#FFF0E6] text-[#FF6B00] text-[11px] font-bold tracking-wide uppercase border border-[#FFE0CC]">
@@ -172,12 +163,41 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
         {/* 2. BODY LAYOUT: FIXED STICKY SIDEBAR + DYNAMIC RIGHT CONTENT */}
         {/* ============================================================== */}
         <div className="flex flex-1 relative">
-          {/* ================= LEFT SIDEBAR (240px fixed, sticky) ================= */}
+          {/* Mobile backdrop with smooth fade animation */}
+          <div
+            className={`fixed inset-0 bg-[#0B1F4B]/60 backdrop-blur-xs z-[90] lg:hidden transition-opacity duration-300 ease-in-out ${
+              mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+            }`}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          {/* ================= LEFT SIDEBAR (smooth left-to-right slide drawer, 100% solid white) ================= */}
           <aside
-            className={`fixed lg:sticky top-[66px] left-0 z-30 h-[calc(100vh-66px)] w-[240px] bg-white border-r border-[#EEF1F7] flex flex-col justify-between p-4 overflow-y-auto transition-transform duration-200 ease-in-out shrink-0 ${
-              mobileMenuOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
+            style={{ backgroundColor: "#ffffff" }}
+            className={`fixed lg:sticky top-0 lg:top-[66px] left-0 z-[100] lg:z-30 h-full lg:h-[calc(100vh-66px)] w-[270px] sm:w-[240px] bg-white border-r border-[#EEF1F7] flex flex-col justify-between p-4 overflow-y-auto transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform shadow-2xl lg:shadow-none shrink-0 ${
+              mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             }`}
           >
+            {/* Mobile Drawer Header with Logo & Close Button (hidden on desktop) */}
+            <div className="flex items-center justify-between pb-3.5 mb-2 border-b border-[#EEF1F7] lg:hidden">
+              <div className="relative w-32 h-8">
+                <Image
+                  src="/image.png"
+                  alt="WeGrow Skill Campus"
+                  fill
+                  className="object-contain object-left"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-1.5 rounded-lg text-[#6B7694] hover:text-[#0B1F4B] hover:bg-[#F1F4F9] transition-colors cursor-pointer"
+                aria-label="Close menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
             {/* Menu items (icon + label, Poppins 500, 15px, 52px row height) */}
             <nav className="space-y-1">
               {sidebarLinks.map((item) => {

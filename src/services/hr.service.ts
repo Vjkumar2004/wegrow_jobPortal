@@ -9,10 +9,32 @@ export const hrService = {
    */
   async getMyJobs(): Promise<Job[]> {
     try {
-      const response = await apiClient.get<{ success: boolean; data: { items: BackendPublicJob[] } }>("/hr/jobs");
-      const items = response.data?.data?.items;
+      const [jobsRes, appsRes] = await Promise.all([
+        apiClient.get<any>("/hr/jobs").catch(() => null),
+        apiClient.get<any>("/hr/applications").catch(() => null),
+      ]);
+
+      const rData = jobsRes?.data?.data;
+      const items =
+        (Array.isArray(rData?.items) ? rData.items : null) ??
+        (Array.isArray(rData?.jobs) ? rData.jobs : null) ??
+        (Array.isArray(rData) ? rData : []);
+
+      const appsRaw = appsRes?.data?.data;
+      const appItems: any[] =
+        (Array.isArray(appsRaw?.items) ? appsRaw.items : null) ??
+        (Array.isArray(appsRaw?.applications) ? appsRaw.applications : null) ??
+        (Array.isArray(appsRaw) ? appsRaw : []);
+
       if (Array.isArray(items)) {
-        return items.map(mapBackendJobToFrontend);
+        return items.map((bj: any) => {
+          const mapped = mapBackendJobToFrontend(bj);
+          const countFromApps = appItems.filter(
+            (a: any) => a.jobId === bj.id || a.job?.id === bj.id || a.job?.title === bj.title
+          ).length;
+          mapped.applicantsCount = Math.max(mapped.applicantsCount || 0, countFromApps);
+          return mapped;
+        });
       }
       return [];
     } catch {
@@ -134,7 +156,7 @@ export const hrService = {
           app.student?.avatarUrl ||
           app.student?.avatar ||
           app.student?.photoUrl ||
-          (app.student?.id ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1"}/media/avatar/${app.student.id}` : undefined),
+          (app.student?.id ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${app.student.id}` : undefined),
         applicantPhone: app.student?.phone || app.student?.user?.phone || undefined,
         applicantCollege:
           app.student?.currentCollege ||
@@ -180,13 +202,18 @@ export const hrService = {
             applicationId: i.applicationId,
             jobTitle: i.application?.job?.title || i.title,
             companyName: i.application?.job?.company?.name || "Hiring Partner",
-            candidateName: i.application?.student?.fullName || "Candidate",
-            candidateEmail: i.application?.student?.user?.email || "",
-            date: d.toLocaleDateString(),
+            companyLogo: i.application?.job?.company?.logoUrl || undefined,
+            candidateName: i.application?.student?.fullName || (i.application?.student as any)?.name || "Candidate",
+            candidateEmail: i.application?.student?.user?.email || (i.application?.student as any)?.email || "",
+            candidateCollege: (i.application?.student as any)?.currentCollege || (i.application?.student as any)?.educations?.[0]?.institution || "",
+            candidateAvatar: (i.application?.student as any)?.avatarUrl || (i.application?.student as any)?.avatar || undefined,
+            date: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
             time: d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            type: i.type === "HR_DISCUSSION" ? "HR Discussion" : "Technical",
+            scheduledStartAt: i.scheduledStartAt,
+            scheduledEndAt: i.scheduledEndAt,
+            type: (i.type === "HR_DISCUSSION" ? "HR Discussion" : i.type === "MANAGERIAL" ? "Managerial" : i.type === "SCREENING" ? "Screening" : "Technical") as any,
             meetingLink: i.meetingLink || undefined,
-            status: (i.status === "SCHEDULED" ? "Upcoming" : "Completed") as "Upcoming" | "Completed",
+            status: (i.status === "SCHEDULED" ? "Upcoming" : i.status === "COMPLETED" ? "Completed" : "Cancelled") as any,
             notes: i.feedback || undefined,
           };
         });
@@ -194,6 +221,30 @@ export const hrService = {
       return [];
     } catch {
       return [];
+    }
+  },
+
+  /**
+   * PATCH /api/v1/hr/interviews/:interviewId/complete
+   */
+  async completeInterview(interviewId: string, feedback?: string): Promise<boolean> {
+    try {
+      await apiClient.patch(`/hr/interviews/${interviewId}/complete`, feedback ? { feedback } : {});
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * PATCH /api/v1/hr/interviews/:interviewId/cancel
+   */
+  async cancelInterview(interviewId: string, feedback?: string): Promise<boolean> {
+    try {
+      await apiClient.patch(`/hr/interviews/${interviewId}/cancel`, feedback ? { feedback } : {});
+      return true;
+    } catch {
+      return false;
     }
   },
 
@@ -338,22 +389,140 @@ export const hrService = {
 
   async getReports() {
     try {
-      const response = await apiClient.get("/hr/reports");
-      return response.data?.data || response.data;
+      const response = await apiClient.get<any>("/hr/reports");
+      if (response.data?.data) {
+        return response.data.data;
+      }
+    } catch {
+      // Derive dynamically from real HR APIs
+    }
+
+    try {
+      const [jobsRes, appsRes, interviewsRes] = await Promise.all([
+        apiClient.get<any>("/hr/jobs").catch(() => null),
+        apiClient.get<any>("/hr/applications").catch(() => null),
+        apiClient.get<any>("/hr/interviews").catch(() => null),
+      ]);
+
+      const jobsData = jobsRes?.data?.data;
+      const jobItems: any[] =
+        (Array.isArray(jobsData?.items) ? jobsData.items : null) ??
+        (Array.isArray(jobsData?.jobs) ? jobsData.jobs : null) ??
+        (Array.isArray(jobsData) ? jobsData : []);
+
+      const appsData = appsRes?.data?.data;
+      const appItems: any[] =
+        (Array.isArray(appsData?.items) ? appsData.items : null) ??
+        (Array.isArray(appsData?.applications) ? appsData.applications : null) ??
+        (Array.isArray(appsData) ? appsData : []);
+
+      const intData = interviewsRes?.data?.data;
+      const interviewItems: any[] =
+        (Array.isArray(intData?.items) ? intData.items : null) ??
+        (Array.isArray(intData) ? intData : []);
+
+      const totalApplicants = appItems.length;
+      const shortlisted = appItems.filter((a: any) =>
+        ["SHORTLISTED", "INTERVIEW", "SELECTED", "OFFERED"].includes(a.status)
+      ).length;
+      const interviewsScheduled = interviewItems.length || appItems.filter((a: any) =>
+        ["INTERVIEW", "SELECTED", "OFFERED"].includes(a.status)
+      ).length;
+      const selectedCandidates = appItems.filter((a: any) =>
+        ["SELECTED", "OFFERED"].includes(a.status)
+      ).length;
+      const offerAcceptanceRate =
+        selectedCandidates > 0 && totalApplicants > 0
+          ? `${Math.round((selectedCandidates / totalApplicants) * 100)}%`
+          : "0%";
+
+      // Monthly velocity from REAL dates across 2026
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const monthlyMap = new Map<string, { applications: number; shortlisted: number; offers: number }>();
+      monthNames.forEach((m) => monthlyMap.set(m, { applications: 0, shortlisted: 0, offers: 0 }));
+
+      appItems.forEach((a: any) => {
+        if (!a.appliedAt) return;
+        const d = new Date(a.appliedAt);
+        const m = d.toLocaleDateString("en-US", { month: "short" });
+        if (monthlyMap.has(m)) {
+          const entry = monthlyMap.get(m)!;
+          entry.applications++;
+          if (["SHORTLISTED", "INTERVIEW", "SELECTED", "OFFERED"].includes(a.status)) {
+            entry.shortlisted++;
+          }
+          if (["SELECTED", "OFFERED"].includes(a.status)) {
+            entry.offers++;
+          }
+        }
+      });
+
+      const monthlyVelocity = monthNames.map((month) => ({
+        month,
+        ...monthlyMap.get(month)!,
+      }));
+
+      // Funnel stages with calculated percentages
+      const calcPct = (cnt: number) => (totalApplicants > 0 ? Math.round((cnt / totalApplicants) * 100) : 0);
+      const screeningPassed = appItems.filter((a: any) =>
+        ["SCREENING", "UNDER_REVIEW", "SHORTLISTED", "INTERVIEW", "SELECTED", "OFFERED"].includes(a.status)
+      ).length;
+
+      const funnelStages = [
+        { stage: "Submitted Profiles", count: totalApplicants, percentage: totalApplicants > 0 ? 100 : 0, color: "#1E5BE0" },
+        { stage: "Screening Passed", count: screeningPassed, percentage: calcPct(screeningPassed), color: "#6366F1" },
+        { stage: "Shortlisted for Interview", count: shortlisted, percentage: calcPct(shortlisted), color: "#FF6B00" },
+        { stage: "Technical Video Rounds", count: interviewsScheduled, percentage: calcPct(interviewsScheduled), color: "#22B573" },
+        { stage: "Final Offer Releases", count: selectedCandidates, percentage: calcPct(selectedCandidates), color: "#8B5CF6" },
+      ];
+
+      // College Sourcing Distribution from candidate real college
+      const collegeMap = new Map<string, number>();
+      const colors = ["#1E5BE0", "#FF6B00", "#22B573", "#8B5CF6", "#EC4899", "#F59E0B"];
+      appItems.forEach((a: any) => {
+        const clg =
+          a.student?.currentCollege ||
+          a.student?.educations?.[0]?.institution ||
+          a.student?.educations?.[0]?.institutionName ||
+          "Other College";
+        collegeMap.set(clg, (collegeMap.get(clg) || 0) + 1);
+      });
+
+      const collegeSourceDistribution = Array.from(collegeMap.entries()).map(([college, candidates], idx) => ({
+        college,
+        candidates,
+        color: colors[idx % colors.length],
+      }));
+
+      return {
+        jobsPosted: jobItems.length,
+        totalApplicants,
+        shortlisted,
+        interviewsScheduled,
+        selectedCandidates,
+        offerAcceptanceRate,
+        monthlyVelocity,
+        funnelStages,
+        collegeSourceDistribution,
+      };
     } catch {
       return {
-        jobsPosted: 8,
-        totalApplicants: 421,
-        shortlisted: 54,
-        interviews: 22,
-        selectedCandidates: 7,
-        funnel: [
-          { stage: "Applied", count: 421 },
-          { stage: "Screened", count: 180 },
-          { stage: "Shortlisted", count: 54 },
-          { stage: "Interview", count: 22 },
-          { stage: "Hired", count: 7 },
+        jobsPosted: 0,
+        totalApplicants: 0,
+        shortlisted: 0,
+        interviewsScheduled: 0,
+        selectedCandidates: 0,
+        offerAcceptanceRate: "0%",
+        monthlyVelocity: [
+          { month: "May", applications: 0, shortlisted: 0, offers: 0 },
+          { month: "Jun", applications: 0, shortlisted: 0, offers: 0 },
+          { month: "Jul", applications: 0, shortlisted: 0, offers: 0 },
+          { month: "Aug", applications: 0, shortlisted: 0, offers: 0 },
+          { month: "Sep", applications: 0, shortlisted: 0, offers: 0 },
+          { month: "Oct", applications: 0, shortlisted: 0, offers: 0 },
         ],
+        funnelStages: [],
+        collegeSourceDistribution: [],
       };
     }
   },

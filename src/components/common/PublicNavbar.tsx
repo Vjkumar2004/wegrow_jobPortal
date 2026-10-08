@@ -21,6 +21,10 @@ export const PublicNavbar: React.FC = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   // Smooth-scroll to a hash anchor; works both on homepage and when navigating from other pages
   const handleHashLink = useCallback(
     (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -78,7 +82,8 @@ export const PublicNavbar: React.FC = () => {
   };
 
   return (
-    <header
+    <>
+      <header
       style={{
         position: "sticky",
         top: 0,
@@ -220,69 +225,99 @@ export const PublicNavbar: React.FC = () => {
           {mobileMenuOpen ? <X className="w-5 h-5 text-[#FF6B00]" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>
-
-      {/* Mobile Navigation Drawer */}
-      {mobileMenuOpen && (
-        <div
-          style={{
-            background: "#FFFFFF",
-            padding: "16px 20px 22px",
-            borderTop: "1px solid #EEF0F5",
-            boxShadow: "0 16px 36px rgba(11,31,75,0.12)",
-          }}
-          className="md:hidden animate-in fade-in slide-in-from-top-3 duration-200"
-        >
-          <nav className="flex flex-col space-y-1 mb-4">
-            {navLinks.map((item) => {
-              const isActive = isLinkActive(item.href, item.hash);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={(e) => {
-                    setMobileMenuOpen(false);
-                    if (item.hash) handleHashLink(e, item.href);
-                  }}
-                  style={{
-                    padding: "10px 14px",
-                    fontFamily: "'Poppins', sans-serif",
-                    fontWeight: 600,
-                    fontSize: "14px",
-                    color: isActive ? "#014E9C" : "#0B1F4B",
-                    borderRadius: "8px",
-                    background: isActive ? "#F0F6FF" : "transparent",
-                    textDecoration: "none",
-                  }}
-                  className="flex items-center justify-between transition-colors hover:bg-slate-50"
-                >
-                  <span>{item.label}</span>
-                  {isActive && <span className="w-2 h-2 rounded-full bg-[#014E9C]" />}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-2.5">
-            <Link
-              href="/student/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-1.5 border-[#014E9C] text-[#014E9C] font-semibold text-xs text-center shadow-xs bg-white active:bg-blue-50"
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>Student</span>
-            </Link>
-            <Link
-              href="/hr/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#F79400] text-white font-semibold text-xs text-center shadow-sm shadow-orange-500/25 active:bg-[#e08500]"
-            >
-              <Building2 className="w-3.5 h-3.5" />
-              <span>HR Login</span>
-            </Link>
-          </div>
-        </div>
-      )}
     </header>
+
+    {/* ============================================================== */}
+    {/* MOBILE DRAWER: SMOOTH LEFT-TO-RIGHT SLIDE WITH BACKDROP (OUTSIDE HEADER) */}
+    {/* ============================================================== */}
+    {/* 1. Backdrop Overlay with smooth fade */}
+    <div
+      className={`fixed inset-0 bg-[#0B1F4B]/60 backdrop-blur-xs z-[99] md:hidden transition-opacity duration-300 ease-in-out ${
+        mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+      }`}
+      onClick={() => setMobileMenuOpen(false)}
+    />
+
+    {/* 2. Sliding Drawer Panel (100% solid white, viewport containing block) */}
+    <aside
+      style={{ backgroundColor: "#ffffff" }}
+      className={`fixed top-0 left-0 bottom-0 z-[100] w-[290px] max-w-[85vw] bg-white shadow-2xl flex flex-col overflow-y-auto p-5 md:hidden transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform ${
+        mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
+      {/* Drawer Header: Logo + Close Button */}
+      <div className="flex items-center justify-between pb-4 border-b border-[#EEF1F7] shrink-0">
+        <Link
+          href="/"
+          onClick={() => setMobileMenuOpen(false)}
+          className="inline-block"
+          aria-label="WeGrow Skill Campus Home"
+        >
+          <div className="relative w-36 h-9">
+            <Image
+              src="/image.png"
+              alt="WeGrow Skill Campus"
+              fill
+              className="object-contain object-left"
+            />
+          </div>
+        </Link>
+        <button
+          onClick={() => setMobileMenuOpen(false)}
+          className="p-2 rounded-xl text-[#6B7694] hover:text-[#0B1F4B] hover:bg-[#F1F4F9] transition-colors cursor-pointer"
+          aria-label="Close menu"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Drawer Navigation Links */}
+      <nav className="flex flex-col space-y-1 mt-4">
+        {navLinks.map((item) => {
+          const isActive = isLinkActive(item.href, item.hash);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={(e) => {
+                setMobileMenuOpen(false);
+                if (item.hash) handleHashLink(e, item.href);
+              }}
+              className={`flex items-center justify-between px-3.5 py-3 rounded-xl font-medium text-[14px] transition-all cursor-pointer ${
+                isActive
+                  ? "bg-[#E3EEFF] text-[#1E5BE0] font-semibold"
+                  : "text-[#0B1F4B] hover:bg-[#F7F9FD] hover:text-[#1E5BE0]"
+              }`}
+            >
+              <span>{item.label}</span>
+              {isActive && <span className="w-2 h-2 rounded-full bg-[#1E5BE0]" />}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Drawer Action Buttons: Student Login & HR Login placed comfortably right below nav links */}
+      <div className="pt-4 mt-4 border-t border-[#EEF1F7] space-y-2.5">
+        <Link
+          href="/student/login"
+          onClick={() => setMobileMenuOpen(false)}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-[1.5px] border-[#014E9C] text-[#014E9C] font-semibold text-[13px] hover:bg-blue-50 transition-colors shadow-2xs"
+        >
+          <User className="w-4 h-4" />
+          <span>Student Portal Login</span>
+        </Link>
+
+        <Link
+          href="/hr/login"
+          onClick={() => setMobileMenuOpen(false)}
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#F79400] text-white font-semibold text-[13px] hover:bg-[#e08500] transition-colors shadow-md shadow-orange-500/20"
+        >
+          <Building2 className="w-4 h-4" />
+          <span>Recruiter / HR Login</span>
+        </Link>
+      </div>
+    </aside>
+  </>
   );
 };
 

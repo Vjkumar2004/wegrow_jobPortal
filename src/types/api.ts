@@ -119,6 +119,11 @@ export interface BackendPublicJob {
   }>;
   hasApplied?: boolean;
   applicationId?: string | null;
+  applicantsCount?: number;
+  _count?: {
+    applications?: number;
+    savedJobs?: number;
+  };
 }
 
 export interface BackendStudentApplication {
