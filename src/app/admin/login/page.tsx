@@ -86,7 +86,7 @@ function AdminLoginContent() {
         {/* Background Image with layered gradient overlays */}
         <div className="absolute inset-0">
           <Image
-            src="/student-login-bg.jpg"
+            src="/student-login-bg.webp"
             alt="Campus Administration & Control Center"
             fill
             priority

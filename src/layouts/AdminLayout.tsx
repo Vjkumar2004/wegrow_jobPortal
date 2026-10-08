@@ -39,12 +39,6 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // If this is login page, do not render shell
-  const isLoginPage = pathname === "/admin/login";
-  if (isLoginPage) {
-    return <>{children}</>;
-  }
-
   const menuItems: SidebarItem[] = [
     { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { label: "HR Management", href: "/admin/hr-management", icon: Building2 },
@@ -65,7 +59,6 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // ==============================================================
   // 10 MINUTES INACTIVITY (IDLE) AUTO-LOGOUT
   // ==============================================================
   React.useEffect(() => {
@@ -117,11 +110,18 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         window.removeEventListener(event, handleUserActivity);
       });
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   React.useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
+
+  // If this is login page, do not render shell
+  const isLoginPage = pathname === "/admin/login";
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   return (
     <AuthGuard allowedRoles={["ADMIN"]} loginRoute="/admin/login">

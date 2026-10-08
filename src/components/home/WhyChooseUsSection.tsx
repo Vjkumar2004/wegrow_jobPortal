@@ -365,7 +365,7 @@ export default function WhyChooseUsSection() {
               }}
             >
               <Image
-                src="/section-3.png"
+                src="/section-3.webp"
                 alt="Student holding laptop with backpack"
                 fill
                 className="object-contain object-bottom"

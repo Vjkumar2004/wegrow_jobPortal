@@ -27,6 +27,7 @@ import {
   Briefcase,
   Loader2,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Interview, Application } from "@/types";
 import { hrService } from "@/services/hr.service";
 import { getNameInitials } from "@/lib/utils";
@@ -36,14 +37,28 @@ interface HRInterviewsClientProps {
 }
 
 export default function HRInterviewsClient({ initialInterviews }: HRInterviewsClientProps) {
-  const [interviews, setInterviews] = useState<Interview[]>(initialInterviews || []);
-  const [applicantsList, setApplicantsList] = useState<Application[]>([]);
+  const queryClient = useQueryClient();
+
+  const { data: interviewsQuery = initialInterviews, isLoading } = useQuery({
+    queryKey: ["hr-interviews"],
+    queryFn: () => hrService.getInterviews(),
+    initialData: initialInterviews.length > 0 ? initialInterviews : undefined,
+    staleTime: 20_000,
+  });
+
+  const { data: applicantsQuery = [] } = useQuery({
+    queryKey: ["hr-applications"],
+    queryFn: () => hrService.getApplicants(),
+    staleTime: 20_000,
+  });
+
+  const [interviews, setInterviews] = useState<Interview[]>(interviewsQuery);
+  const [applicantsList, setApplicantsList] = useState<Application[]>(applicantsQuery);
   const [activeTab, setActiveTab] = useState<"All" | "Upcoming" | "Completed" | "Cancelled">("All");
   const [filterType, setFilterType] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   // Modal State
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -66,37 +81,21 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Fetch real interviews and applicants using client token
   useEffect(() => {
-    let isCancelled = false;
-    setIsLoading(true);
+    if (interviewsQuery) setInterviews(interviewsQuery);
+  }, [interviewsQuery]);
 
-    Promise.all([
-      hrService.getInterviews().catch(() => []),
-      hrService.getApplicants().catch(() => []),
-    ])
-      .then(([ints, apps]) => {
-        if (!isCancelled) {
-          if (Array.isArray(ints)) setInterviews(ints);
-          if (Array.isArray(apps)) {
-            setApplicantsList(apps);
-            if (apps.length > 0) {
-              setSelectedAppId(apps[0].id);
-              setCustomJobTitle(apps[0].jobTitle);
-              setCustomCandidateName(apps[0].applicantName);
-              setCustomCandidateEmail(apps[0].applicantEmail);
-            }
-          }
-        }
-      })
-      .finally(() => {
-        if (!isCancelled) setIsLoading(false);
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
+  useEffect(() => {
+    if (applicantsQuery && applicantsQuery.length > 0) {
+      setApplicantsList(applicantsQuery);
+      if (!selectedAppId) {
+        setSelectedAppId(applicantsQuery[0].id);
+        setCustomJobTitle(applicantsQuery[0].jobTitle);
+        setCustomCandidateName(applicantsQuery[0].applicantName);
+        setCustomCandidateEmail(applicantsQuery[0].applicantEmail);
+      }
+    }
+  }, [applicantsQuery, selectedAppId]);
 
   const copyMeetingLink = (link: string, id: string) => {
     navigator.clipboard.writeText(link);
@@ -113,6 +112,10 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
         setInterviews((prev) =>
           prev.map((i) => (i.id === interviewId ? { ...i, status: "Completed" } : i))
         );
+        queryClient.setQueryData<Interview[]>(["hr-interviews"], (prev) =>
+          (prev ?? []).map((i) => (i.id === interviewId ? { ...i, status: "Completed" } : i))
+        );
+        queryClient.invalidateQueries({ queryKey: ["hr-interviews"] });
         showToast("Interview marked as completed!");
       }
     } catch {
@@ -129,6 +132,10 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
         setInterviews((prev) =>
           prev.map((i) => (i.id === interviewId ? { ...i, status: "Cancelled" } : i))
         );
+        queryClient.setQueryData<Interview[]>(["hr-interviews"], (prev) =>
+          (prev ?? []).map((i) => (i.id === interviewId ? { ...i, status: "Cancelled" } : i))
+        );
+        queryClient.invalidateQueries({ queryKey: ["hr-interviews"] });
         showToast("Interview session cancelled.");
       }
     } catch {
@@ -175,6 +182,8 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
       });
 
       setInterviews((prev) => [created, ...prev]);
+      queryClient.invalidateQueries({ queryKey: ["hr-interviews"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-applications"] });
       setIsScheduleModalOpen(false);
       showToast(`Interview scheduled successfully for ${customCandidateName || "Candidate"}!`);
     } catch (err: any) {

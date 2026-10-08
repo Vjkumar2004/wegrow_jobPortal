@@ -167,7 +167,7 @@ function HRLoginContent() {
         {/* Background Image with layered gradient overlays */}
         <div className="absolute inset-0">
           <Image
-            src="/hr-login-bg.jpg"
+            src="/hr-login-bg.webp"
             alt="HR and Corporate Talent Acquisition"
             fill
             priority

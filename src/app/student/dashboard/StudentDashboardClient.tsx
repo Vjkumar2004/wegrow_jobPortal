@@ -68,6 +68,7 @@ const TREND_DATA = [
   { month: "Sep", applications: 19 },
 ];
 
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StudentDashboardData } from "@/types";
 import { studentService } from "@/services/student.service";
 
@@ -76,34 +77,16 @@ interface StudentDashboardClientProps {
 }
 
 export default function StudentDashboardClient({ initialData }: StudentDashboardClientProps) {
+  const queryClient = useQueryClient();
   const pathname = usePathname();
   const router = useRouter();
 
-  const [dashboardData, setDashboardData] = useState<StudentDashboardData | undefined>(initialData);
-  const [isLoadingData, setIsLoadingData] = useState<boolean>(!initialData);
-
-  useEffect(() => {
-    let isMounted = true;
-    studentService
-      .getDashboardData()
-      .then((data) => {
-        if (isMounted && data) {
-          setDashboardData(data);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to load dashboard data client-side:", err);
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoadingData(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { data: dashboardData, isLoading: isLoadingData } = useQuery({
+    queryKey: ["student-dashboard"],
+    queryFn: () => studentService.getDashboardData(),
+    initialData,
+    staleTime: 30_000,
+  });
 
   // Dynamic state populated from dashboardData
   const student = dashboardData?.student || {
@@ -149,7 +132,7 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
       const newUrl = detail?.avatarUrl || detail?.avatar || detail?.photoUrl;
       if (newUrl) {
         setAvatarError(false);
-        setDashboardData((prev) => {
+        queryClient.setQueryData<StudentDashboardData>(["student-dashboard"], (prev) => {
           if (!prev) return prev;
           return {
             ...prev,
@@ -159,11 +142,12 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
             },
           };
         });
+        queryClient.invalidateQueries({ queryKey: ["student-profile"] });
       }
     };
     window.addEventListener("avatarUpdated", handleAvatarUpdate);
     return () => window.removeEventListener("avatarUpdated", handleAvatarUpdate);
-  }, []);
+  }, [queryClient]);
 
   const toggleSave = (id: string) => {
     setSavedJobs((prev) => ({ ...prev, [id]: !prev[id] }));

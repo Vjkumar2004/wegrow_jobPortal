@@ -21,6 +21,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
 import { studentService } from "@/services/student.service";
 import { getNameInitials } from "@/lib/utils";
@@ -40,6 +41,7 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
   const isInsideShell = React.useContext(StudentShellContext);
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [navImgError, setNavImgError] = useState(false);
   const [studentProfile, setStudentProfile] = useState<{
@@ -54,49 +56,43 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
     headline: "Candidate",
   });
 
+  const { data: profileQuery } = useQuery({
+    queryKey: ["student-profile"],
+    queryFn: () => studentService.getProfile(),
+    staleTime: 60_000,
+  });
+
+  const { data: unreadNotifCount = 0 } = useQuery({
+    queryKey: ["student-unread-notifs"],
+    queryFn: () => studentService.getUnreadCount(),
+    staleTime: 30_000,
+  });
+
   React.useEffect(() => {
     setNavImgError(false);
   }, [studentProfile.avatarUrl, studentProfile.avatar, studentProfile.photoUrl]);
 
   React.useEffect(() => {
-    studentService
-      .getProfile()
-      .then((p) => {
-        if (p) {
-          const url = p.avatarUrl || p.avatar || p.photoUrl;
-          setStudentProfile({
-            id: p.id,
-            name: p.name || "Student",
-            headline: p.degreeName || p.headline || "Candidate",
-            avatarUrl: url,
-            avatar: url,
-            photoUrl: url,
-          });
-        }
-      })
-      .catch(() => {});
-  }, [pathname]);
-
-  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
-
-  const fetchUnreadCount = React.useCallback(() => {
-    studentService
-      .getUnreadCount()
-      .then((count) => setUnreadNotifCount(count))
-      .catch(() => {});
-  }, []);
-
-  React.useEffect(() => {
-    fetchUnreadCount();
-  }, [pathname, fetchUnreadCount]);
+    if (profileQuery) {
+      const url = profileQuery.avatarUrl || profileQuery.avatar || profileQuery.photoUrl;
+      setStudentProfile({
+        id: profileQuery.id,
+        name: profileQuery.name || "Student",
+        headline: profileQuery.degreeName || profileQuery.headline || "Candidate",
+        avatarUrl: url,
+        avatar: url,
+        photoUrl: url,
+      });
+    }
+  }, [profileQuery]);
 
   React.useEffect(() => {
     const handleNotifUpdate = () => {
-      fetchUnreadCount();
+      queryClient.invalidateQueries({ queryKey: ["student-unread-notifs"] });
     };
     window.addEventListener("notificationsUpdated", handleNotifUpdate);
     return () => window.removeEventListener("notificationsUpdated", handleNotifUpdate);
-  }, [fetchUnreadCount]);
+  }, [queryClient]);
 
   React.useEffect(() => {
     const handleAvatarUpdate = (e: Event) => {
@@ -110,11 +106,12 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
           avatar: newUrl,
           photoUrl: newUrl,
         }));
+        queryClient.invalidateQueries({ queryKey: ["student-profile"] });
       }
     };
     window.addEventListener("avatarUpdated", handleAvatarUpdate);
     return () => window.removeEventListener("avatarUpdated", handleAvatarUpdate);
-  }, []);
+  }, [queryClient]);
 
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);

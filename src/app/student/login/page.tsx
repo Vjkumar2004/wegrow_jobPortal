@@ -115,7 +115,7 @@ function StudentLoginContent() {
         {/* Background Image with layered gradient overlays */}
         <div className="absolute inset-0">
           <Image
-            src="/student-login-bg.jpg"
+            src="/student-login-bg.webp"
             alt="Student Career Success"
             fill
             priority

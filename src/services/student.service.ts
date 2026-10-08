@@ -93,16 +93,6 @@ export const studentService = {
           .filter(Boolean);
 
         let activeResume = data.resumes?.[0] || data.resume;
-        if (!activeResume) {
-          try {
-            const list = await studentService.getResumes();
-            if (Array.isArray(list) && list.length > 0) {
-              activeResume = list[0];
-            }
-          } catch {
-            // Silently fallback if getResumes is not reachable
-          }
-        }
 
         const hasResume = Boolean(activeResume?.id || activeResume?.fileUrl || activeResume?.fileName);
         const checklist = [
@@ -1324,15 +1314,10 @@ export const studentService = {
         }));
       }
     } catch {
-      // Fallback to dynamic notifications
+      // Endpoint not available
     }
 
-    try {
-      const db = await this.getDashboardData();
-      return db.notifications || [];
-    } catch {
-      return [];
-    }
+    return [];
   },
 
   /**

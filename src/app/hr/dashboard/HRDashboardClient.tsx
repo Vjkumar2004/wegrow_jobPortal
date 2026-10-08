@@ -24,7 +24,9 @@ import {
   AlertCircle,
   Video,
   X,
+  Loader2,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   PieChart,
   Pie,
@@ -59,13 +61,49 @@ export default function HRDashboardClient({
   initialApplicants,
   initialInterviews,
 }: HRDashboardClientProps) {
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const [jobs, setJobs] = useState<Job[]>(initialJobs);
-  const [applicants, setApplicants] = useState<Application[]>(initialApplicants);
-  const [interviews, setInterviews] = useState<Interview[]>(initialInterviews);
+
+  const { data: jobsQuery = initialJobs } = useQuery({
+    queryKey: ["hr-jobs"],
+    queryFn: () => hrService.getMyJobs(),
+    initialData: initialJobs.length > 0 ? initialJobs : undefined,
+    staleTime: 30_000,
+  });
+
+  const { data: applicantsQuery = initialApplicants } = useQuery({
+    queryKey: ["hr-applications"],
+    queryFn: () => hrService.getApplicants(),
+    initialData: initialApplicants.length > 0 ? initialApplicants : undefined,
+    staleTime: 20_000,
+  });
+
+  const { data: interviewsQuery = initialInterviews } = useQuery({
+    queryKey: ["hr-interviews"],
+    queryFn: () => hrService.getInterviews(),
+    initialData: initialInterviews.length > 0 ? initialInterviews : undefined,
+    staleTime: 20_000,
+  });
+
+  const [jobs, setJobs] = useState<Job[]>(jobsQuery);
+  const [applicants, setApplicants] = useState<Application[]>(applicantsQuery);
+  const [interviews, setInterviews] = useState<Interview[]>(interviewsQuery);
   const [pipelinePeriod, setPipelinePeriod] = useState("Last 6 Months");
   const [isPostJobModalOpen, setIsPostJobModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
+
+  React.useEffect(() => {
+    if (jobsQuery) setJobs(jobsQuery);
+  }, [jobsQuery]);
+
+  React.useEffect(() => {
+    if (applicantsQuery) setApplicants(applicantsQuery);
+  }, [applicantsQuery]);
+
+  React.useEffect(() => {
+    if (interviewsQuery) setInterviews(interviewsQuery);
+  }, [interviewsQuery]);
 
   const scheduledAppIds = React.useMemo(() => {
     return new Set(interviews.map((i) => i.applicationId).filter(Boolean));
@@ -86,16 +124,24 @@ export default function HRDashboardClient({
   };
 
   const updateStatus = async (appId: string, newStatus: any) => {
+    // 1. Optimistic update
+    const prevApplicants = applicants;
+    setApplicants((prev) =>
+      prev.map((a) => (a.id === appId ? { ...a, status: newStatus } : a))
+    );
+    if (selectedApplicant && selectedApplicant.id === appId) {
+      setSelectedApplicant((prev) => (prev ? { ...prev, status: newStatus } : null));
+    }
+    showToast(`Candidate status updated to "${newStatus}"!`);
+
     try {
       await applicationsService.updateApplicationStatus(appId, newStatus);
-      setApplicants((prev) =>
-        prev.map((a) => (a.id === appId ? { ...a, status: newStatus } : a))
+      queryClient.setQueryData<Application[]>(["hr-applications"], (prev) =>
+        (prev ?? []).map((a) => (a.id === appId ? { ...a, status: newStatus } : a))
       );
-      showToast(`Candidate status updated to "${newStatus}"!`);
-      if (selectedApplicant && selectedApplicant.id === appId) {
-        setSelectedApplicant((prev) => (prev ? { ...prev, status: newStatus } : null));
-      }
     } catch {
+      // Rollback on error
+      setApplicants(prevApplicants);
       showToast(`Failed to update candidate status.`);
     }
   };
@@ -125,6 +171,7 @@ export default function HRDashboardClient({
     if (!selectedApplicant) return;
 
     try {
+      setIsSubmittingSchedule(true);
       let startIso = new Date(Date.now() + 86400000).toISOString();
       let endIso = new Date(Date.now() + 86400000 + 3600000).toISOString();
       if (interviewDate) {
@@ -159,33 +206,16 @@ export default function HRDashboardClient({
 
       setInterviews((prev) => [scheduled, ...prev]);
       await updateStatus(selectedApplicant.id, "Interview");
+      queryClient.invalidateQueries({ queryKey: ["hr-interviews"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-applications"] });
       setScheduleModalOpen(false);
       showToast(`Interview invite scheduled & status updated to "Interview"!`);
     } catch (err: any) {
       showToast(err?.message || "Failed to schedule interview.");
+    } finally {
+      setIsSubmittingSchedule(false);
     }
   };
-
-  // Fetch latest HR jobs, applicants, and interviews using client-side auth token
-  React.useEffect(() => {
-    hrService.getMyJobs()
-      .then((data) => {
-        if (data && data.length > 0) setJobs(data);
-      })
-      .catch(() => {});
-
-    hrService.getApplicants()
-      .then((data) => {
-        if (data && data.length > 0) setApplicants(data);
-      })
-      .catch(() => {});
-
-    hrService.getInterviews()
-      .then((data) => {
-        if (data && data.length > 0) setInterviews(data);
-      })
-      .catch(() => {});
-  }, []);
 
   // Sync modal when URL has action=post-job or when custom event is dispatched
   React.useEffect(() => {
@@ -227,10 +257,11 @@ export default function HRDashboardClient({
   const [hrUserName, setHrUserName] = useState<string>("");
 
   React.useEffect(() => {
-    authService.getMe().then((res) => {
-      const user = res.data?.user;
-      const name = user?.name || user?.fullName || user?.hrProfile?.fullName || "Recruiter"; setHrUserName(name);
-      const hr = user?.hrProfile;
+    const user = authService.getCurrentUser();
+    if (user) {
+      const name = user.name || user.fullName || (user as any).hrProfile?.fullName || "Recruiter";
+      setHrUserName(name);
+      const hr = (user as any).hrProfile;
       if (hr?.company) {
         setCompanyName(hr.company.name);
         const st = hr.company.approvalStatus;
@@ -238,7 +269,7 @@ export default function HRDashboardClient({
           st === "APPROVED" ? "Approved" : st === "REJECTED" ? "Rejected" : st === "SUSPENDED" ? "Suspended" : "Pending"
         );
       }
-    }).catch(() => {});
+    }
   }, []);
 
   const activeJobs = jobs.filter((j) => j.status === "Published");
@@ -1015,9 +1046,11 @@ export default function HRDashboardClient({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-[8px] font-bold bg-[#1E5BE0] hover:bg-[#1546B0] text-white shadow-sm transition-colors cursor-pointer"
+                  disabled={isSubmittingSchedule}
+                  className="px-5 py-2.5 rounded-[8px] font-bold bg-[#1E5BE0] hover:bg-[#1546B0] text-white shadow-sm transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-2"
                 >
-                  Confirm & Move to Interview Round
+                  {isSubmittingSchedule && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>{isSubmittingSchedule ? "Scheduling..." : "Confirm & Move to Interview Round"}</span>
                 </button>
               </div>
             </form>

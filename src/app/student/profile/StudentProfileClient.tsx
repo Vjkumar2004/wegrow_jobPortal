@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useTransition } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StudentProfile } from "@/types";
 import { studentService } from "@/services/student.service";
 import { getErrorMessage, API_BASE_URL } from "@/lib/api/client";
@@ -54,12 +55,21 @@ interface StudentProfileClientProps {
 }
 
 export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PROFILE }: StudentProfileClientProps) {
+  const queryClient = useQueryClient();
   const [profile, setProfile] = useState<StudentProfile>(initialProfile);
   const [activeTab, setActiveTab] = useState("Overview");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isPageLoading, setIsPageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isSavingSection, setIsSavingSection] = useState<string | null>(null);
+
+  const { data: profileQuery, isLoading: isProfileQueryLoading } = useQuery({
+    queryKey: ["student-profile"],
+    queryFn: () => studentService.getProfile(),
+    initialData: initialProfile?.id ? initialProfile : undefined,
+    staleTime: 60_000,
+  });
 
   useEffect(() => {
     setImageError(false);
@@ -162,10 +172,11 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
     }, 3500);
   };
 
-  // Re-fetch entire student profile from backend
+  // Re-fetch entire student profile from backend and sync React Query cache
   const refreshProfileData = async () => {
     try {
       const refreshed = await studentService.getProfile();
+      queryClient.setQueryData(["student-profile"], refreshed);
       setProfile(refreshed);
       setAboutForm(refreshed.bio || "");
       setPersonalForm({
@@ -194,49 +205,34 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
     }
   };
 
-  // Initial load on client mount to ensure fresh state with bearer token
+  // Sync profile when React Query cache changes
   useEffect(() => {
-    let isMounted = true;
-    const fetchLatest = async () => {
-      try {
-        setIsPageLoading(true);
-        const data = await studentService.getProfile();
-        if (isMounted && data && data.id) {
-          setProfile(data);
-          setAboutForm(data.bio || "");
-          setPersonalForm({
-            name: data.name || "",
-            email: data.email || "",
-            phone: data.phone || "",
-            location: data.location || "",
-            dateOfBirth: data.dateOfBirth || "",
-            gender: data.gender || "",
-            headline: data.headline || "",
-          });
-          setLinksForm({
-            linkedin: data.linkedin || "",
-            github: data.github || "",
-            portfolio: data.portfolio || "",
-          });
-          setCareerPrefForm({
-            preferredRoles: data.careerPreferences?.preferredRoles || "",
-            preferredLocations: data.careerPreferences?.preferredLocations || "",
-            employmentType: data.careerPreferences?.employmentType || "",
-            expectedSalary: data.careerPreferences?.expectedSalary || "",
-            joiningTimeline: data.careerPreferences?.joiningTimeline || "",
-          });
-        }
-      } catch (err) {
-        console.warn("Could not fetch latest profile on mount:", err);
-      } finally {
-        if (isMounted) setIsPageLoading(false);
-      }
-    };
-    fetchLatest();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (profileQuery && profileQuery.id) {
+      setProfile(profileQuery);
+      setAboutForm(profileQuery.bio || "");
+      setPersonalForm({
+        name: profileQuery.name || "",
+        email: profileQuery.email || "",
+        phone: profileQuery.phone || "",
+        location: profileQuery.location || "",
+        dateOfBirth: profileQuery.dateOfBirth || "",
+        gender: profileQuery.gender || "",
+        headline: profileQuery.headline || "",
+      });
+      setLinksForm({
+        linkedin: profileQuery.linkedin || "",
+        github: profileQuery.github || "",
+        portfolio: profileQuery.portfolio || "",
+      });
+      setCareerPrefForm({
+        preferredRoles: profileQuery.careerPreferences?.preferredRoles || "",
+        preferredLocations: profileQuery.careerPreferences?.preferredLocations || "",
+        employmentType: profileQuery.careerPreferences?.employmentType || "",
+        expectedSalary: profileQuery.careerPreferences?.expectedSalary || "",
+        joiningTimeline: profileQuery.careerPreferences?.joiningTimeline || "",
+      });
+    }
+  }, [profileQuery]);
 
   // Update animated percentage when completion changes
   useEffect(() => {
@@ -273,18 +269,23 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
   // ===================== SAVE ABOUT =====================
   const handleSaveAbout = async () => {
     try {
+      setIsSavingSection("about");
       await studentService.updateProfile({ bio: aboutForm });
+      setProfile((prev) => ({ ...prev, bio: aboutForm }));
       setEditingSection(null);
-      await refreshProfileData();
+      queryClient.invalidateQueries({ queryKey: ["student-profile"] });
       showToast("About Me updated successfully!");
     } catch (err) {
       showToast(getErrorMessage(err, "Failed to update About Me"), "error");
+    } finally {
+      setIsSavingSection(null);
     }
   };
 
   // ===================== SAVE PERSONAL INFO =====================
   const handleSavePersonal = async () => {
     try {
+      setIsSavingSection("personal");
       await studentService.updateProfile({
         headline: personalForm.headline,
         bio: profile.bio,
@@ -294,42 +295,68 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
         dateOfBirth: personalForm.dateOfBirth || undefined,
         gender: personalForm.gender || undefined,
       });
+      setProfile((prev) => ({
+        ...prev,
+        headline: personalForm.headline,
+        phone: personalForm.phone,
+        location: personalForm.location,
+        dateOfBirth: personalForm.dateOfBirth,
+        gender: personalForm.gender,
+      }));
       setEditingSection(null);
-      await refreshProfileData();
+      queryClient.invalidateQueries({ queryKey: ["student-profile"] });
       showToast("Personal Information updated successfully!");
     } catch (err) {
       showToast(getErrorMessage(err, "Failed to update personal information"), "error");
+    } finally {
+      setIsSavingSection(null);
     }
   };
 
   // ===================== SAVE ONLINE LINKS =====================
   const handleSaveLinks = async () => {
     try {
+      setIsSavingSection("links");
       await studentService.updateProfile({
         linkedinUrl: linksForm.linkedin,
         githubUrl: linksForm.github,
         portfolioUrl: linksForm.portfolio,
       });
+      setProfile((prev) => ({
+        ...prev,
+        linkedin: linksForm.linkedin,
+        github: linksForm.github,
+        portfolio: linksForm.portfolio,
+      }));
       setEditingSection(null);
-      await refreshProfileData();
+      queryClient.invalidateQueries({ queryKey: ["student-profile"] });
       showToast("Online links updated successfully!");
     } catch (err) {
       showToast(getErrorMessage(err, "Failed to update links"), "error");
+    } finally {
+      setIsSavingSection(null);
     }
   };
 
   // ===================== SAVE CAREER PREFERENCES =====================
   const handleSaveCareerPref = async () => {
     try {
+      setIsSavingSection("career");
       await studentService.updateProfile({
         careerPreferences: careerPrefForm,
         expectedSalary: careerPrefForm.expectedSalary,
       });
+      setProfile((prev) => ({
+        ...prev,
+        careerPreferences: careerPrefForm,
+      }));
       setEditingSection(null);
-      await refreshProfileData();
+      queryClient.invalidateQueries({ queryKey: ["student-profile"] });
       showToast("Career Preferences updated successfully!");
     } catch (err) {
       showToast(getErrorMessage(err, "Failed to update career preferences"), "error");
+    } finally {
+      setIsSavingSection(null);
     }
   };
 
@@ -1066,9 +1093,11 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                   <button
                     type="button"
                     onClick={handleSaveAbout}
-                    className="px-4 py-2 bg-[#1E5BE0] text-white text-xs font-semibold rounded-lg hover:bg-[#1548b8]"
+                    disabled={isSavingSection === "about"}
+                    className="px-4 py-2 bg-[#1E5BE0] text-white text-xs font-semibold rounded-lg hover:bg-[#1548b8] disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
                   >
-                    Save Changes
+                    {isSavingSection === "about" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <span>{isSavingSection === "about" ? "Saving..." : "Save Changes"}</span>
                   </button>
                 </div>
               </div>
@@ -1188,9 +1217,11 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                   <button
                     type="button"
                     onClick={handleSavePersonal}
-                    className="px-4 py-2 bg-[#1E5BE0] text-white text-xs font-semibold rounded-lg hover:bg-[#1548b8]"
+                    disabled={isSavingSection === "personal"}
+                    className="px-4 py-2 bg-[#1E5BE0] text-white text-xs font-semibold rounded-lg hover:bg-[#1548b8] disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
                   >
-                    Save Changes
+                    {isSavingSection === "personal" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <span>{isSavingSection === "personal" ? "Saving..." : "Save Changes"}</span>
                   </button>
                 </div>
               </div>
@@ -1874,9 +1905,11 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                   <button
                     type="button"
                     onClick={handleSaveLinks}
-                    className="px-3.5 py-1.5 bg-[#1E5BE0] text-white text-xs font-semibold rounded-lg hover:bg-[#1548b8]"
+                    disabled={isSavingSection === "links"}
+                    className="px-3.5 py-1.5 bg-[#1E5BE0] text-white text-xs font-semibold rounded-lg hover:bg-[#1548b8] disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
                   >
-                    Save Links
+                    {isSavingSection === "links" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <span>{isSavingSection === "links" ? "Saving..." : "Save Links"}</span>
                   </button>
                 </div>
               </div>
@@ -2048,9 +2081,11 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                   <button
                     type="button"
                     onClick={handleSaveCareerPref}
-                    className="px-3.5 py-1.5 bg-[#1E5BE0] text-white text-xs font-semibold rounded-lg hover:bg-[#1548b8]"
+                    disabled={isSavingSection === "career"}
+                    className="px-3.5 py-1.5 bg-[#1E5BE0] text-white text-xs font-semibold rounded-lg hover:bg-[#1548b8] disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
                   >
-                    Save Changes
+                    {isSavingSection === "career" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <span>{isSavingSection === "career" ? "Saving..." : "Save Changes"}</span>
                   </button>
                 </div>
               </div>

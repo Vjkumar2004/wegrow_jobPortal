@@ -619,7 +619,7 @@ export default function HeroPage() {
                 {/* Hero Image */}
                 <div style={{ position: "absolute", inset: 0, zIndex: 10 }}>
                   <Image
-                    src="/hero_image_1.png"
+                    src="/hero_image_1.webp"
                     alt="Smiling student with backpack and laptop"
                     fill
                     className="object-contain object-bottom"

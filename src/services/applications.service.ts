@@ -2,7 +2,6 @@ import apiClient from "./api";
 import { Application, ApplicationStatus } from "@/types";
 import { BackendStudentApplication } from "@/types/api";
 import { getCompanyLogoUrl } from "@/lib/utils";
-import { studentService } from "./student.service";
 
 function mapBackendStatusToFrontend(status: string): ApplicationStatus {
   switch (status) {
@@ -160,10 +159,9 @@ export const applicationsService = {
     };
 
     try {
-      const [appsResult, profileResult, fullProfileResult] = await Promise.allSettled([
+      const [appsResult, profileResult] = await Promise.allSettled([
         apiClient.get<any>("/students/me/applications"),
         apiClient.get<any>("/students/me"),
-        studentService.getProfile(),
       ]);
 
       const res = appsResult.status === "fulfilled" ? appsResult.value : null;
@@ -173,20 +171,10 @@ export const applicationsService = {
         (Array.isArray(resData?.applications) ? resData.applications : null) ??
         (Array.isArray(resData) ? resData : []);
 
-      // Compute real profile completion from studentService or /students/me
       let profileCompletion: { percentage: number; checklist: Array<{ label: string; done: boolean }> } =
         { percentage: 0, checklist: [] };
 
-      if (fullProfileResult.status === "fulfilled" && fullProfileResult.value) {
-        const fp = fullProfileResult.value;
-        profileCompletion = {
-          percentage: fp.completionPercentage ?? 0,
-          checklist: (fp.checklist || []).map((c) => ({
-            label: c.label,
-            done: Boolean(c.done),
-          })),
-        };
-      } else if (profileResult.status === "fulfilled") {
+      if (profileResult.status === "fulfilled") {
         const d = profileResult.value?.data?.data;
         const stu = d?.profile || d?.student || d;
         if (stu) {

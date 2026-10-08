@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { hrService } from "@/services/hr.service";
 import Link from "next/link";
 import { Job } from "@/types";
@@ -25,20 +26,17 @@ import {
 import PostJobModal from "@/components/hr/PostJobModal";
 
 export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
-  const [jobs, setJobs] = useState<Job[]>(initialJobs);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(initialJobs.length === 0);
 
-  useEffect(() => {
-    hrService.getMyJobs()
-      .then((data) => {
-        if (Array.isArray(data)) setJobs(data);
-      })
-      .catch((err) => console.error("Failed to fetch HR jobs:", err))
-      .finally(() => setIsLoading(false));
-  }, []);
+  const { data: jobs = initialJobs } = useQuery({
+    queryKey: ["hr-jobs"],
+    queryFn: () => hrService.getMyJobs(),
+    initialData: initialJobs.length > 0 ? initialJobs : undefined,
+    staleTime: 30_000,
+  });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -56,8 +54,9 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
       } else {
         await hrService.publishJob(id);
       }
-      setJobs((prev) =>
-        prev.map((j) => (j.id === id ? { ...j, status: isPublished ? "Paused" : "Published" } : j))
+      // Optimistic local update then refetch to sync server state
+      queryClient.setQueryData<Job[]>(["hr-jobs"], (prev) =>
+        (prev ?? []).map((j) => (j.id === id ? { ...j, status: isPublished ? "Paused" : "Published" } as Job : j))
       );
       showToast(`Job "${target.title}" is now ${isPublished ? "Paused" : "Published"}!`);
     } catch {
@@ -65,15 +64,30 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
     }
   };
 
-  const deleteJob = (id: string, jobTitle: string) => {
-    if (confirm(`Are you sure you want to remove the job opening "${jobTitle}"?`)) {
-      setJobs((prev) => prev.filter((j) => j.id !== id));
-      showToast(`Job opening removed successfully.`);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const deleteJob = async (id: string, jobTitle: string) => {
+    if (!confirm(`Close the job opening "${jobTitle}"? It will no longer accept applications.`)) return;
+    setDeletingId(id);
+    try {
+      const ok = await hrService.closeJob(id);
+      if (ok) {
+        queryClient.setQueryData<Job[]>(["hr-jobs"], (prev) =>
+          (prev ?? []).filter((j) => j.id !== id)
+        );
+        showToast(`Job opening "${jobTitle}" has been closed.`);
+      } else {
+        showToast(`Failed to close "${jobTitle}". Please try again.`);
+      }
+    } catch {
+      showToast(`Failed to close "${jobTitle}". Please try again.`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
   const handleJobCreated = (newJob: Job) => {
-    setJobs([newJob, ...jobs]);
+    queryClient.setQueryData<Job[]>(["hr-jobs"], (prev) => [newJob, ...(prev ?? [])]);
     showToast(`New job "${newJob.title}" published!`);
   };
 
@@ -314,8 +328,9 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
                         <button
                           type="button"
                           onClick={() => deleteJob(job.id, job.title)}
-                          className="p-2 rounded-[8px] text-[#6B7694] hover:text-[#EF4444] hover:bg-rose-50 transition cursor-pointer"
-                          title="Delete Job"
+                          disabled={deletingId === job.id}
+                          className="p-2 rounded-[8px] text-[#6B7694] hover:text-[#EF4444] hover:bg-rose-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Close Job"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -53,35 +54,34 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
 
   const [isSearching, setIsSearching] = useState(false);
 
-  // Sync client-side jobs data and profile completion on mount
+  // Fetch fresh jobs and student profile in parallel, with caching
+  const { data: freshJobsData } = useQuery({
+    queryKey: ["browse-jobs"],
+    queryFn: () => jobsService.getBrowseJobsPageData({ limit: 100 }),
+    staleTime: 60_000,
+  });
+
+  const { data: freshProfile } = useQuery({
+    queryKey: ["student-profile"],
+    queryFn: () => studentService.getProfile(),
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
-    let isMounted = true;
-    jobsService
-      .getBrowseJobsPageData({ limit: 100 })
-      .then((freshData) => {
-        if (isMounted && freshData?.jobs && freshData.jobs.length > 0) {
-          setJobs(mergeAppliedFromStorage(freshData.jobs));
-          setTotalCount(freshData.totalJobsCount || freshData.jobs.length);
-        }
-      })
-      .catch(() => {});
+    if (freshJobsData?.jobs && freshJobsData.jobs.length > 0) {
+      setJobs(mergeAppliedFromStorage(freshJobsData.jobs));
+      setTotalCount(freshJobsData.totalJobsCount || freshJobsData.jobs.length);
+    }
+  }, [freshJobsData]);
 
-    studentService
-      .getProfile()
-      .then((p) => {
-        if (isMounted && p) {
-          setProfileCompletion({
-            percentage: p.completionPercentage || 0,
-            checklist: p.checklist || [],
-          });
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  useEffect(() => {
+    if (freshProfile) {
+      setProfileCompletion({
+        percentage: freshProfile.completionPercentage || 0,
+        checklist: freshProfile.checklist || [],
+      });
+    }
+  }, [freshProfile]);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");

@@ -27,6 +27,7 @@ import {
   X,
   AlertCircle
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { applicationsService } from "@/services/applications.service";
 import { studentService } from "@/services/student.service";
 import { jobsService } from "@/services/jobs.service";
@@ -42,6 +43,7 @@ export default function StudentJobDetailsClient({
   similarJobs = [],
 }: StudentJobDetailsClientProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   // Destructure hasApplied & applicationId from job
   const { hasApplied, applicationId: initialAppId } = job;
@@ -75,15 +77,31 @@ export default function StudentJobDetailsClient({
     email?: string;
   } | null>(null);
 
-  // Check saved and applied status directly from backend APIs & fetch student profile
+  const { data: cachedProfile } = useQuery({
+    queryKey: ["student-profile"],
+    queryFn: () => studentService.getProfile(),
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (cachedProfile) {
+      const edu = (cachedProfile as any).educations?.[0] || cachedProfile.education?.[0];
+      setStudentProfile({
+        fullName: (cachedProfile as any).fullName || cachedProfile.name || "Student",
+        degree: edu?.degree ? `${edu.degree}${edu.institution ? ` - ${edu.institution}` : ""}` : undefined,
+        email: cachedProfile.email || undefined,
+      });
+    }
+  }, [cachedProfile]);
+
+  // Check saved and applied status directly from backend APIs & fresh job info
   useEffect(() => {
     let isMounted = true;
     Promise.all([
       studentService.getSavedJobs().catch(() => []),
       applicationsService.getStudentApplications().catch(() => []),
-      studentService.getProfile().catch(() => null),
       jobsService.getJobById(job.id).catch(() => null),
-    ]).then(([savedList, applicationsList, profile, freshJob]) => {
+    ]).then(([savedList, applicationsList, freshJob]) => {
       if (!isMounted) return;
       if (freshJob?.hasApplied) {
         markApplied(freshJob.applicationId || undefined);
@@ -97,18 +115,11 @@ export default function StudentJobDetailsClient({
           markApplied(found.id);
         }
       }
-      if (profile) {
-        const edu = (profile as any).educations?.[0] || profile.education?.[0];
-        setStudentProfile({
-          fullName: (profile as any).fullName || profile.name || "Student",
-          degree: edu?.degree ? `${edu.degree}${edu.institution ? ` - ${edu.institution}` : ""}` : undefined,
-          email: profile.email || undefined,
-        });
-      }
     });
     return () => {
       isMounted = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job.id]);
 
   // Handle sticky header on scroll & scroll spy
@@ -189,10 +200,14 @@ export default function StudentJobDetailsClient({
       if (res.success) {
         markApplied(res.data?.id);
         setApplyModalOpen(false);
+        queryClient.invalidateQueries({ queryKey: ["student-applications"] });
+        queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["browse-jobs"] });
         triggerToast("Application submitted successfully! Track it in My Applications.");
       } else if (res.message?.toLowerCase().includes("already applied") || res.message?.toLowerCase().includes("already exists")) {
         markApplied();
         setApplyModalOpen(false);
+        queryClient.invalidateQueries({ queryKey: ["student-applications"] });
         triggerToast("You have already applied for this job.");
       } else {
         triggerToast(res.message || "Failed to submit application. Please try again.");

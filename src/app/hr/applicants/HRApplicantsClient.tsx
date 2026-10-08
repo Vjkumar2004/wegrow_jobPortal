@@ -23,7 +23,9 @@ import {
   AlertCircle,
   Video,
   FileText,
+  Loader2,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { applicationsService } from "@/services/applications.service";
 import { hrService } from "@/services/hr.service";
 
@@ -37,25 +39,41 @@ const STATUS_TABS = [
 ];
 
 export default function HRApplicantsClient({ initialApplicants }: { initialApplicants: Application[] }) {
-  const [applicants, setApplicants] = useState<Application[]>(initialApplicants);
+  const queryClient = useQueryClient();
+
+  const { data: applicantsQuery = initialApplicants } = useQuery({
+    queryKey: ["hr-applications"],
+    queryFn: () => hrService.getApplicants(),
+    initialData: initialApplicants.length > 0 ? initialApplicants : undefined,
+    staleTime: 20_000,
+  });
+
+  const { data: interviewsQuery = [] } = useQuery({
+    queryKey: ["hr-interviews"],
+    queryFn: () => hrService.getInterviews(),
+    staleTime: 20_000,
+  });
+
+  const [applicants, setApplicants] = useState<Application[]>(applicantsQuery);
   const [activeTab, setActiveTab] = useState("All");
 
-  const [scheduledAppIds, setScheduledAppIds] = useState<Set<string>>(new Set());
+  const [scheduledAppIds, setScheduledAppIds] = useState<Set<string>>(() => {
+    return new Set(interviewsQuery.map((i: any) => i.applicationId).filter(Boolean));
+  });
 
   useEffect(() => {
-    hrService.getApplicants().then((data) => {
-      if (data && data.length > 0) setApplicants(data);
-    });
+    if (applicantsQuery) setApplicants(applicantsQuery);
+  }, [applicantsQuery]);
 
-    hrService.getInterviews().then((ints) => {
-      if (Array.isArray(ints)) {
-        const ids = new Set(ints.map((i) => i.applicationId).filter(Boolean));
-        setScheduledAppIds(ids);
-      }
-    }).catch(() => {});
-  }, []);
+  useEffect(() => {
+    if (Array.isArray(interviewsQuery)) {
+      setScheduledAppIds(new Set(interviewsQuery.map((i: any) => i.applicationId).filter(Boolean)));
+    }
+  }, [interviewsQuery]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
 
   // Candidate detail / Status update modal
   const [selectedApplicant, setSelectedApplicant] = useState<Application | null>(null);
@@ -79,13 +97,24 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
   };
 
   const updateStatus = async (appId: string, newStatus: any) => {
-    await applicationsService.updateApplicationStatus(appId, newStatus);
+    // 1. Optimistic update
+    const prevApplicants = applicants;
     setApplicants((prev) =>
       prev.map((a) => (a.id === appId ? { ...a, status: newStatus } : a))
     );
-    showToast(`Candidate status updated to "${newStatus}"!`);
     if (selectedApplicant && selectedApplicant.id === appId) {
       setSelectedApplicant((prev) => (prev ? { ...prev, status: newStatus } : null));
+    }
+    showToast(`Candidate status updated to "${newStatus}"!`);
+
+    try {
+      await applicationsService.updateApplicationStatus(appId, newStatus);
+      queryClient.setQueryData<Application[]>(["hr-applications"], (prev) =>
+        (prev ?? []).map((a) => (a.id === appId ? { ...a, status: newStatus } : a))
+      );
+    } catch {
+      setApplicants(prevApplicants);
+      showToast(`Failed to update candidate status.`);
     }
   };
 
@@ -116,6 +145,7 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
     if (!selectedApplicant) return;
 
     try {
+      setIsSubmittingSchedule(true);
       let startIso = new Date(Date.now() + 86400000).toISOString();
       let endIso = new Date(Date.now() + 86400000 + 3600000).toISOString();
       if (interviewDate) {
@@ -150,10 +180,14 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
 
       setScheduledAppIds((prev) => new Set([...prev, selectedApplicant.id]));
       await updateStatus(selectedApplicant.id, "Interview");
+      queryClient.invalidateQueries({ queryKey: ["hr-interviews"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-applications"] });
       setScheduleModalOpen(false);
       showToast(`Interview invite scheduled & status updated to "Interview"!`);
     } catch (err: any) {
       showToast(err?.message || "Failed to schedule interview.");
+    } finally {
+      setIsSubmittingSchedule(false);
     }
   };
 
@@ -555,9 +589,11 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-[8px] font-bold bg-[#1E5BE0] hover:bg-[#1546B0] text-white shadow-sm transition-colors cursor-pointer"
+                  disabled={isSubmittingSchedule}
+                  className="px-5 py-2.5 rounded-[8px] font-bold bg-[#1E5BE0] hover:bg-[#1546B0] text-white shadow-sm transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-2"
                 >
-                  Confirm & Move to Interview Round
+                  {isSubmittingSchedule && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>{isSubmittingSchedule ? "Scheduling..." : "Confirm & Move to Interview Round"}</span>
                 </button>
               </div>
             </form>

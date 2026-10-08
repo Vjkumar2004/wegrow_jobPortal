@@ -589,7 +589,7 @@ export default function MobileAppSection() {
               </div>
             </div>
 
-            {/* THE PHONE IMAGE: /section-5.png on RIGHT SIDE */}
+            {/* THE PHONE IMAGE: /section-5.webp on RIGHT SIDE */}
             <div
               className="phone-right-mockup"
               style={{
@@ -602,7 +602,7 @@ export default function MobileAppSection() {
               }}
             >
               <Image
-                src="/section-5.png"
+                src="/section-5.webp"
                 alt="WeGrow Skill Campus Mobile App"
                 fill
                 className="object-contain"

@@ -22,6 +22,8 @@ import {
 import { authService } from "@/services/auth.service";
 import { hrService } from "@/services/hr.service";
 
+import { useQuery } from "@tanstack/react-query";
+
 interface SidebarItem {
   label: string;
   href: string;
@@ -42,19 +44,30 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [hrCompanyName, setHrCompanyName] = useState("");
   const [hrCompanyLogoUrl, setHrCompanyLogoUrl] = useState<string | null>(null);
 
+  const { data: compProfile } = useQuery({
+    queryKey: ["hr-company"],
+    queryFn: () => hrService.getCompanyProfile(),
+    staleTime: 60_000,
+    enabled: !isInsideShell,
+  });
+
   React.useEffect(() => {
     if (isInsideShell) return;
-    authService.getMe().then((res) => {
-      const user = res.data?.user;
-      const name = user?.name || user?.fullName || user?.hrProfile?.fullName || "Recruiter"; setHrUserName(name);
-      const company = user?.hrProfile?.company;
-      if (company?.name) setHrCompanyName(company.name);
-    }).catch(() => {});
 
-    hrService.getCompanyProfile().then((comp: any) => {
-      if (comp?.logoUrl) setHrCompanyLogoUrl(comp.logoUrl);
-    }).catch(() => {});
+    const localUser = authService.getCurrentUser();
+    if (localUser) {
+      const name = localUser.name || localUser.fullName || (localUser as any).hrProfile?.fullName || "Recruiter";
+      setHrUserName(name);
+      const company = (localUser as any).hrProfile?.company;
+      if (company?.name) setHrCompanyName(company.name);
+      if (company?.logoUrl) setHrCompanyLogoUrl(company.logoUrl);
+    }
   }, [isInsideShell]);
+
+  React.useEffect(() => {
+    if (compProfile?.name) setHrCompanyName(compProfile.name);
+    if (compProfile?.logoUrl) setHrCompanyLogoUrl(compProfile.logoUrl);
+  }, [compProfile]);
 
   React.useEffect(() => {
     setMobileMenuOpen(false);

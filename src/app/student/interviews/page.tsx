@@ -18,32 +18,14 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { useQuery } from "@tanstack/react-query";
+
 export default function StudentInterviewsPage() {
-  const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    studentService
-      .getInterviews()
-      .then((data) => {
-        if (isMounted) {
-          setInterviews(data);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to load interviews client-side:", err);
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { data: interviews = [], isLoading } = useQuery({
+    queryKey: ["student-interviews"],
+    queryFn: () => studentService.getInterviews(),
+    staleTime: 20_000,
+  });
 
   const upcoming = interviews.filter((i) => i.status === "Upcoming");
   const completed = interviews.filter((i) => i.status !== "Upcoming");

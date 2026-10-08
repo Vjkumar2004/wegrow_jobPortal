@@ -423,7 +423,7 @@ export default function ForEmployersSection() {
               }}
             >
               <Image
-                src="/section-4.png"
+                src="/section-4.webp"
                 alt="Smiling Indian businesswoman typing on laptop"
                 fill
                 className="object-contain object-bottom"

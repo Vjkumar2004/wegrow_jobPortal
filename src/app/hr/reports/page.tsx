@@ -1,6 +1,4 @@
 import React from "react";
-import { HRLayout } from "@/layouts/HRLayout";
-import { hrService } from "@/services/hr.service";
 import HRReportsClient from "./HRReportsClient";
 
 export const metadata = {
@@ -8,12 +6,6 @@ export const metadata = {
   description: "Real-time pipeline metrics, applicant drop-off points, and candidate conversion stats.",
 };
 
-export default async function HRReportsPage() {
-  const reports = await hrService.getReports();
-
-  return (
-    <HRLayout>
-      <HRReportsClient initialReports={reports} />
-    </HRLayout>
-  );
+export default function HRReportsPage() {
+  return <HRReportsClient initialReports={null} />;
 }

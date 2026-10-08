@@ -31,6 +31,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { useQuery } from "@tanstack/react-query";
 import { StudentApplicationsPageData, StudentApplicationTrackerItem } from "@/types";
 import { applicationsService } from "@/services/applications.service";
 
@@ -47,7 +48,13 @@ interface StudentApplicationsClientProps {
 }
 
 export default function StudentApplicationsClient({ initialData = DEFAULT_APPLICATIONS_DATA }: StudentApplicationsClientProps) {
-  const [data, setData] = useState<StudentApplicationsPageData>(initialData);
+  const { data = initialData } = useQuery({
+    queryKey: ["student-applications"],
+    queryFn: () => applicationsService.getStudentApplicationsPageData(),
+    initialData,
+    staleTime: 20_000,
+  });
+
   const [activeTab, setActiveTab] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("Most Recent");
@@ -55,24 +62,6 @@ export default function StudentApplicationsClient({ initialData = DEFAULT_APPLIC
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [selectedAppForDrawer, setSelectedAppForDrawer] = useState<StudentApplicationTrackerItem | null>(null);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
-
-  React.useEffect(() => {
-    let isMounted = true;
-    applicationsService
-      .getStudentApplicationsPageData()
-      .then((res) => {
-        if (isMounted && res) {
-          setData(res);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to load applications data client-side:", err);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   // Status Tab filters
   const tabs = [

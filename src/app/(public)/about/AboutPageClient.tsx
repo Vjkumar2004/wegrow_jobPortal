@@ -118,7 +118,7 @@ export default function AboutPageClient() {
       <section className="relative w-full h-[92vh] min-h-[560px] max-h-[820px] overflow-hidden flex items-center">
         {/* Background image */}
         <Image
-          src="/about/campus-hero.jpg"
+          src="/about/campus-hero.webp"
           alt="WeGrow Skill Campus — IT Training Lab"
           fill
           priority
@@ -206,7 +206,7 @@ export default function AboutPageClient() {
             <div className="relative">
               <div className="relative rounded-3xl overflow-hidden shadow-2xl shadow-slate-300/50 aspect-[4/3]">
                 <Image
-                  src="/about/mentor-session.jpg"
+                  src="/about/mentor-session.webp"
                   alt="WeGrow mentor giving personalized guidance"
                   fill
                   className="object-cover"
@@ -340,7 +340,7 @@ export default function AboutPageClient() {
             <div className="relative order-1 lg:order-2">
               <div className="relative rounded-3xl overflow-hidden shadow-2xl shadow-slate-300/50 aspect-[4/3]">
                 <Image
-                  src="/about/placement-success.jpg"
+                  src="/about/placement-success.webp"
                   alt="WeGrow student celebrating job offer"
                   fill
                   className="object-cover"
@@ -564,7 +564,7 @@ export default function AboutPageClient() {
       ══════════════════════════════════════ */}
       <section className="w-full relative overflow-hidden">
         <div className="absolute inset-0">
-          <Image src="/about/campus-hero.jpg" alt="" fill className="object-cover object-top opacity-20" />
+          <Image src="/about/campus-hero.webp" alt="" fill className="object-cover object-top opacity-20" />
           <div className="absolute inset-0 bg-gradient-to-br from-[#001B69] via-[#014E9C]/95 to-[#0369C7]" />
         </div>
         <div className="relative z-10 max-w-4xl mx-auto px-5 sm:px-10 py-20 sm:py-28 text-center">
