@@ -16,45 +16,125 @@ import {
   Camera,
 } from "lucide-react";
 
+import { hrService } from "@/services/hr.service";
+import { authService } from "@/services/auth.service";
+
 export default function CompanyProfileSubSection() {
-  const [name, setName] = useState("Infosys Technologies");
-  const [tagline, setTagline] = useState("Navigate Your Next — Enterprise Digital Consulting");
-  const [industry, setIndustry] = useState("Information Technology & Services");
-  const [location, setLocation] = useState("Electronics City, Bengaluru, Karnataka 560100");
-  const [website, setWebsite] = useState("https://infosys.com");
-  const [size, setSize] = useState("100,000+ employees");
-  const [hrEmail, setHrEmail] = useState("campus.recruitment@infosys.com");
-  const [hrPhone, setHrPhone] = useState("+91 80 2852 0261");
-  const [description, setDescription] = useState(
-    "Infosys is a global leader in next-generation digital services and consulting. We enable clients in more than 56 countries to navigate their digital transformation, powering continuous learning and digital innovation for fresh campus graduates."
-  );
-  const [culture, setCulture] = useState(
-    "We believe in nurturing early-career engineers through global mentorship programs, progressive learning hackathons, and high-impact enterprise projects."
-  );
+  const [name, setName] = useState("");
+  const [tagline, setTagline] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [location, setLocation] = useState("");
+  const [website, setWebsite] = useState("");
+  const [size, setSize] = useState("50 - 200 employees");
+  const [hrEmail, setHrEmail] = useState("");
+  const [hrPhone, setHrPhone] = useState("");
+  const [description, setDescription] = useState("");
+  const [culture, setCulture] = useState("");
+  const [recruiterName, setRecruiterName] = useState("");
   const [saved, setSaved] = useState(false);
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [recruiterAvatarUrl, setRecruiterAvatarUrl] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; isError?: boolean } | null>(null);
 
   const logoInputRef = React.useRef<HTMLInputElement>(null);
   const avatarInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3200);
+  React.useEffect(() => {
+    // Load HR user name
+    authService.getMe().then((res) => {
+      const user = res.data?.user;
+      const name = user?.name || user?.fullName || user?.hrProfile?.fullName || "Recruiter"; setRecruiterName(name);
+    }).catch(() => {});
+
+    // Load company profile via GET /api/v1/hr/company
+    hrService.getCompanyProfile()
+      .then((comp: any) => {
+        if (comp) {
+          if (comp.name) setName(comp.name);
+          if (comp.tagline) setTagline(comp.tagline);
+          if (comp.industry) setIndustry(comp.industry);
+          if (comp.location) setLocation(comp.location);
+          if (comp.website) setWebsite(comp.website);
+          if (comp.size || comp.companySize) setSize(comp.size || comp.companySize);
+          if (comp.about || comp.description) setDescription(comp.about || comp.description);
+          if (comp.culture) setCulture(comp.culture);
+          if (comp.hrEmail) setHrEmail(comp.hrEmail);
+          if (comp.hrPhone) setHrPhone(comp.hrPhone);
+          if (comp.logoUrl) {
+            setCompanyLogoUrl(comp.logoUrl);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const showToast = (text: string, isError = false) => {
+    setToastMessage({ text, isError });
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await hrService.updateCompanyProfile({
+        name,
+        tagline,
+        industry,
+        location,
+        website,
+        size,
+        hrEmail,
+        hrPhone,
+        about: description,
+        culture,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3200);
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || "Failed to save company profile.", true);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          setCompanyLogoUrl(result);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    e.target.value = "";
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
+    if (!allowedTypes.includes(file.type)) {
+      showToast("Please upload a valid logo (JPEG, PNG, WebP, or SVG).", true);
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("Company logo must be under 2 MB.", true);
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const res = await hrService.uploadCompanyLogo(file);
+      if (res?.logoUrl) {
+        setCompanyLogoUrl(res.logoUrl + `?t=${Date.now()}`);
+      }
+      showToast("Company logo uploaded successfully!");
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || "Failed to upload company logo";
+      showToast(msg, true);
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const handleDeleteLogo = async () => {
+    if (!confirm("Are you sure you want to remove the company logo?")) return;
+    try {
+      await hrService.deleteCompanyLogo();
+      setCompanyLogoUrl(null);
+      showToast("Company logo removed successfully.");
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to delete company logo", true);
     }
   };
 
@@ -82,6 +162,20 @@ export default function CompanyProfileSubSection() {
         </div>
       )}
 
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          className={`p-4 text-sm font-semibold rounded-[12px] border flex items-center gap-2.5 animate-in fade-in ${
+            toastMessage.isError
+              ? "bg-rose-50 text-[#EF4444] border-rose-200"
+              : "bg-[#E8F8EF] text-[#22B573] border-[#C6F0D8]"
+          }`}
+        >
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          <span>{toastMessage.text}</span>
+        </div>
+      )}
+
       {/* Main Profile Form Card */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Brand Showcase Header Card with Logo Upload & Recruiter Avatar Upload */}
@@ -91,7 +185,7 @@ export default function CompanyProfileSubSection() {
             <input
               type="file"
               ref={logoInputRef}
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/svg+xml"
               className="hidden"
               onChange={handleLogoUpload}
             />
@@ -107,14 +201,23 @@ export default function CompanyProfileSubSection() {
             <div className="relative group">
               <div
                 onClick={() => logoInputRef.current?.click()}
-                className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#1E5BE0] to-blue-500 text-white font-extrabold text-2xl flex items-center justify-center shrink-0 shadow-md cursor-pointer overflow-hidden border-2 border-white hover:opacity-90 transition"
-                title="Click to upload official company logo"
+                className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#1E5BE0] to-blue-500 text-white font-extrabold text-2xl flex items-center justify-center shrink-0 shadow-md cursor-pointer overflow-hidden border-2 border-white hover:opacity-90 transition relative"
+                title="Click to upload official company logo (Cloudflare R2)"
               >
-                {companyLogoUrl ? (
+                {isUploadingLogo ? (
+                  <div className="flex items-center justify-center text-xs font-semibold">Uploading...</div>
+                ) : companyLogoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={companyLogoUrl} alt="Company Logo" className="w-full h-full object-cover" />
+                  <img
+                    src={companyLogoUrl}
+                    alt="Company Logo"
+                    className="w-full h-full object-cover"
+                    onError={() => {
+                      setCompanyLogoUrl(null);
+                    }}
+                  />
                 ) : (
-                  <span>INF</span>
+                  <span>{name ? name.slice(0, 3).toUpperCase() : "LOGO"}</span>
                 )}
               </div>
               <button
@@ -137,7 +240,7 @@ export default function CompanyProfileSubSection() {
               <p className="text-xs text-[#6B7694] mt-0.5">{tagline}</p>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-[#6B7694] mt-2">
                 <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-[#1E5BE0]" /> Bengaluru
+                  <MapPin className="w-3.5 h-3.5 text-[#1E5BE0]" /> {location || "—"}
                 </span>
                 <span className="flex items-center gap-1">
                   <Users className="w-3.5 h-3.5 text-[#FF6B00]" /> {size}
@@ -149,6 +252,15 @@ export default function CompanyProfileSubSection() {
                 >
                   Change Logo ↗
                 </button>
+                {companyLogoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteLogo}
+                    className="text-xs text-[#EF4444] font-semibold hover:underline cursor-pointer"
+                  >
+                    Remove Logo
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -165,7 +277,7 @@ export default function CompanyProfileSubSection() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={recruiterAvatarUrl} alt="Recruiter Photo" className="w-full h-full object-cover" />
                 ) : (
-                  <span>SR</span>
+                  <span>{recruiterName ? recruiterName.slice(0, 2).toUpperCase() : "HR"}</span>
                 )}
               </div>
               <button
@@ -179,7 +291,7 @@ export default function CompanyProfileSubSection() {
             </div>
 
             <div className="text-left text-xs">
-              <div className="font-bold text-[#0B1F4B]">Sneha Roy</div>
+              <div className="font-bold text-[#0B1F4B]">{recruiterName || "Recruiter"}</div>
               <button
                 type="button"
                 onClick={() => avatarInputRef.current?.click()}

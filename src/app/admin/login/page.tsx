@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ShieldCheck,
   Mail,
@@ -25,8 +25,10 @@ import { authService } from "@/services/auth.service";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@wegrowcampus.com");
-  const [password, setPassword] = useState("admin123");
+  const searchParams = useSearchParams();
+  const reason = searchParams.get("reason");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,23 +40,42 @@ export default function AdminLoginPage() {
     setError("");
 
     try {
-      await authService.login({
-        email,
+      const res = await authService.login({
+        email: email.trim(),
         password,
-        role: "ADMIN",
       });
-      router.push("/admin/dashboard");
-    } catch {
-      setError("Invalid administrator credentials. Access restricted.");
+
+      const userRole = res.data?.user?.role;
+      if (userRole === "ADMIN") {
+        router.push("/admin/dashboard");
+      } else if (userRole === "HR") {
+        router.push("/hr/dashboard");
+      } else if (userRole === "STUDENT") {
+        router.push("/student/dashboard");
+      } else {
+        router.push("/admin/dashboard");
+      }
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { status?: number; data?: { error?: { code?: string; details?: any }; message?: string } } };
+      const status = errorObj?.response?.status;
+      const code = errorObj?.response?.data?.error?.code;
+      const message = errorObj?.response?.data?.message;
+
+      if (status === 403 && (code === "ACCOUNT_SUSPENDED" || message?.toLowerCase().includes("suspended"))) {
+        authService.logout();
+        setError("Your account has been suspended. Please contact platform support.");
+      } else if (status === 401 || code === "INVALID_CREDENTIALS") {
+        setError("Invalid email or password.");
+      } else if (status === 403 && (code === "EMAIL_NOT_VERIFIED" || message?.includes("verify your email"))) {
+        setError("Please verify your email address to continue.");
+      } else if (status === 400) {
+        setError(message || "Invalid login request. Please check your credentials.");
+      } else {
+        setError(message || "Failed to authenticate. Please check your email and password.");
+      }
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleQuickFill = () => {
-    setEmail("admin@wegrowcampus.com");
-    setPassword("admin123");
-    setError("");
   };
 
   return (
@@ -205,20 +226,12 @@ export default function AdminLoginPage() {
             </p>
           </div>
 
-          {/* Quick Demo Fill Helper */}
-          <div className="mb-6 p-3.5 bg-blue-50/70 rounded-xl border border-blue-200/70 flex items-center justify-between text-xs">
-            <div className="text-slate-700">
-              <span className="font-semibold text-[#0756A8]">Demo Admin:</span>{" "}
-              <span className="font-mono text-slate-600">admin@wegrowcampus.com</span>
+          {/* Idle Timeout Notification Banner */}
+          {reason === "idle_timeout" && (
+            <div className="mb-4 p-3.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold flex items-center gap-2">
+              <span>⏱️ You were automatically logged out due to 10 minutes of inactivity for security.</span>
             </div>
-            <button
-              type="button"
-              onClick={handleQuickFill}
-              className="px-2.5 py-1 text-xs font-bold text-[#0756A8] bg-white rounded-md shadow-sm border border-blue-200 hover:bg-blue-50 transition"
-            >
-              Fill Demo
-            </button>
-          </div>
+          )}
 
           {/* Error Alert */}
           {error && (
@@ -246,7 +259,7 @@ export default function AdminLoginPage() {
                   id="admin-email"
                   type="email"
                   required
-                  placeholder="admin@wegrowcampus.com"
+                  placeholder="Enter administrator email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:border-[#0756A8] focus:outline-none focus:ring-2 focus:ring-[#0756A8]/15"
@@ -275,7 +288,7 @@ export default function AdminLoginPage() {
                   id="admin-password"
                   type={showPassword ? "text" : "password"}
                   required
-                  placeholder="••••••••••••"
+                  placeholder="Enter administrator password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full rounded-xl border border-slate-200 bg-white pl-10 pr-11 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:border-[#0756A8] focus:outline-none focus:ring-2 focus:ring-[#0756A8]/15"

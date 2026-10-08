@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AdminLayout } from "@/layouts/AdminLayout";
-import { MOCK_JOBS } from "@/constants/mockData";
+import { adminService } from "@/services/admin.service";
 import { Job } from "@/types";
 import { formatDate } from "@/lib/utils";
 import {
@@ -21,9 +21,18 @@ import {
 } from "lucide-react";
 
 export default function AdminJobsPage() {
-  const [jobs, setJobs] = useState<Job[]>(MOCK_JOBS);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("ALL");
+
+  useEffect(() => {
+    adminService
+      .getJobs()
+      .then((data) => setJobs(data))
+      .catch(() => setJobs([]))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const updateStatus = (id: string, status: any) => {
     setJobs(jobs.map((j) => (j.id === id ? { ...j, status } : j)));
@@ -125,7 +134,20 @@ export default function AdminJobsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#EEF1F7] text-[13px]">
-                {filteredJobs.map((job) => (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-12 text-center text-[#6B7694]">
+                      Loading job listings...
+                    </td>
+                  </tr>
+                ) : filteredJobs.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-12 text-center text-[#6B7694]">
+                      No job postings found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredJobs.map((job) => (
                   <tr key={job.id} className="hover:bg-slate-50/70 transition-colors">
                     {/* Job Title */}
                     <td className="px-5 py-4">
@@ -229,7 +251,7 @@ export default function AdminJobsPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>

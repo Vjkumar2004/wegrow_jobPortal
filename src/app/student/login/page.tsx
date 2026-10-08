@@ -20,18 +20,23 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { authService } from "@/services/auth.service";
+import { PageLoader } from "@/components/common/PageLoader";
 
 function StudentLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect") || "/student/dashboard";
 
-  const [email, setEmail] = useState("aarav.sharma@example.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    searchParams.get("error") === "suspended"
+      ? "Your account has been suspended. Please contact platform support."
+      : ""
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,23 +44,48 @@ function StudentLoginContent() {
     setError("");
 
     try {
-      await authService.login({
-        email,
+      const res = await authService.login({
+        email: email.trim(),
         password,
-        role: "STUDENT",
       });
-      router.push(redirectUrl);
-    } catch {
-      setError("Invalid student credentials. Please check your email and password.");
+
+      const userRole = res.data?.user?.role;
+      if (userRole === "ADMIN") {
+        router.push("/admin/dashboard");
+      } else if (userRole === "HR") {
+        router.push("/hr/dashboard");
+      } else {
+        router.push(redirectUrl);
+      }
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { status?: number; data?: { error?: { code?: string }; message?: string } } };
+      const status = errorObj?.response?.status;
+      const code = errorObj?.response?.data?.error?.code;
+      const message = errorObj?.response?.data?.message;
+
+      if (
+        status === 403 &&
+        (code === "APPLICATION_REJECTED" ||
+          code === "REJECTED" ||
+          message?.toLowerCase().includes("reject"))
+      ) {
+        authService.logout();
+        setError("Your application has been rejected by the administrator. Please contact support for further details.");
+      } else if (status === 403 && (code === "ACCOUNT_SUSPENDED" || message?.toLowerCase().includes("suspended"))) {
+        authService.logout();
+        setError("Your account has been suspended. Please contact platform support.");
+      } else if (status === 401 || code === "INVALID_CREDENTIALS") {
+        setError("Invalid email or password.");
+      } else if (status === 403 && (code === "EMAIL_NOT_VERIFIED" || message?.includes("verify your email"))) {
+        router.push(`/verify-email?email=${encodeURIComponent(email)}&role=STUDENT`);
+      } else if (status === 400) {
+        setError(message || "Invalid login request. Please check your credentials.");
+      } else {
+        setError(message || "Invalid email or password.");
+      }
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleQuickFill = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword("password123");
-    setError("");
   };
 
   return (
@@ -210,21 +240,6 @@ function StudentLoginContent() {
             </p>
           </div>
 
-          {/* Quick Demo Fill Helper */}
-          <div className="mb-6 p-3.5 bg-blue-50/70 rounded-xl border border-blue-100 flex items-center justify-between text-xs">
-            <div className="text-slate-700">
-              <span className="font-semibold text-[#014E9C]">Demo Account:</span>{" "}
-              <span className="font-mono text-slate-600">aarav.sharma@example.com</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleQuickFill("aarav.sharma@example.com")}
-              className="px-2.5 py-1 text-xs font-bold text-[#014E9C] bg-white rounded-md shadow-sm border border-blue-200 hover:bg-blue-50 transition"
-            >
-              Fill Demo
-            </button>
-          </div>
-
           {/* Error Alert */}
           {error && (
             <div className="mb-5 p-3.5 bg-rose-50 text-rose-700 text-xs rounded-xl font-medium border border-rose-200 flex items-start gap-2.5">
@@ -251,7 +266,7 @@ function StudentLoginContent() {
                   id="student-email"
                   type="email"
                   required
-                  placeholder="student@college.edu or email@example.com"
+                  placeholder="Enter your student email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:border-[#014E9C] focus:outline-none focus:ring-2 focus:ring-[#014E9C]/15"
@@ -283,7 +298,7 @@ function StudentLoginContent() {
                   id="student-password"
                   type={showPassword ? "text" : "password"}
                   required
-                  placeholder="••••••••••••"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full rounded-xl border border-slate-200 bg-white pl-10 pr-11 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:border-[#014E9C] focus:outline-none focus:ring-2 focus:ring-[#014E9C]/15"
@@ -369,7 +384,15 @@ function StudentLoginContent() {
 
 export default function StudentLoginPage() {
   return (
-    <React.Suspense fallback={<div className="min-h-screen bg-[#F4F7FB] flex items-center justify-center text-slate-500">Loading student portal...</div>}>
+    <React.Suspense
+      fallback={
+        <PageLoader
+          label="WeGrow Skill Campus"
+          subLabel="Loading student portal..."
+          fullScreen={true}
+        />
+      }
+    >
       <StudentLoginContent />
     </React.Suspense>
   );

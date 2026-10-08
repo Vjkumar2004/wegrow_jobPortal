@@ -1,27 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Users,
   Building2,
   Briefcase,
-  FileCheck,
-  Calendar,
   Award,
   ArrowRight,
   ShieldCheck,
   TrendingUp,
-  FileSpreadsheet,
   Mail,
   CheckCircle2,
-  Clock,
   Sparkles,
-  ExternalLink,
-  ChevronRight,
   Activity,
   AlertCircle,
-  Eye,
 } from "lucide-react";
 import {
   PieChart,
@@ -36,38 +29,90 @@ import {
   CartesianGrid,
 } from "recharts";
 import { Company, StudentAdmin } from "@/types";
-import { AuditLog, AdminReportData } from "@/services/admin.service";
+import { AuditLog, AdminReportData, adminService } from "@/services/admin.service";
+import { getCompanyLogoProxyUrl } from "@/lib/utils";
+import { PageLoader } from "@/components/common/PageLoader";
 
-interface AdminDashboardClientProps {
-  reports: AdminReportData;
-  auditLogs: AuditLog[];
-  companies: Company[];
-  students: StudentAdmin[];
-}
 
-// Donut data for Company KYC & Moderation status
-const KYC_STATUS_DATA = [
-  { name: "Approved", value: 38, color: "#22B573" },
-  { name: "Pending Review", value: 6, color: "#FF6B00" },
-  { name: "Suspended", value: 2, color: "#EF4444" },
-];
-
-export default function AdminDashboardClient({
-  reports,
-  auditLogs,
-  companies,
-  students,
-}: AdminDashboardClientProps) {
+export default function AdminDashboardClient() {
   const [trendRange, setTrendRange] = useState("Year 2026");
+  const [reports, setReports] = useState<AdminReportData>({
+    totalStudents: 0,
+    totalCompanies: 0,
+    totalJobs: 0,
+    totalApplications: 0,
+    totalInterviews: 0,
+    totalPlacements: 0,
+    monthlyPlacements: [],
+  });
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [students, setStudents] = useState<StudentAdmin[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAll() {
+      try {
+        const [r, a, c, s] = await Promise.all([
+          adminService.getReports().catch(() => ({
+            totalStudents: 0, totalCompanies: 0, totalJobs: 0,
+            totalApplications: 0, totalInterviews: 0, totalPlacements: 0, monthlyPlacements: [],
+          })),
+          adminService.getAuditLogs().catch(() => []),
+          adminService.getCompanies().catch(() => []),
+          adminService.getStudents().catch(() => []),
+        ]);
+        setReports(r);
+        setAuditLogs(a);
+        setCompanies(c);
+        setStudents(s);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAll();
+  }, []);
 
   const pendingCompanies = companies.filter((c) => c.status === "Pending");
   const approvedCompanies = companies.filter((c) => c.status === "Approved");
+  const suspendedCompanies = companies.filter((c) => c.status === "Suspended" || c.status === "Rejected");
 
-  // Chart data from reports.monthlyPlacements
+  const kycStatusData = [
+    { name: "Approved", value: approvedCompanies.length, color: "#22B573" },
+    { name: "Pending Review", value: pendingCompanies.length, color: "#FF6B00" },
+    { name: "Suspended", value: suspendedCompanies.length, color: "#EF4444" },
+  ];
+
+  const totalKycEmployers = companies.length;
+  const kycChartData =
+    totalKycEmployers > 0
+      ? kycStatusData.filter((item) => item.value > 0)
+      : [{ name: "No Employers", value: 1, color: "#E2E8F0" }];
+
+  const activePartnerRatio =
+    totalKycEmployers > 0
+      ? ((approvedCompanies.length / totalKycEmployers) * 100).toFixed(1)
+      : "0.0";
+
+  // Dynamic Chart data from reports.monthlyPlacements
   const placementTrendData = reports.monthlyPlacements.map((item) => ({
     month: item.month,
     placements: item.count,
   }));
+
+  const maxPlacementRecord = placementTrendData.length > 0
+    ? [...placementTrendData].sort((a, b) => b.placements - a.placements)[0]
+    : null;
+
+  if (loading) {
+    return (
+      <PageLoader
+        label="Admin Control Center"
+        subLabel="Loading metrics & system analytics..."
+        fullScreen={false}
+      />
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col xl:flex-row min-w-0 p-4 sm:p-6 lg:p-7 gap-5">
@@ -83,7 +128,7 @@ export default function AdminDashboardClient({
               Welcome back, Super Admin! 🛡️
             </h1>
             <p className="text-[14px] text-[#6B7694] mt-1">
-              Campus placement operations are running smoothly with 99.9% system uptime.
+              Campus placement operations and partner compliance monitoring.
             </p>
           </div>
 
@@ -124,11 +169,11 @@ export default function AdminDashboardClient({
             </div>
             <div>
               <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">
-                {reports.totalStudents.toLocaleString()}
+                {(students.length || reports.totalStudents).toLocaleString()}
               </div>
               <div className="text-[14px] text-[#6B7694] mt-1">Total Students</div>
-              <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
-                <TrendingUp className="w-3.5 h-3.5" /> +1,240 this month
+              <div className="text-[12px] font-semibold text-[#1E5BE0] flex items-center gap-1 mt-1">
+                <span>Registered Learners</span>
               </div>
             </div>
           </div>
@@ -140,11 +185,11 @@ export default function AdminDashboardClient({
             </div>
             <div>
               <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">
-                {reports.totalCompanies.toLocaleString()}
+                {(companies.length || reports.totalCompanies).toLocaleString()}
               </div>
               <div className="text-[14px] text-[#6B7694] mt-1">Partner Companies</div>
-              <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
-                <TrendingUp className="w-3.5 h-3.5" /> +32 onboarded
+              <div className="text-[12px] font-semibold text-[#FF6B00] flex items-center gap-1 mt-1">
+                <span>{approvedCompanies.length} Verified Active</span>
               </div>
             </div>
           </div>
@@ -160,7 +205,7 @@ export default function AdminDashboardClient({
               </div>
               <div className="text-[14px] text-[#6B7694] mt-1">Live Openings</div>
               <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
-                <TrendingUp className="w-3.5 h-3.5" /> 98% verified
+                <span>Active Listings</span>
               </div>
             </div>
           </div>
@@ -175,8 +220,8 @@ export default function AdminDashboardClient({
                 {reports.totalPlacements.toLocaleString()}
               </div>
               <div className="text-[14px] text-[#6B7694] mt-1">Campus Placements</div>
-              <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
-                <TrendingUp className="w-3.5 h-3.5" /> +18% YOY
+              <div className="text-[12px] font-semibold text-[#8B5CF6] flex items-center gap-1 mt-1">
+                <span>Offers Confirmed</span>
               </div>
             </div>
           </div>
@@ -197,15 +242,15 @@ export default function AdminDashboardClient({
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={KYC_STATUS_DATA}
+                      data={kycChartData}
                       cx="50%"
                       cy="50%"
                       innerRadius={52}
                       outerRadius={75}
-                      paddingAngle={3}
+                      paddingAngle={totalKycEmployers > 0 ? 3 : 0}
                       dataKey="value"
                     >
-                      {KYC_STATUS_DATA.map((entry, index) => (
+                      {kycChartData.map((entry, index) => (
                         <Cell key={`kyc-cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -224,7 +269,7 @@ export default function AdminDashboardClient({
 
               {/* Legend on the right */}
               <div className="space-y-3 w-full sm:w-auto">
-                {KYC_STATUS_DATA.map((item) => (
+                {kycStatusData.map((item) => (
                   <div key={item.name} className="flex items-center justify-between sm:justify-start gap-4 text-[13px]">
                     <div className="flex items-center gap-2">
                       <span
@@ -240,7 +285,7 @@ export default function AdminDashboardClient({
             </div>
 
             <div className="pt-3 border-t border-[#EEF1F7] flex items-center justify-between text-[12px] text-[#6B7694]">
-              <span>Active Partner ratio: 86.4%</span>
+              <span>Active Partner ratio: {activePartnerRatio}%</span>
               <Link href="/admin/hr-management" className="text-[#1E5BE0] font-semibold hover:underline">
                 Review Queue →
               </Link>
@@ -309,8 +354,14 @@ export default function AdminDashboardClient({
             </div>
 
             <div className="pt-3 border-t border-[#EEF1F7] flex items-center justify-between text-[12px] text-[#6B7694]">
-              <span>Peak Month: Mar (2,450 Placements)</span>
-              <span className="font-semibold text-[#1E5BE0]">Trending +24%</span>
+              <span>
+                {maxPlacementRecord && maxPlacementRecord.placements > 0
+                  ? `Peak Month: ${maxPlacementRecord.month} (${maxPlacementRecord.placements.toLocaleString()} Placements)`
+                  : "Placement statistics updated in real time"}
+              </span>
+              <span className="font-semibold text-[#1E5BE0]">
+                {reports.totalPlacements > 0 ? `${reports.totalPlacements} Total Placed` : "Live Data"}
+              </span>
             </div>
           </div>
         </div>
@@ -342,51 +393,75 @@ export default function AdminDashboardClient({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#EEF1F7] text-[13px]">
-                {companies.slice(0, 5).map((comp) => {
-                  const isPending = comp.status === "Pending";
-                  const isApproved = comp.status === "Approved";
+                {companies.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-[#6B7694] text-xs">
+                      No corporate partners registered yet.
+                    </td>
+                  </tr>
+                ) : (
+                  companies.slice(0, 5).map((comp) => {
+                    const isPending = comp.status === "Pending";
+                    const isApproved = comp.status === "Approved";
 
-                  return (
-                    <tr key={comp.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0756A8] font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100">
-                            {comp.name.substring(0, 2).toUpperCase()}
+                    return (
+                      <tr key={comp.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0756A8] font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100 overflow-hidden">
+                              {comp.id || comp.logo ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={comp.id ? getCompanyLogoProxyUrl(comp.id) : comp.logo}
+                                  alt={comp.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.currentTarget as HTMLImageElement;
+                                    target.style.display = "none";
+                                    if (target.parentElement) {
+                                      target.parentElement.innerText = comp.name.substring(0, 2).toUpperCase();
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                comp.name.substring(0, 2).toUpperCase()
+                              )}
+                            </div>
+                            <div>
+                              <span className="font-semibold text-[#0B1F4B] block leading-snug">
+                                {comp.name}
+                              </span>
+                              <span className="text-[11px] text-[#6B7694]">{comp.website || "Corporate Recruiter"}</span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-semibold text-[#0B1F4B] block leading-snug">
-                              {comp.name}
-                            </span>
-                            <span className="text-[11px] text-[#6B7694]">{comp.website || "Corporate Recruiter"}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 font-medium text-[#0B1F4B]">{comp.industry || "Technology"}</td>
-                      <td className="px-4 py-3.5 text-[#6B7694]">{comp.location || "Bangalore, IN"}</td>
-                      <td className="px-4 py-3.5">
-                        <span
-                          className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold ${
-                            isApproved
-                              ? "bg-[#D8F3E5] text-[#22B573]"
-                              : isPending
-                              ? "bg-[#FFE9D6] text-[#E8650A]"
-                              : "bg-[#FFE0E0] text-[#D93636]"
-                          }`}
-                        >
-                          {comp.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <Link
-                          href="/admin/hr-management"
-                          className="border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white px-3 py-1 rounded-md text-xs font-semibold transition"
-                        >
-                          Manage
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+                        <td className="px-4 py-3.5 font-medium text-[#0B1F4B]">{comp.industry || "Technology"}</td>
+                        <td className="px-4 py-3.5 text-[#6B7694]">{comp.location || "Bangalore, IN"}</td>
+                        <td className="px-4 py-3.5">
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold ${
+                              isApproved
+                                ? "bg-[#D8F3E5] text-[#22B573]"
+                                : isPending
+                                ? "bg-[#FFE9D6] text-[#E8650A]"
+                                : "bg-[#FFE0E0] text-[#D93636]"
+                            }`}
+                          >
+                            {comp.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <Link
+                            href="/admin/hr-management"
+                            className="border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white px-3 py-1 rounded-md text-xs font-semibold transition"
+                          >
+                            Manage
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -399,7 +474,7 @@ export default function AdminDashboardClient({
         <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-[16px] font-bold text-[#0B1F4B]">Campus Governance</h3>
-            <span className="text-[14px] font-bold text-[#22B573]">99.9% Uptime</span>
+            <span className="text-[14px] font-bold text-[#22B573]">Active</span>
           </div>
           <p className="text-[12px] text-[#6B7694] mb-3">
             Core infrastructure security metrics
@@ -407,7 +482,7 @@ export default function AdminDashboardClient({
 
           {/* Progress bar */}
           <div className="w-full h-2 bg-[#F1F4F9] rounded-full overflow-hidden mb-5">
-            <div className="h-full bg-[#22B573] rounded-full w-[99%]" />
+            <div className="h-full bg-[#22B573] rounded-full w-full" />
           </div>
 
           {/* Checklist */}
@@ -453,27 +528,33 @@ export default function AdminDashboardClient({
           </div>
 
           <div className="space-y-3.5">
-            {auditLogs.slice(0, 4).map((log) => (
-              <div
-                key={log.id}
-                className="p-3 rounded-[12px] border border-[#EEF1F7] bg-[#FDFDFE] hover:border-[#1E5BE0]/30 transition-all flex items-start gap-3"
-              >
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0756A8] flex items-center justify-center shrink-0 mt-0.5">
-                  <Activity className="w-4 h-4 text-[#0756A8]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-[13px] text-[#0B1F4B] truncate">
-                    {log.action}
-                  </p>
-                  <p className="text-[11px] text-[#6B7694] truncate">
-                    {log.target} • {log.admin}
-                  </p>
-                  <span className="text-[10px] text-slate-400 mt-1 block">
-                    {log.timestamp}
-                  </span>
-                </div>
+            {auditLogs.length === 0 ? (
+              <div className="p-4 text-center text-[#6B7694] text-xs">
+                No recent system activity logged yet.
               </div>
-            ))}
+            ) : (
+              auditLogs.slice(0, 4).map((log) => (
+                <div
+                  key={log.id}
+                  className="p-3 rounded-[12px] border border-[#EEF1F7] bg-[#FDFDFE] hover:border-[#1E5BE0]/30 transition-all flex items-start gap-3"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0756A8] flex items-center justify-center shrink-0 mt-0.5">
+                    <Activity className="w-4 h-4 text-[#0756A8]" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-[13px] text-[#0B1F4B] truncate">
+                      {log.action}
+                    </p>
+                    <p className="text-[11px] text-[#6B7694] truncate">
+                      {log.target} • {log.admin}
+                    </p>
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      {log.timestamp}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

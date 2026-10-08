@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Building2,
   Mail,
@@ -21,15 +21,28 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { authService } from "@/services/auth.service";
+import { hrService } from "@/services/hr.service";
 
 export default function HRLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("sneha.roy@infosys.com");
-  const [password, setPassword] = useState("password123");
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    searchParams.get("error") === "suspended"
+      ? "Your account has been suspended. Please contact platform support."
+      : searchParams.get("error") === "rejected" || searchParams.get("status") === "rejected"
+      ? "Your application has been rejected by the administrator. Please contact support for further details."
+      : ""
+  );
+  const [infoMessage, setInfoMessage] = useState(
+    searchParams.get("status") === "pending_approval"
+      ? "Registration successful! Your corporate account is waiting for admin approval before you can sign in."
+      : ""
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,23 +50,91 @@ export default function HRLoginPage() {
     setError("");
 
     try {
-      await authService.login({
-        email,
+      const res = await authService.login({
+        email: email.trim(),
         password,
-        role: "HR",
       });
-      router.push("/hr/dashboard");
-    } catch {
-      setError("Invalid corporate credentials. Please check your work email and password.");
+
+      // Check if there is pending onboarding data from registration
+      if (typeof window !== "undefined") {
+        const onboardingDraftKey = "wegrow_hr_onboarding_" + email.trim().toLowerCase();
+        const pendingDataStr = sessionStorage.getItem(onboardingDraftKey);
+        if (pendingDataStr) {
+          try {
+            const pendingData = JSON.parse(pendingDataStr);
+            await hrService.onboardCompany(pendingData);
+            sessionStorage.removeItem(onboardingDraftKey);
+          } catch (onboardingErr: any) {
+            // If already onboarded (409 Conflict), clean up draft silently
+            if (onboardingErr?.response?.status === 409 || onboardingErr?.message?.includes("already")) {
+              sessionStorage.removeItem(onboardingDraftKey);
+            }
+          }
+        }
+      }
+
+      const userRole = res.data?.user?.role;
+      const hrCompany = (res.data?.user as any)?.hrProfile?.company;
+      const approvalStatus = hrCompany?.approvalStatus?.toUpperCase?.();
+
+      if (userRole === "HR" && approvalStatus === "REJECTED") {
+        authService.logout();
+        setError("Your application has been rejected by the administrator. Please contact support for further details.");
+        return;
+      }
+
+      if (userRole === "HR" && approvalStatus === "PENDING") {
+        authService.logout();
+        setError("Your account is waiting for admin approval. You can sign in once an administrator approves your company registration.");
+        return;
+      }
+
+      if (userRole === "ADMIN") {
+        router.push("/admin/dashboard");
+      } else if (userRole === "STUDENT") {
+        router.push("/student/dashboard");
+      } else {
+        router.push("/hr/dashboard");
+      }
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { status?: number; data?: { error?: { code?: string }; message?: string } } };
+      const status = errorObj?.response?.status;
+      const code = errorObj?.response?.data?.error?.code;
+      const message = errorObj?.response?.data?.message;
+
+      if (
+        status === 403 &&
+        (code === "APPLICATION_REJECTED" ||
+          code === "COMPANY_REJECTED" ||
+          message?.toLowerCase().includes("reject"))
+      ) {
+        authService.logout();
+        setError("Your application has been rejected by the administrator. Please contact support for further details.");
+      } else if (status === 403 && (code === "ACCOUNT_SUSPENDED" || message?.toLowerCase().includes("suspended"))) {
+        authService.logout();
+        setError("Your account has been suspended. Please contact platform support.");
+      } else if (
+        status === 403 &&
+        (code === "PENDING_APPROVAL" ||
+          code === "COMPANY_NOT_APPROVED" ||
+          message?.toLowerCase().includes("pending") ||
+          message?.toLowerCase().includes("approval") ||
+          message?.toLowerCase().includes("approve"))
+      ) {
+        authService.logout();
+        setError("Your account is waiting for admin approval. You can sign in once an administrator approves your company registration.");
+      } else if (status === 401 || code === "INVALID_CREDENTIALS") {
+        setError("Invalid email or password.");
+      } else if (status === 403 && (code === "EMAIL_NOT_VERIFIED" || message?.includes("verify your email"))) {
+        router.push(`/verify-email?email=${encodeURIComponent(email)}&role=HR`);
+      } else if (status === 400) {
+        setError(message || "Invalid login request. Please check your credentials.");
+      } else {
+        setError(message || "Invalid email or password.");
+      }
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleQuickFill = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword("password123");
-    setError("");
   };
 
   return (
@@ -204,20 +285,19 @@ export default function HRLoginPage() {
             </p>
           </div>
 
-          {/* Quick Demo Fill Helper */}
-          <div className="mb-6 p-3.5 bg-amber-50/70 rounded-xl border border-amber-200/60 flex items-center justify-between text-xs">
-            <div className="text-slate-700">
-              <span className="font-semibold text-amber-900">Demo Recruiter:</span>{" "}
-              <span className="font-mono text-slate-600">sneha.roy@infosys.com</span>
+
+          {/* Info / Pending Approval Alert */}
+          {infoMessage && (
+            <div className="mb-5 p-4 bg-amber-50 text-amber-900 text-xs rounded-xl font-medium border border-amber-200 flex items-start gap-3 shadow-xs">
+              <span className="w-5 h-5 rounded-full bg-amber-200 text-amber-800 flex items-center justify-center font-bold shrink-0 text-[11px] mt-0.5">
+                ⏳
+              </span>
+              <div className="leading-relaxed">
+                <span className="font-bold block text-amber-950 mb-0.5">Waiting for Admin Approval:</span>
+                <span>{infoMessage}</span>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => handleQuickFill("sneha.roy@infosys.com")}
-              className="px-2.5 py-1 text-xs font-bold text-amber-900 bg-white rounded-md shadow-sm border border-amber-200 hover:bg-amber-50 transition"
-            >
-              Fill Demo
-            </button>
-          </div>
+          )}
 
           {/* Error Alert */}
           {error && (
@@ -245,7 +325,7 @@ export default function HRLoginPage() {
                   id="hr-email"
                   type="email"
                   required
-                  placeholder="name@company.com"
+                  placeholder="Enter your work email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:border-[#014E9C] focus:outline-none focus:ring-2 focus:ring-[#014E9C]/15"
@@ -277,7 +357,7 @@ export default function HRLoginPage() {
                   id="hr-password"
                   type={showPassword ? "text" : "password"}
                   required
-                  placeholder="••••••••••••"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full rounded-xl border border-slate-200 bg-white pl-10 pr-11 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-all focus:border-[#014E9C] focus:outline-none focus:ring-2 focus:ring-[#014E9C]/15"

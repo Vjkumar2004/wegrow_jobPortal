@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -23,15 +23,62 @@ import {
   Filter,
 } from "lucide-react";
 import { StudentBrowseJobsPageData, StudentBrowseJobItem } from "@/types";
+import { jobsService } from "@/services/jobs.service";
+import { studentService } from "@/services/student.service";
+import { getCompanyLogoUrl, getCompanyLogoProxyUrl } from "@/lib/utils";
 
 interface StudentBrowseJobsClientProps {
   initialData: StudentBrowseJobsPageData;
 }
 
 export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJobsClientProps) {
-  // State from server initialData
-  const [jobs, setJobs] = useState<StudentBrowseJobItem[]>(initialData.jobs);
+  const mergeAppliedFromStorage = (list: StudentBrowseJobItem[]) => {
+    try {
+      return list.map((j) => ({
+        ...j,
+        hasApplied: j.hasApplied || localStorage.getItem(`applied_job_${j.id}`) === "true",
+      }));
+    } catch {
+      return list;
+    }
+  };
+
+  const [jobs, setJobs] = useState<StudentBrowseJobItem[]>(() => {
+    if (typeof window !== "undefined") return mergeAppliedFromStorage(initialData.jobs);
+    return initialData.jobs;
+  });
   const [totalCount, setTotalCount] = useState(initialData.totalJobsCount);
+  const [profileCompletion, setProfileCompletion] = useState(initialData.profileCompletion);
+
+  // Sync client-side jobs data and profile completion on mount
+  useEffect(() => {
+    let isMounted = true;
+    jobsService
+      .getBrowseJobsPageData()
+      .then((freshData) => {
+        if (isMounted && freshData?.jobs && freshData.jobs.length > 0) {
+          setJobs(mergeAppliedFromStorage(freshData.jobs));
+          setTotalCount(freshData.totalJobsCount);
+        }
+      })
+      .catch(() => {});
+
+    studentService
+      .getProfile()
+      .then((p) => {
+        if (isMounted && p) {
+          setProfileCompletion({
+            percentage: p.completionPercentage || 0,
+            checklist: p.checklist || [],
+          });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");
@@ -422,25 +469,33 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="w-[54px] h-[54px] rounded-xl bg-white border border-[#EEF1F7] p-1 flex items-center justify-center font-bold text-xs text-[#1E5BE0] shrink-0 overflow-hidden shadow-2xs">
-                        {job.company.logo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={job.company.logo}
-                            alt={job.company.name}
-                            className="w-full h-full object-contain p-0.5"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLElement).style.display = "none";
-                              if (e.currentTarget.parentElement) {
-                                const fallback = document.createElement("span");
-                                fallback.textContent = job.company.initials || job.company.name.slice(0, 3).toUpperCase();
-                                fallback.className = "font-bold text-xs text-[#1E5BE0]";
-                                e.currentTarget.parentElement.appendChild(fallback);
-                              }
-                            }}
-                          />
-                        ) : (
-                          <span>{job.company.initials || job.company.name.slice(0, 3).toUpperCase()}</span>
-                        )}
+                        {(job.company.logo || job.company.id) ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={getCompanyLogoUrl(job.company, job.company.id)}
+                              alt={job.company.name}
+                              className="w-full h-full object-contain p-0.5"
+                              onError={(e) => {
+                                const target = e.currentTarget as HTMLImageElement;
+                                const proxyUrl = job.company.id ? getCompanyLogoProxyUrl(job.company.id) : "";
+                                if (proxyUrl && !target.dataset.fallbackTried && target.src !== proxyUrl) {
+                                  target.dataset.fallbackTried = "true";
+                                  target.src = proxyUrl;
+                                  return;
+                                }
+                                target.style.display = "none";
+                                if (target.parentElement && !target.parentElement.querySelector(".logo-fallback-span")) {
+                                  const fallback = document.createElement("span");
+                                  fallback.textContent = job.company.initials || job.company.name.slice(0, 3).toUpperCase();
+                                  fallback.className = "font-bold text-xs text-[#1E5BE0] logo-fallback-span";
+                                  target.parentElement.appendChild(fallback);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <span>{job.company.initials || job.company.name.slice(0, 3).toUpperCase()}</span>
+                          )}
+
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
@@ -452,6 +507,12 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
                             <span className="inline-flex items-center gap-1 bg-[#E5F8EE] text-[#1E9E63] text-[11px] font-semibold px-2 py-0.5 rounded-full">
                               <CheckCircle2 className="w-3 h-3" />
                               <span>Verified</span>
+                            </span>
+                          )}
+                          {job.hasApplied && (
+                            <span className="inline-flex items-center gap-1 bg-[#E5F8EE] text-[#1E9E63] text-[11px] font-semibold px-2 py-0.5 rounded-full">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Applied ✓</span>
                             </span>
                           )}
                         </div>
@@ -531,13 +592,23 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
                     <span>{job.postedAgo}</span>
                   </span>
 
-                  <Link
-                    href={`/student/jobs/${job.id}`}
-                    className="inline-flex items-center gap-1 bg-[#FF6B00] hover:bg-[#e66000] text-white font-[600] text-[14px] px-[18px] py-[10px] rounded-[8px] transition-all shadow-sm hover:shadow-[#FF6B00]/30 hover:shadow-md cursor-pointer"
-                  >
-                    <span>Apply Now</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
+                  {job.hasApplied ? (
+                    <button
+                      disabled
+                      className="inline-flex items-center gap-1.5 bg-[#E5F8EE] text-[#1E9E63] font-[600] text-[13px] px-[16px] py-[9px] rounded-[8px] border border-[#22B573]/30 cursor-not-allowed"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Already Applied ✓</span>
+                    </button>
+                  ) : (
+                    <Link
+                      href={`/student/jobs/${job.id}`}
+                      className="inline-flex items-center gap-1 bg-[#FF6B00] hover:bg-[#e66000] text-white font-[600] text-[14px] px-[18px] py-[10px] rounded-[8px] transition-all shadow-sm hover:shadow-[#FF6B00]/30 hover:shadow-md cursor-pointer"
+                    >
+                      <span>Apply Now</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  )}
                 </div>
               </div>
             ))}
@@ -563,7 +634,7 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-[16px] font-bold text-[#0B1F4B]">Profile Completion</h3>
             <span className="text-[16px] font-bold text-[#1E5BE0]">
-              {initialData.profileCompletion.percentage}%
+              {profileCompletion.percentage}%
             </span>
           </div>
           <p className="text-[12px] text-[#6B7694] mb-3">
@@ -574,13 +645,13 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
           <div className="w-full h-2 bg-[#F1F4F9] rounded-full overflow-hidden mb-5">
             <div
               className="h-full bg-[#1E5BE0] rounded-full transition-all duration-700"
-              style={{ width: `${initialData.profileCompletion.percentage}%` }}
+              style={{ width: `${profileCompletion.percentage}%` }}
             />
           </div>
 
           {/* Checklist */}
           <div className="space-y-3 mb-6">
-            {initialData.profileCompletion.checklist.map((item, idx) => (
+            {profileCompletion.checklist.map((item, idx) => (
               <div key={idx} className="flex items-center gap-3 text-[13px]">
                 {item.done ? (
                   <div className="w-5 h-5 rounded-full bg-[#22B573] text-white flex items-center justify-center shrink-0">

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Job } from "@/types";
 import {
@@ -13,7 +12,6 @@ import {
   Monitor,
   Tag,
   Bookmark,
-  Share2,
   CheckCircle2,
   FileText,
   ShieldCheck,
@@ -24,13 +22,15 @@ import {
   Sparkles,
   Building2,
   Users2,
-  Info,
   ChevronRight,
   Check,
   X,
   AlertCircle
 } from "lucide-react";
 import { applicationsService } from "@/services/applications.service";
+import { studentService } from "@/services/student.service";
+import { jobsService } from "@/services/jobs.service";
+import { getCompanyLogoUrl, getCompanyLogoProxyUrl } from "@/lib/utils";
 
 interface StudentJobDetailsClientProps {
   job: Job;
@@ -43,43 +43,82 @@ export default function StudentJobDetailsClient({
 }: StudentJobDetailsClientProps) {
   const router = useRouter();
 
+  // Destructure hasApplied & applicationId from job
+  const { hasApplied, applicationId: initialAppId } = job;
+
   // State
   const [activeTab, setActiveTab] = useState<string>("details");
   const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [applyModalOpen, setApplyModalOpen] = useState(false);
-  const [isApplied, setIsApplied] = useState(false);
+  const [isApplied, setIsApplied] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        if (localStorage.getItem(`applied_job_${job.id}`) === "true") return true;
+      } catch {}
+    }
+    return Boolean(hasApplied);
+  });
+  const [applicationId, setApplicationId] = useState<string | undefined>(initialAppId);
+
+  const markApplied = (appId?: string) => {
+    setIsApplied(true);
+    if (appId) setApplicationId(appId);
+    try { localStorage.setItem(`applied_job_${job.id}`, "true"); } catch {}
+  };
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isStickyHeaderVisible, setIsStickyHeaderVisible] = useState(false);
+  const [studentProfile, setStudentProfile] = useState<{
+    fullName: string;
+    degree?: string;
+    institution?: string;
+    email?: string;
+  } | null>(null);
 
-  // Check saved state from localStorage
+  // Check saved and applied status directly from backend APIs & fetch student profile
   useEffect(() => {
-    try {
-      const savedList = JSON.parse(localStorage.getItem("saved_jobs_ids") || "[]");
-      if (Array.isArray(savedList) && savedList.includes(job.id)) {
+    let isMounted = true;
+    Promise.all([
+      studentService.getSavedJobs().catch(() => []),
+      applicationsService.getStudentApplications().catch(() => []),
+      studentService.getProfile().catch(() => null),
+      jobsService.getJobById(job.id).catch(() => null),
+    ]).then(([savedList, applicationsList, profile, freshJob]) => {
+      if (!isMounted) return;
+      if (freshJob?.hasApplied) {
+        markApplied(freshJob.applicationId || undefined);
+      }
+      if (Array.isArray(savedList) && savedList.some((sj) => sj.id === job.id)) {
         setIsSaved(true);
       }
-      const appliedList = JSON.parse(localStorage.getItem("applied_jobs_ids") || "[]");
-      if (Array.isArray(appliedList) && appliedList.includes(job.id)) {
-        setIsApplied(true);
+      if (Array.isArray(applicationsList)) {
+        const found = applicationsList.find((app) => app.jobId === job.id);
+        if (found) {
+          markApplied(found.id);
+        }
       }
-    } catch {
-      // ignore
-    }
+      if (profile) {
+        const edu = (profile as any).educations?.[0] || profile.education?.[0];
+        setStudentProfile({
+          fullName: (profile as any).fullName || profile.name || "Student",
+          degree: edu?.degree ? `${edu.degree}${edu.institution ? ` - ${edu.institution}` : ""}` : undefined,
+          email: profile.email || undefined,
+        });
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
   }, [job.id]);
 
   // Handle sticky header on scroll & scroll spy
   useEffect(() => {
     const handleScroll = () => {
       const scrollPos = window.scrollY;
-      if (scrollPos > 300) {
-        setIsStickyHeaderVisible(true);
-      } else {
-        setIsStickyHeaderVisible(false);
-      }
+      setIsStickyHeaderVisible(scrollPos > 300);
 
       // Scroll Spy for tabs
-      const sections = ["details", "about", "reviews", "process", "similar"];
+      const sections = ["details", "about", "similar"];
       for (const sectionId of sections) {
         const el = document.getElementById(sectionId);
         if (el) {
@@ -104,23 +143,26 @@ export default function StudentJobDetailsClient({
     }, 3000);
   };
 
-  // Toggle Save/Bookmark
-  const handleToggleSave = () => {
+  // Toggle Save/Bookmark via backend API
+  const handleToggleSave = async () => {
     const nextSaved = !isSaved;
     setIsSaved(nextSaved);
-    try {
-      const savedList = JSON.parse(localStorage.getItem("saved_jobs_ids") || "[]");
-      let updatedList: string[];
-      if (nextSaved) {
-        updatedList = [...new Set([...savedList, job.id])];
+    if (nextSaved) {
+      const success = await studentService.saveJob(job.id);
+      if (success) {
         triggerToast("Job saved to your bookmarks");
       } else {
-        updatedList = savedList.filter((id: string) => id !== job.id);
-        triggerToast("Job removed from bookmarks");
+        setIsSaved(false);
+        triggerToast("Failed to save job");
       }
-      localStorage.setItem("saved_jobs_ids", JSON.stringify(updatedList));
-    } catch {
-      // ignore
+    } else {
+      const success = await studentService.removeSavedJob(job.id);
+      if (success) {
+        triggerToast("Job removed from bookmarks");
+      } else {
+        setIsSaved(true);
+        triggerToast("Failed to remove bookmark");
+      }
     }
   };
 
@@ -129,115 +171,56 @@ export default function StudentJobDetailsClient({
     setActiveTab(tabId);
     const element = document.getElementById(tabId);
     if (element) {
-      const yOffset = -140; // account for sticky top bar and tab bar
+      const yOffset = -140;
       const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: "smooth" });
     }
   };
 
-  // Confirm Apply
+  // Confirm Apply via Backend API
   const handleConfirmApply = async () => {
     setIsSubmitting(true);
     try {
-      await applicationsService.applyToJob(job.id, {
-        fullName: "Vijayakumar M",
-        email: "vijay@wegrow.edu",
-        phone: "+91 98765 43210",
+      const res = await applicationsService.applyToJob(job.id, {
+        fullName: studentProfile?.fullName || "Candidate",
         coverNote: "Application submitted via WeGrow Student Campus Portal.",
       });
 
-      // Update local storage
-      const appliedList = JSON.parse(localStorage.getItem("applied_jobs_ids") || "[]");
-      localStorage.setItem("applied_jobs_ids", JSON.stringify([...new Set([...appliedList, job.id])]));
-
-      setIsApplied(true);
-      setApplyModalOpen(false);
-      triggerToast("Application submitted successfully! Track it in My Applications.");
-    } catch {
-      triggerToast("Application submitted! Track it in My Applications.");
-      setIsApplied(true);
-      setApplyModalOpen(false);
+      if (res.success) {
+        markApplied(res.data?.id);
+        setApplyModalOpen(false);
+        triggerToast("Application submitted successfully! Track it in My Applications.");
+      } else if (res.message?.toLowerCase().includes("already applied") || res.message?.toLowerCase().includes("already exists")) {
+        markApplied();
+        setApplyModalOpen(false);
+        triggerToast("You have already applied for this job.");
+      } else {
+        triggerToast(res.message || "Failed to submit application. Please try again.");
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Failed to submit application. Please try again.";
+      triggerToast(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Mock similar jobs if none passed
-  const displaySimilar = similarJobs.length > 0 ? similarJobs : [
-    {
-      id: "job-2",
-      title: "Graduate Engineer Trainee",
-      company: {
-        id: "comp-2",
-        name: "Tata Consultancy Services (TCS)",
-        logo: "https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg",
-        location: "Bengaluru, Karnataka",
-      },
-      location: "Bengaluru, Karnataka",
-      workMode: "Hybrid",
-      experience: "Fresher",
-    },
-    {
-      id: "job-3",
-      title: "Associate Software Engineer",
-      company: {
-        id: "comp-3",
-        name: "Wipro Technologies",
-        logo: "https://upload.wikimedia.org/wikipedia/commons/a/a0/Wipro_Primary_Logo_Color_RGB.svg",
-        location: "Bengaluru, Karnataka",
-      },
-      location: "Bengaluru, Karnataka",
-      workMode: "Hybrid",
-      experience: "Fresher",
-    },
-    {
-      id: "job-4",
-      title: "Software Developer",
-      company: {
-        id: "comp-4",
-        name: "Zoho Corporation",
-        logo: "https://upload.wikimedia.org/wikipedia/commons/0/07/Zoho_Corporation_2023_logo.svg",
-        location: "Chennai, Tamil Nadu",
-      },
-      location: "Chennai, Tamil Nadu",
-      workMode: "On-site",
-      experience: "Fresher",
-    },
-  ];
+  // Format real salary string
+  const formatSalary = () => {
+    if (job.salaryMin && job.salaryMax) {
+      const minLPA = (job.salaryMin / 100000).toLocaleString("en-IN", { maximumFractionDigits: 1 });
+      const maxLPA = (job.salaryMax / 100000).toLocaleString("en-IN", { maximumFractionDigits: 1 });
+      return `₹${minLPA} - ₹${maxLPA} LPA`;
+    }
+    if (job.salaryMin) {
+      const minLPA = (job.salaryMin / 100000).toLocaleString("en-IN", { maximumFractionDigits: 1 });
+      return `₹${minLPA} LPA+`;
+    }
+    return "Not Disclosed";
+  };
 
-  // Specific requirement items per prompt specification
-  const responsibilitiesList = job.responsibilities?.length
-    ? job.responsibilities
-    : [
-        "Develop high-quality code following best programming practices",
-        "Participate in agile sprints, daily standups, and peer code reviews",
-        "Collaborate with senior developers to understand software requirements",
-        "Write unit tests and functional test suites using modern frameworks",
-        "Debug system defects and implement robust patches",
-      ];
-
-  const requirementsList = job.requirements?.length
-    ? job.requirements
-    : [
-        "B.Tech / B.E / MCA in Computer Science, IT, or related disciplines",
-        "Consistent academic record with 60% or 6.5 CGPA and above",
-        "Good understanding of data structures, algorithms and basic SQL",
-        "Proficiency in at least one programming language (Java / Python / C++)",
-        "Excellent logical thinking and communication skills",
-      ];
-
-  const skillsList = job.skills?.length
-    ? job.skills
-    : ["Java", "Python", "Spring Boot", "React", "SQL", "Data Structures", "OOPs", "Git"];
-
-  const benefitsList = job.benefits?.length
-    ? job.benefits
-    : [
-        "Health & Medical Insurance for candidate and parents",
-        "Continuous learning opportunities through internal certifications",
-        "Hybrid work policy (2 days WFH)",
-        "Performance incentives and annual appraisal",
-      ];
+  const formattedSalary = formatSalary();
+  const displaySimilar = similarJobs;
 
   return (
     <div className="relative pb-24 lg:pb-16 font-['Poppins',sans-serif] text-[#0B1F4B]">
@@ -258,11 +241,21 @@ export default function StudentJobDetailsClient({
         <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="w-10 h-10 rounded-lg border border-[#EEF1F7] bg-white p-1 flex items-center justify-center shrink-0">
-              {job.company.logo ? (
+              {(job.company.logo || job.company.id) ? (
                 <img
-                  src={job.company.logo}
+                  src={getCompanyLogoUrl(job.company, job.company.id)}
                   alt={job.company.name}
                   className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const target = e.currentTarget as HTMLImageElement;
+                    const proxyUrl = job.company.id ? getCompanyLogoProxyUrl(job.company.id) : "";
+                    if (proxyUrl && !target.dataset.tried && target.src !== proxyUrl) {
+                      target.dataset.tried = "true";
+                      target.src = proxyUrl;
+                      return;
+                    }
+                    target.style.display = "none";
+                  }}
                 />
               ) : (
                 <Building2 className="w-5 h-5 text-[#1E5BE0]" />
@@ -291,17 +284,21 @@ export default function StudentJobDetailsClient({
               <Bookmark className={`w-4 h-4 ${isSaved ? "fill-white" : ""}`} />
             </button>
 
-            <button
-              onClick={() => setApplyModalOpen(true)}
-              disabled={isApplied}
-              className={`text-sm font-semibold px-5 py-2.5 rounded-xl transition-all shadow-md ${
-                isApplied
-                  ? "bg-[#22B573] text-white cursor-default"
-                  : "bg-[#FF6B00] hover:bg-[#E86100] text-white hover:shadow-orange-500/25 cursor-pointer"
-              }`}
-            >
-              {isApplied ? "Applied ✓" : "Apply Now →"}
-            </button>
+            {isApplied ? (
+              <button
+                disabled
+                className="text-sm font-semibold px-5 py-2.5 rounded-xl bg-[#22B573] text-white cursor-not-allowed shadow-none"
+              >
+                Already Applied ✓
+              </button>
+            ) : (
+              <button
+                onClick={() => setApplyModalOpen(true)}
+                className="text-sm font-semibold px-5 py-2.5 rounded-xl transition-all shadow-md bg-[#FF6B00] hover:bg-[#E86100] text-white hover:shadow-orange-500/25 cursor-pointer"
+              >
+                Apply Now
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -323,13 +320,23 @@ export default function StudentJobDetailsClient({
         <div className="bg-white rounded-[16px] border border-[#EEF1F7] p-5 sm:p-6 lg:p-7 shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:shadow-[0_8px_20px_rgba(11,31,75,0.08)] transition-all duration-200">
           <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
             <div className="flex flex-col sm:flex-row items-start gap-5 min-w-0">
-              {/* Company Logo Tile (~104px) */}
+              {/* Company Logo Tile */}
               <div className="w-[84px] h-[84px] sm:w-[104px] sm:h-[104px] rounded-[12px] border border-[#EEF1F7] bg-white p-2.5 flex items-center justify-center shrink-0 shadow-sm">
-                {job.company.logo ? (
+                {(job.company.logo || job.company.id) ? (
                   <img
-                    src={job.company.logo}
+                    src={getCompanyLogoUrl(job.company, job.company.id)}
                     alt={job.company.name}
                     className="w-full h-full object-contain"
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      const proxyUrl = job.company.id ? getCompanyLogoProxyUrl(job.company.id) : "";
+                      if (proxyUrl && !target.dataset.tried && target.src !== proxyUrl) {
+                        target.dataset.tried = "true";
+                        target.src = proxyUrl;
+                        return;
+                      }
+                      target.style.display = "none";
+                    }}
                   />
                 ) : (
                   <Building2 className="w-12 h-12 text-[#1E5BE0]" />
@@ -338,24 +345,21 @@ export default function StudentJobDetailsClient({
 
               {/* Title, Badges, Company line */}
               <div className="min-w-0">
-                {/* Top Row: 3 Badge Pills */}
+                {/* Badges */}
                 <div className="flex flex-wrap items-center gap-2 mb-2.5">
-                  {/* Verified Company */}
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-[#E5F8EE] text-[#1E9E63] border border-[#BFEAD3]">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[#1E9E63]" />
                     Verified Company
                   </span>
 
-                  {/* Fresher Friendly */}
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-[#E3EEFF] text-[#1E5BE0] border border-[#BBD3FA]">
                     <Sparkles className="w-3.5 h-3.5 text-[#1E5BE0]" />
-                    Fresher Friendly
+                    {job.experience || "Fresher Friendly"}
                   </span>
 
-                  {/* On Campus / Off Campus */}
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-[#FFF1E3] text-[#E8650A] border border-[#FFD2A8]">
                     <Tag className="w-3.5 h-3.5 text-[#E8650A]" />
-                    On Campus / Off Campus
+                    {job.jobType} • {job.workMode}
                   </span>
                 </div>
 
@@ -364,7 +368,7 @@ export default function StudentJobDetailsClient({
                   {job.title}
                 </h1>
 
-                {/* Company line with green verified tick */}
+                {/* Company line */}
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-[16px] font-semibold text-[#1E5BE0]">
                     {job.company.name}
@@ -376,7 +380,7 @@ export default function StudentJobDetailsClient({
               </div>
             </div>
 
-            {/* Right side: Bookmark + Orange Apply button */}
+            {/* Right side: Bookmark + Apply button */}
             <div className="flex items-center gap-3 shrink-0 self-start w-full sm:w-auto mt-2 lg:mt-0">
               <button
                 onClick={handleToggleSave}
@@ -391,17 +395,21 @@ export default function StudentJobDetailsClient({
                 <Bookmark className={`w-5 h-5 ${isSaved ? "fill-white text-white" : "text-[#1E5BE0]"}`} />
               </button>
 
-              <button
-                onClick={() => setApplyModalOpen(true)}
-                disabled={isApplied}
-                className={`flex-1 sm:flex-initial h-[44px] px-6 rounded-[10px] text-[15px] font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(255,107,0,0.25)] hover:shadow-[0_6px_20px_rgba(255,107,0,0.35)] ${
-                  isApplied
-                    ? "bg-[#22B573] text-white hover:bg-[#1E9E63] cursor-default shadow-none"
-                    : "bg-[#FF6B00] text-white hover:bg-[#E86100] active:scale-[0.98]"
-                }`}
-              >
-                {isApplied ? "Applied ✓" : "Apply Now →"}
-              </button>
+              {isApplied ? (
+                <button
+                  disabled
+                  className="flex-1 sm:flex-initial h-[44px] px-6 rounded-[10px] text-[15px] font-semibold bg-[#22B573] text-white cursor-not-allowed shadow-none flex items-center justify-center gap-2"
+                >
+                  Already Applied ✓
+                </button>
+              ) : (
+                <button
+                  onClick={() => setApplyModalOpen(true)}
+                  className="flex-1 sm:flex-initial h-[44px] px-6 rounded-[10px] text-[15px] font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(255,107,0,0.25)] hover:shadow-[0_6px_20px_rgba(255,107,0,0.35)] bg-[#FF6B00] text-white hover:bg-[#E86100] active:scale-[0.98]"
+                >
+                  Apply Now
+                </button>
+              )}
             </div>
           </div>
 
@@ -418,7 +426,7 @@ export default function StudentJobDetailsClient({
               <div className="min-w-0">
                 <span className="block text-[12px] text-[#6B7694] leading-tight">Location</span>
                 <span className="block text-[14px] font-bold text-[#0B1F4B] truncate">
-                  {job.location || "Bengaluru, Karnataka"}
+                  {job.location}
                 </span>
               </div>
             </div>
@@ -431,7 +439,7 @@ export default function StudentJobDetailsClient({
               <div className="min-w-0">
                 <span className="block text-[12px] text-[#6B7694] leading-tight">Salary / Stipend</span>
                 <span className="block text-[14px] font-bold text-[#0B1F4B] truncate">
-                  Rs 4,00,000 - Rs 6,50,000 / year
+                  {formattedSalary}
                 </span>
               </div>
             </div>
@@ -444,7 +452,7 @@ export default function StudentJobDetailsClient({
               <div className="min-w-0">
                 <span className="block text-[12px] text-[#6B7694] leading-tight">Experience</span>
                 <span className="block text-[14px] font-bold text-[#0B1F4B] truncate">
-                  {job.experience || "Fresher (0 - 1 yr)"}
+                  {job.experience}
                 </span>
               </div>
             </div>
@@ -457,7 +465,7 @@ export default function StudentJobDetailsClient({
               <div className="min-w-0">
                 <span className="block text-[12px] text-[#6B7694] leading-tight">Work Mode</span>
                 <span className="block text-[14px] font-bold text-[#0B1F4B] truncate">
-                  {job.workMode || "Hybrid"}
+                  {job.workMode}
                 </span>
               </div>
             </div>
@@ -470,20 +478,18 @@ export default function StudentJobDetailsClient({
               <div className="min-w-0">
                 <span className="block text-[12px] text-[#6B7694] leading-tight">Job Type</span>
                 <span className="block text-[14px] font-bold text-[#0B1F4B] truncate">
-                  {job.jobType || "Full Time"}
+                  {job.jobType}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 3. Tabs Row (Height 52px, 14px radius) */}
+        {/* 3. Real Navigation Tabs */}
         <div className="mt-6 bg-white rounded-[14px] border border-[#EEF1F7] p-1 flex items-center gap-2 overflow-x-auto shadow-sm no-scrollbar">
           {[
             { id: "details", label: "Job Details" },
             { id: "about", label: "About Company" },
-            { id: "reviews", label: "Reviews" },
-            { id: "process", label: "Application Process" },
             { id: "similar", label: "Similar Jobs" },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
@@ -503,9 +509,9 @@ export default function StudentJobDetailsClient({
           })}
         </div>
 
-        {/* 4. Center Content + Right Panel Layout (64% / 320px) */}
+        {/* 4. Center Content + Right Panel Layout */}
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* ================= CENTER CONTENT (8 cols ~64%) ================= */}
+          {/* ================= CENTER CONTENT ================= */}
           <div className="lg:col-span-8 space-y-6">
             {/* Main Job Content Card */}
             <div
@@ -520,169 +526,111 @@ export default function StudentJobDetailsClient({
                     Job Description
                   </h2>
                 </div>
-                <p className="text-[14px] text-[#475467] leading-[1.7]">
-                  {job.description ||
-                    "Infosys is hiring Graduate Software Engineers for 2025 batch. You will work on real-world projects, collaborate with global teams, and build innovative solutions using modern technologies."}
+                <p className="text-[14px] text-[#475467] leading-[1.7] whitespace-pre-line">
+                  {job.description || "No job description provided."}
                 </p>
               </div>
 
-              {/* Section 2: Key Responsibilities */}
-              <div>
-                <div className="flex items-center gap-2.5 mb-3 text-[#1E5BE0]">
-                  <ShieldCheck className="w-5 h-5 text-[#1E5BE0]" strokeWidth={2} />
-                  <h2 className="text-[18px] font-bold text-[#0B1F4B]">
-                    Key Responsibilities
-                  </h2>
-                </div>
-                <ul className="space-y-3">
-                  {responsibilitiesList.map((item, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
-                      <span className="w-5 h-5 rounded-full bg-[#1E5BE0] text-white flex items-center justify-center shrink-0 mt-0.5">
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      </span>
-                      <span className="text-[14px] text-[#475467] leading-relaxed">
-                        {item}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Section 3: Requirements & Eligibility */}
-              <div>
-                <div className="flex items-center gap-2.5 mb-3 text-[#FF6B00]">
-                  <FileText className="w-5 h-5 text-[#FF6B00]" strokeWidth={2} />
-                  <h2 className="text-[18px] font-bold text-[#0B1F4B]">
-                    Requirements & Eligibility
-                  </h2>
-                </div>
-                <ul className="space-y-3">
-                  {requirementsList.map((req, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
-                      <span className="w-5 h-5 rounded-full bg-[#FF6B00] text-white flex items-center justify-center shrink-0 mt-0.5">
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      </span>
-                      <span className="text-[14px] text-[#475467] leading-relaxed">
-                        {req}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Section 4: Skills Required */}
-              <div>
-                <div className="flex items-center gap-2.5 mb-3 text-[#1E5BE0]">
-                  <Code2 className="w-5 h-5 text-[#1E5BE0]" strokeWidth={2} />
-                  <h2 className="text-[18px] font-bold text-[#0B1F4B]">
-                    Skills Required
-                  </h2>
-                </div>
-                <div className="flex flex-wrap gap-2.5">
-                  {skillsList.map((skill, idx) => (
-                    <span
-                      key={idx}
-                      className="bg-[#E8F0FF] text-[#1E5BE0] rounded-full text-[13px] font-medium px-4 py-1.5 hover:bg-[#1E5BE0] hover:text-white transition-colors cursor-default"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Section 5: Benefits & Perks */}
-              <div>
-                <div className="flex items-center gap-2.5 mb-3 text-[#1E5BE0]">
-                  <Gift className="w-5 h-5 text-[#1E5BE0]" strokeWidth={2} />
-                  <h2 className="text-[18px] font-bold text-[#0B1F4B]">
-                    Benefits & Perks
-                  </h2>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {benefitsList.map((benefit, idx) => (
-                    <div
-                      key={idx}
-                      className="bg-[#F5F7FB] rounded-[10px] p-3.5 flex items-start gap-3 border border-[#EEF1F7]/60 hover:bg-[#EDF2FA] transition-colors"
-                    >
-                      <span className="w-5 h-5 rounded-full bg-[#22B573] text-white flex items-center justify-center shrink-0 mt-0.5">
-                        <Check className="w-3 h-3 stroke-[3]" />
-                      </span>
-                      <span className="text-[13px] text-[#0B1F4B] font-medium leading-snug">
-                        {benefit}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Application Process Section Card */}
-            <div
-              id="process"
-              className="bg-white rounded-[14px] border border-[#EEF1F7] p-6 lg:p-7 shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:shadow-[0_8px_20px_rgba(11,31,75,0.08)] transition-all"
-            >
-              <div className="flex items-center gap-2.5 mb-4 text-[#1E5BE0]">
-                <Sparkles className="w-5 h-5 text-[#1E5BE0]" />
-                <h2 className="text-[18px] font-bold text-[#0B1F4B]">
-                  Campus Hiring & Selection Process
-                </h2>
-              </div>
-              <div className="relative pl-6 border-l-2 border-[#E3EEFF] space-y-6">
-                <div className="relative">
-                  <div className="absolute -left-[31px] top-0.5 w-4 h-4 rounded-full bg-[#1E5BE0] ring-4 ring-[#E3EEFF]" />
-                  <h4 className="text-[14px] font-bold text-[#0B1F4B]">Round 1: Online Assessment Test</h4>
-                  <p className="text-[13px] text-[#6B7694] mt-1">
-                    Quantitative Aptitude, Logical Reasoning, Verbal Ability & Pseudo-code test (90 Mins).
-                  </p>
-                </div>
-                <div className="relative">
-                  <div className="absolute -left-[31px] top-0.5 w-4 h-4 rounded-full bg-[#1E5BE0] ring-4 ring-[#E3EEFF]" />
-                  <h4 className="text-[14px] font-bold text-[#0B1F4B]">Round 2: Technical Interview</h4>
-                  <p className="text-[13px] text-[#6B7694] mt-1">
-                    Live coding questions, Data Structures, OOPs concepts, DBMS, and final year academic project demo.
-                  </p>
-                </div>
-                <div className="relative">
-                  <div className="absolute -left-[31px] top-0.5 w-4 h-4 rounded-full bg-[#22B573] ring-4 ring-[#E5F8EE]" />
-                  <h4 className="text-[14px] font-bold text-[#0B1F4B]">Round 3: HR & Management Discussion</h4>
-                  <p className="text-[13px] text-[#6B7694] mt-1">
-                    Behavioral assessment, location preference, background verification check, and offer rollout.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Candidate Reviews Section Card */}
-            <div
-              id="reviews"
-              className="bg-white rounded-[14px] border border-[#EEF1F7] p-6 lg:p-7 shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:shadow-[0_8px_20px_rgba(11,31,75,0.08)] transition-all"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5 text-[#1E5BE0]">
-                  <Users2 className="w-5 h-5 text-[#1E5BE0]" />
-                  <h2 className="text-[18px] font-bold text-[#0B1F4B]">
-                    Alumni & Campus Reviews
-                  </h2>
-                </div>
-                <span className="text-xs font-semibold text-[#1E9E63] bg-[#E5F8EE] px-2.5 py-1 rounded-full">
-                  4.4 ★ (320+ Reviews)
-                </span>
-              </div>
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-[#F7F9FD] border border-[#EEF1F7]">
-                  <div className="flex items-center justify-between text-xs text-[#6B7694] mb-2">
-                    <span className="font-semibold text-[#0B1F4B]">Priya S. (Placed 2024 Batch)</span>
-                    <span>2 months ago</span>
+              {/* Section 2: Key Responsibilities (Rendered only if real data exists) */}
+              {job.responsibilities && job.responsibilities.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2.5 mb-3 text-[#1E5BE0]">
+                    <ShieldCheck className="w-5 h-5 text-[#1E5BE0]" strokeWidth={2} />
+                    <h2 className="text-[18px] font-bold text-[#0B1F4B]">
+                      Key Responsibilities
+                    </h2>
                   </div>
-                  <p className="text-[13px] text-[#475467] leading-relaxed">
-                    &quot;The training program at Mysore campus was world-class. Great peer group and comprehensive exposure to full-stack microservices architecture.&quot;
-                  </p>
+                  <ul className="space-y-3">
+                    {job.responsibilities.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-3">
+                        <span className="w-5 h-5 rounded-full bg-[#1E5BE0] text-white flex items-center justify-center shrink-0 mt-0.5">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </span>
+                        <span className="text-[14px] text-[#475467] leading-relaxed">
+                          {item}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </div>
+              )}
+
+              {/* Section 3: Requirements & Eligibility (Rendered only if real data exists) */}
+              {job.requirements && job.requirements.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2.5 mb-3 text-[#FF6B00]">
+                    <FileText className="w-5 h-5 text-[#FF6B00]" strokeWidth={2} />
+                    <h2 className="text-[18px] font-bold text-[#0B1F4B]">
+                      Requirements & Eligibility
+                    </h2>
+                  </div>
+                  <ul className="space-y-3">
+                    {job.requirements.map((req, idx) => (
+                      <li key={idx} className="flex items-start gap-3">
+                        <span className="w-5 h-5 rounded-full bg-[#FF6B00] text-white flex items-center justify-center shrink-0 mt-0.5">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </span>
+                        <span className="text-[14px] text-[#475467] leading-relaxed">
+                          {req}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Section 4: Skills Required (Rendered only if real skills exist) */}
+              {job.skills && job.skills.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2.5 mb-3 text-[#1E5BE0]">
+                    <Code2 className="w-5 h-5 text-[#1E5BE0]" strokeWidth={2} />
+                    <h2 className="text-[18px] font-bold text-[#0B1F4B]">
+                      Skills Required
+                    </h2>
+                  </div>
+                  <div className="flex flex-wrap gap-2.5">
+                    {job.skills.map((skill, idx) => (
+                      <span
+                        key={idx}
+                        className="bg-[#E8F0FF] text-[#1E5BE0] rounded-full text-[13px] font-medium px-4 py-1.5 hover:bg-[#1E5BE0] hover:text-white transition-colors cursor-default"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Section 5: Benefits & Perks (Rendered only if real benefits exist) */}
+              {job.benefits && job.benefits.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2.5 mb-3 text-[#1E5BE0]">
+                    <Gift className="w-5 h-5 text-[#1E5BE0]" strokeWidth={2} />
+                    <h2 className="text-[18px] font-bold text-[#0B1F4B]">
+                      Benefits & Perks
+                    </h2>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {job.benefits.map((benefit, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-[#F5F7FB] rounded-[10px] p-3.5 flex items-start gap-3 border border-[#EEF1F7]/60 hover:bg-[#EDF2FA] transition-colors"
+                      >
+                        <span className="w-5 h-5 rounded-full bg-[#22B573] text-white flex items-center justify-center shrink-0 mt-0.5">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </span>
+                        <span className="text-[13px] text-[#0B1F4B] font-medium leading-snug">
+                          {benefit}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* ================= RIGHT PANEL (~320px / 4 cols) ================= */}
+          {/* ================= RIGHT PANEL ================= */}
           <div className="lg:col-span-4 space-y-5">
             {/* Card 1: About the Company */}
             <div
@@ -693,14 +641,24 @@ export default function StudentJobDetailsClient({
                 About the Company
               </h3>
 
-              {/* Company Logo Tile (64px) + Name + Verified */}
+              {/* Company Logo Tile + Name */}
               <div className="flex items-center gap-3.5 mb-3.5">
                 <div className="w-16 h-16 rounded-xl border border-[#EEF1F7] bg-white p-2 flex items-center justify-center shrink-0 shadow-sm">
-                  {job.company.logo ? (
+                  {(job.company.logo || job.company.id) ? (
                     <img
-                      src={job.company.logo}
+                      src={getCompanyLogoUrl(job.company, job.company.id)}
                       alt={job.company.name}
                       className="w-full h-full object-contain"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        const proxyUrl = job.company.id ? getCompanyLogoProxyUrl(job.company.id) : "";
+                        if (proxyUrl && !target.dataset.tried && target.src !== proxyUrl) {
+                          target.dataset.tried = "true";
+                          target.src = proxyUrl;
+                          return;
+                        }
+                        target.style.display = "none";
+                      }}
                     />
                   ) : (
                     <Building2 className="w-8 h-8 text-[#1E5BE0]" />
@@ -716,57 +674,59 @@ export default function StudentJobDetailsClient({
                     </span>
                   </div>
                   <p className="text-[12px] text-[#6B7694] leading-snug line-clamp-2 mt-0.5">
-                    {job.company.description || "Global leader in next-generation digital services and consulting."}
+                    {job.company.industry || "Registered Partner"}
                   </p>
                 </div>
               </div>
 
-              {/* Paragraph */}
+              {/* Real Company About Text */}
               <p className="text-[13px] text-[#6B7694] leading-relaxed mb-4">
-                {job.company.about ||
-                  "Infosys helps clients navigate their digital transformation journey with AI, cloud, and next-gen technologies."}
+                {job.company.about || job.company.description || "Hiring partner on WeGrow Skill Campus."}
               </p>
 
               {/* Info Rows */}
               <div className="space-y-2.5 text-[13px] border-t border-[#EEF1F7] pt-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[#6B7694]">Industry:</span>
-                  <span className="font-bold text-[#0B1F4B]">{job.company.industry || "IT Services"}</span>
+                  <span className="font-bold text-[#0B1F4B]">{job.company.industry || "Not Disclosed"}</span>
                 </div>
+                {job.company.size && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#6B7694]">Company Size:</span>
+                    <span className="font-bold text-[#0B1F4B]">{job.company.size}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
-                  <span className="text-[#6B7694]">Company Size:</span>
-                  <span className="font-bold text-[#0B1F4B]">{job.company.size || "100,000+ employees"}</span>
+                  <span className="text-[#6B7694]">Location:</span>
+                  <span className="font-bold text-[#0B1F4B]">{job.company.location || job.location}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[#6B7694]">Headquarters:</span>
-                  <span className="font-bold text-[#0B1F4B]">{job.company.location || "Bengaluru, Karnataka"}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[#6B7694]">Website:</span>
-                  <a
-                    href={job.company.website || "https://www.infosys.com"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-bold text-[#1E5BE0] hover:underline flex items-center gap-1"
-                  >
-                    <span>{job.company.website ? job.company.website.replace(/^https?:\/\//, "") : "infosys.com"}</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
+                {job.company.website && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#6B7694]">Website:</span>
+                    <a
+                      href={job.company.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold text-[#1E5BE0] hover:underline flex items-center gap-1 truncate max-w-[180px]"
+                    >
+                      <span className="truncate">{job.company.website.replace(/^https?:\/\//, "")}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                    </a>
+                  </div>
+                )}
               </div>
 
-              {/* Outlined blue button: View Company Profile */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (job.company.website) {
-                    window.open(job.company.website, "_blank");
-                  }
-                }}
-                className="mt-5 w-full h-[44px] rounded-[10px] border-[1.5px] border-[#1E5BE0] text-[#1E5BE0] font-semibold text-[13px] hover:bg-[#E3EEFF] transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>View Company Profile →</span>
-              </button>
+              {job.company.website && (
+                <a
+                  href={job.company.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-5 w-full h-[44px] rounded-[10px] border-[1.5px] border-[#1E5BE0] text-[#1E5BE0] font-semibold text-[13px] hover:bg-[#E3EEFF] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Visit Company Website</span>
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              )}
             </div>
 
             {/* Card 2: Application Details */}
@@ -778,14 +738,18 @@ export default function StudentJobDetailsClient({
                 </h3>
               </div>
 
-              {/* Rows */}
+              {/* Real Rows */}
               <div className="space-y-3 text-[13px] mb-5">
                 <div className="flex items-center justify-between">
                   <span className="text-[#6B7694] flex items-center gap-2">
                     <Clock className="w-4 h-4 text-[#6B7694]" />
                     Application Deadline:
                   </span>
-                  <span className="font-bold text-[#0B1F4B]">{job.deadline || "30 Apr 2025"}</span>
+                  <span className="font-bold text-[#0B1F4B]">
+                    {job.deadline
+                      ? new Date(job.deadline).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                      : "Open / Immediate"}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -793,7 +757,11 @@ export default function StudentJobDetailsClient({
                     <Tag className="w-4 h-4 text-[#6B7694]" />
                     Posted On:
                   </span>
-                  <span className="font-bold text-[#0B1F4B]">{job.postedDate || "12 Mar 2025"}</span>
+                  <span className="font-bold text-[#0B1F4B]">
+                    {job.postedDate
+                      ? new Date(job.postedDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                      : "Recently"}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -801,7 +769,9 @@ export default function StudentJobDetailsClient({
                     <Users2 className="w-4 h-4 text-[#6B7694]" />
                     Total Openings:
                   </span>
-                  <span className="font-bold text-[#0B1F4B]">{job.openings ? `${job.openings}+ Positions` : "500+ Positions"}</span>
+                  <span className="font-bold text-[#0B1F4B]">
+                    {`${job.openings || 1} Position${(job.openings || 1) > 1 ? "s" : ""}`}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -809,36 +779,42 @@ export default function StudentJobDetailsClient({
                     <ShieldCheck className="w-4 h-4 text-[#6B7694]" />
                     Job ID:
                   </span>
-                  <span className="font-bold text-[#0B1F4B]">INF-2025-GE-001</span>
+                  <span className="font-bold text-[#0B1F4B] font-mono">
+                    {job.id.slice(0, 8).toUpperCase()}
+                  </span>
                 </div>
               </div>
 
-              {/* Notice Box (bg #FFF3E6, border 1px #FFE0C2, 12px radius) */}
+              {/* Verified Placement Drive Notice */}
               <div className="bg-[#FFF3E6] border border-[#FFE0C2] rounded-[12px] p-3.5 mb-4">
                 <div className="flex items-center gap-2 text-[#FF6B00] mb-1">
                   <AlertCircle className="w-4 h-4 text-[#FF6B00] shrink-0" />
                   <h5 className="text-[14px] font-semibold text-[#FF6B00]">
-                    Direct Campus Placement Drive
+                    Verified Campus Opportunity
                   </h5>
                 </div>
                 <p className="text-[12px] text-[#6B7694] leading-relaxed">
-                  Your verified student profile, CGPA, and resume will be directly submitted to the recruiter.
+                  Your registered student profile and credentials will be submitted directly to {job.company.name}.
                 </p>
               </div>
 
-              {/* Full-width solid orange button */}
-              <button
-                type="button"
-                onClick={() => setApplyModalOpen(true)}
-                disabled={isApplied}
-                className={`w-full h-[44px] rounded-[10px] text-[14px] font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_4px_14px_rgba(255,107,0,0.25)] hover:shadow-[0_6px_20px_rgba(255,107,0,0.35)] ${
-                  isApplied
-                    ? "bg-[#22B573] text-white cursor-default shadow-none"
-                    : "bg-[#FF6B00] text-white hover:bg-[#E86100]"
-                }`}
-              >
-                {isApplied ? "Applied Successfully ✓" : "Apply for this Job →"}
-              </button>
+              {isApplied ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full h-[44px] rounded-[10px] text-[14px] font-semibold flex items-center justify-center gap-2 bg-[#22B573] text-white cursor-not-allowed shadow-none"
+                >
+                  Already Applied ✓
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setApplyModalOpen(true)}
+                  className="w-full h-[44px] rounded-[10px] text-[14px] font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_4px_14px_rgba(255,107,0,0.25)] hover:shadow-[0_6px_20px_rgba(255,107,0,0.35)] bg-[#FF6B00] text-white hover:bg-[#E86100]"
+                >
+                  Apply Now
+                </button>
+              )}
             </div>
 
             {/* Card 3: Similar Jobs */}
@@ -859,44 +835,66 @@ export default function StudentJobDetailsClient({
               </div>
 
               <div className="divide-y divide-[#EEF1F7]">
-                {displaySimilar.slice(0, 3).map((item) => (
-                  <Link
-                    key={item.id}
-                    href={`/student/jobs/${item.id}`}
-                    className="py-3.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3 group block"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-lg border border-[#EEF1F7] bg-white p-1 flex items-center justify-center shrink-0">
-                        {item.company?.logo ? (
-                          <img
-                            src={item.company.logo}
-                            alt={item.company.name}
-                            className="w-full h-full object-contain"
-                          />
-                        ) : (
-                          <Building2 className="w-5 h-5 text-[#1E5BE0]" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="text-[14px] font-bold text-[#0B1F4B] group-hover:text-[#1E5BE0] transition-colors truncate">
-                          {item.title}
-                        </h4>
-                        <p className="text-[12px] text-[#6B7694] truncate">
-                          {item.company?.name} • {item.location}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <span className="bg-[#E8F0FF] text-[#1E5BE0] text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                            {item.experience || "Fresher"}
-                          </span>
-                          <span className="bg-[#E8F0FF] text-[#1E5BE0] text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                            {item.workMode || "Hybrid"}
-                          </span>
+                {displaySimilar.length === 0 ? (
+                  <p className="py-6 text-center text-xs text-[#6B7694]">
+                    No other similar jobs posted at this time.
+                  </p>
+                ) : (
+                  displaySimilar.slice(0, 3).map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`/student/jobs/${item.id}`}
+                      className="py-3.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3 group block"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-lg border border-[#EEF1F7] bg-white p-1 flex items-center justify-center shrink-0 font-bold text-xs text-[#1E5BE0]">
+                          {(item.company?.logo || item.company?.id) ? (
+                            <img
+                              src={getCompanyLogoUrl(item.company, item.company?.id)}
+                              alt={item.company.name}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const target = e.currentTarget as HTMLImageElement;
+                                const proxyUrl = item.company?.id ? getCompanyLogoProxyUrl(item.company.id) : "";
+                                if (proxyUrl && target.src !== proxyUrl) {
+                                  target.src = proxyUrl;
+                                  return;
+                                }
+                                target.style.display = "none";
+                                const parent = target.parentElement;
+                                if (parent && !parent.querySelector(".logo-fb")) {
+                                  const fb = document.createElement("span");
+                                  fb.textContent = (item.company?.name || "C").slice(0, 2).toUpperCase();
+                                  fb.className = "font-bold text-xs text-[#1E5BE0] logo-fb";
+                                  parent.appendChild(fb);
+                                }
+                              }}
+                            />
+                          ) : (
+                            (item.company?.name || 'C').charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-[14px] font-bold text-[#0B1F4B] group-hover:text-[#1E5BE0] transition-colors truncate">
+                            {item.title}
+                          </h4>
+                          <p className="text-[12px] text-[#6B7694] truncate">
+                            {item.company?.name} • {item.location}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="bg-[#E8F0FF] text-[#1E5BE0] text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                              {item.experience || "Fresher"}
+                            </span>
+                            <span className="bg-[#E8F0FF] text-[#1E5BE0] text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                              {item.workMode || "Hybrid"}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-[#FF6B00] group-hover:translate-x-1 transition-transform shrink-0" />
-                  </Link>
-                ))}
+                      <ChevronRight className="w-5 h-5 text-[#FF6B00] group-hover:translate-x-1 transition-transform shrink-0" />
+                    </Link>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -929,11 +927,15 @@ export default function StudentJobDetailsClient({
             <div className="p-6 space-y-4">
               <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[#F7F9FD] border border-[#EEF1F7]">
                 <div className="w-12 h-12 rounded-lg bg-white p-1 border border-[#EEF1F7] flex items-center justify-center shrink-0">
-                  {job.company.logo ? (
+                  {(job.company.logo || job.company.id) ? (
                     <img
-                      src={job.company.logo}
+                      src={getCompanyLogoUrl(job.company, job.company.id)}
                       alt={job.company.name}
                       className="w-full h-full object-contain"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        target.style.display = "none";
+                      }}
                     />
                   ) : (
                     <Building2 className="w-6 h-6 text-[#1E5BE0]" />
@@ -949,23 +951,29 @@ export default function StudentJobDetailsClient({
                 <p className="font-semibold text-[#1E5BE0] mb-1">
                   Ready to apply from Student Dashboard:
                 </p>
-                Your verified profile, college enrollment details, and active resume will be submitted directly to <strong>{job.company.name}</strong>.
+                Your verified profile and credentials will be submitted directly to <strong>{job.company.name}</strong>.
               </div>
 
-              <div className="text-xs text-[#6B7694] space-y-1.5 bg-[#F7F9FD] p-3 rounded-xl border border-[#EEF1F7]">
-                <div className="flex justify-between">
-                  <span>Applicant Name:</span>
-                  <span className="font-bold text-[#0B1F4B]">Vijayakumar M</span>
+              {studentProfile && (
+                <div className="text-xs text-[#6B7694] space-y-1.5 bg-[#F7F9FD] p-3 rounded-xl border border-[#EEF1F7]">
+                  <div className="flex justify-between">
+                    <span>Applicant Name:</span>
+                    <span className="font-bold text-[#0B1F4B]">{studentProfile.fullName}</span>
+                  </div>
+                  {studentProfile.degree && (
+                    <div className="flex justify-between">
+                      <span>Education:</span>
+                      <span className="font-bold text-[#0B1F4B]">{studentProfile.degree}</span>
+                    </div>
+                  )}
+                  {studentProfile.email && (
+                    <div className="flex justify-between">
+                      <span>Email:</span>
+                      <span className="font-bold text-[#0B1F4B]">{studentProfile.email}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between">
-                  <span>Degree & Branch:</span>
-                  <span className="font-bold text-[#0B1F4B]">B.E Computer Science</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Placement Status:</span>
-                  <span className="font-bold text-[#22B573]">Eligible (Batch 2025)</span>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Modal Footer */}
@@ -998,7 +1006,7 @@ export default function StudentJobDetailsClient({
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#EEF1F7] p-3 px-4 flex items-center justify-between gap-3 shadow-[0_-4px_14px_rgba(11,31,75,0.06)]">
         <div>
           <span className="text-[11px] text-[#6B7694] block">Salary / Stipend</span>
-          <span className="text-[13px] font-bold text-[#0B1F4B] block">₹4.0L - ₹6.5L/yr</span>
+          <span className="text-[13px] font-bold text-[#0B1F4B] block">{formattedSalary}</span>
         </div>
         <button
           onClick={() => setApplyModalOpen(true)}

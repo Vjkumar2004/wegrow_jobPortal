@@ -32,6 +32,8 @@ interface SidebarItem {
   badge?: string;
 }
 
+import { AuthGuard } from "@/components/common/AuthGuard";
+
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
   const router = useRouter();
@@ -45,7 +47,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const menuItems: SidebarItem[] = [
     { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { label: "HR Management", href: "/admin/hr-management", icon: Building2, badge: "2" },
+    { label: "HR Management", href: "/admin/hr-management", icon: Building2 },
     { label: "Students", href: "/admin/students", icon: GraduationCap },
     { label: "Jobs Moderation", href: "/admin/jobs", icon: Briefcase },
     { label: "Applications", href: "/admin/applications", icon: FileCheck },
@@ -54,13 +56,72 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
     { label: "Audit Logs", href: "/admin/audit-logs", icon: FileSpreadsheet },
   ];
 
-  const handleLogout = () => {
-    authService.logout();
-    router.push("/admin/login");
+  const handleLogout = async (reason?: string) => {
+    await authService.logout();
+    if (reason) {
+      router.replace(`/admin/login?reason=${reason}`);
+    } else {
+      router.replace("/admin/login");
+    }
   };
 
+  // ==============================================================
+  // 10 MINUTES INACTIVITY (IDLE) AUTO-LOGOUT
+  // ==============================================================
+  React.useEffect(() => {
+    // If login page, do not track idle timeout
+    if (pathname === "/admin/login") return;
+
+    const IDLE_LIMIT_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
+    let timeoutId: NodeJS.Timeout;
+    let lastActivityTime = Date.now();
+
+    const startIdleTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        console.warn("[AdminLayout] 10 minutes idle timeout reached. Auto logging out...");
+        handleLogout("idle_timeout");
+      }, IDLE_LIMIT_MS);
+    };
+
+    // User activity handler with throttle (runs at most once every 3 seconds to save CPU)
+    const handleUserActivity = () => {
+      const now = Date.now();
+      if (now - lastActivityTime > 3000) {
+        lastActivityTime = now;
+        startIdleTimer();
+      }
+    };
+
+    // User interaction events to detect active usage
+    const activityEvents = [
+      "mousedown",
+      "mousemove",
+      "keydown",
+      "scroll",
+      "touchstart",
+      "click",
+    ];
+
+    // Start timer on mount
+    startIdleTimer();
+
+    // Attach listeners
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, handleUserActivity, { passive: true });
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+      activityEvents.forEach((event) => {
+        window.removeEventListener(event, handleUserActivity);
+      });
+    };
+  }, [pathname]);
+
   return (
-    <div className="min-h-screen bg-[#F7F9FD] text-[#0B1F4B] font-['Poppins',sans-serif] flex flex-col">
+    <AuthGuard allowedRoles={["ADMIN"]} loginRoute="/admin/login">
+      <div className="min-h-screen bg-[#F7F9FD] text-[#0B1F4B] font-['Poppins',sans-serif] flex flex-col">
       {/* ============================================================== */}
       {/* 1. TOP BAR (~66px height, white, sticky top, matching Student layout) */}
       {/* ============================================================== */}
@@ -116,9 +177,6 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             title="Recent Audit Logs"
           >
             <Bell className="w-5 h-5 text-[#0B1F4B]" strokeWidth={1.75} />
-            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#EF4444] text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none ring-2 ring-white">
-              4
-            </span>
           </Link>
 
           {/* Admin profile capsule */}
@@ -135,7 +193,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
               </div>
             </div>
             <button
-              onClick={handleLogout}
+              onClick={() => handleLogout()}
               className="p-1.5 text-slate-400 hover:text-rose-600 transition ml-1"
               title="Sign Out"
             >
@@ -213,7 +271,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             </div>
 
             <button
-              onClick={handleLogout}
+              onClick={() => handleLogout()}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-rose-500 hover:bg-rose-50 rounded-lg transition"
             >
               <LogOut className="w-4 h-4" />
@@ -228,6 +286,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         </div>
       </div>
     </div>
+    </AuthGuard>
   );
 };
 export default AdminLayout;

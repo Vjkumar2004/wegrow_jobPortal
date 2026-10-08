@@ -41,15 +41,51 @@ import {
   Area,
 } from "recharts";
 import { StudentReportsData } from "@/types";
+import { studentService } from "@/services/student.service";
+
+const DEFAULT_REPORTS_DATA: StudentReportsData = {
+  summary: {
+    totalApplications: 0,
+    shortlisted: 0,
+    interviews: 0,
+    offers: 0,
+    successRate: "0%",
+    profileViews: 0,
+    avgResponseDays: 0,
+  },
+  monthlyTrends: [],
+  statusFunnel: [],
+  domainPerformance: [],
+  interviewBreakdown: [],
+  topSkillsDemand: [],
+};
 
 interface StudentReportsClientProps {
-  initialData: StudentReportsData;
+  initialData?: StudentReportsData;
 }
 
-export default function StudentReportsClient({ initialData }: StudentReportsClientProps) {
-  const [data] = useState<StudentReportsData>(initialData);
+export default function StudentReportsClient({ initialData = DEFAULT_REPORTS_DATA }: StudentReportsClientProps) {
+  const [data, setData] = useState<StudentReportsData>(initialData);
   const [selectedPeriod, setSelectedPeriod] = useState("Last 6 Months");
   const [activeChartTab, setActiveChartTab] = useState<"stacked" | "growth" | "conversion">("stacked");
+
+  React.useEffect(() => {
+    let isMounted = true;
+    studentService
+      .getReports()
+      .then((res) => {
+        if (isMounted && res) {
+          setData(res);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load reports client-side:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const { summary, monthlyTrends, statusFunnel, domainPerformance, interviewBreakdown, topSkillsDemand } = data;
 

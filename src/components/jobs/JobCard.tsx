@@ -6,7 +6,7 @@ import { Job } from "@/types";
 import { MapPin, Briefcase, IndianRupee, Clock, Bookmark, Building2 } from "lucide-react";
 import { Badge } from "../common/Badge";
 import { Button } from "../common/Button";
-import { formatSalary, formatDate } from "@/lib/utils";
+import { formatSalary, formatDate, getCompanyLogoUrl, getCompanyLogoProxyUrl } from "@/lib/utils";
 
 interface JobCardProps {
   job: Job;
@@ -30,9 +30,26 @@ export const JobCard: React.FC<JobCardProps> = ({ job, onSave, isSaved = false }
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
-              {job.company.logo ? (
+              {job.company.logo || job.company.id ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={job.company.logo} alt={job.company.name} className="w-full h-full object-cover" />
+                <img
+                  src={getCompanyLogoUrl(job.company, job.company.id)}
+                  alt={job.company.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.currentTarget as HTMLImageElement;
+                    const proxyUrl = job.company.id ? getCompanyLogoProxyUrl(job.company.id) : "";
+                    if (proxyUrl && target.src !== proxyUrl) {
+                      target.src = proxyUrl;
+                    } else {
+                      target.style.display = "none";
+                      const parent = target.parentElement;
+                      if (parent && !parent.querySelector("svg")) {
+                        parent.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
+                      }
+                    }
+                  }}
+                />
               ) : (
                 <Building2 className="w-6 h-6 text-slate-400" />
               )}
@@ -41,7 +58,14 @@ export const JobCard: React.FC<JobCardProps> = ({ job, onSave, isSaved = false }
               <h4 className="font-bold text-slate-900 group-hover:text-[#0756A8] transition-colors line-clamp-1 text-base">
                 <Link href={`/jobs/${job.id}`}>{job.title}</Link>
               </h4>
-              <p className="text-xs text-slate-500 font-medium">{job.company.name}</p>
+              <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+                <span>{job.company.name}</span>
+                {job.hasApplied && (
+                  <span className="inline-flex items-center gap-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
+                    Applied ✓
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <button

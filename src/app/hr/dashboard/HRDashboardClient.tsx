@@ -36,9 +36,12 @@ import {
   CartesianGrid,
 } from "recharts";
 import { useSearchParams } from "next/navigation";
-import { Job, Application, Interview } from "@/types";
+import { Job, Application, Interview, CompanyApprovalStatus } from "@/types";
 import PostJobModal from "@/components/hr/PostJobModal";
 import CompanyProfileSubSection from "@/components/hr/CompanyProfileSubSection";
+import { authService } from "@/services/auth.service";
+import { hrService } from "@/services/hr.service";
+import { getNameInitials } from "@/lib/utils";
 
 interface HRDashboardClientProps {
   initialJobs: Job[];
@@ -46,23 +49,7 @@ interface HRDashboardClientProps {
   initialInterviews: Interview[];
 }
 
-// Donut data for applicant pipeline breakdown
-const CANDIDATE_PIPELINE = [
-  { name: "Under Review", value: 12, color: "#1E5BE0" },
-  { name: "Shortlisted", value: 6, color: "#FF6B00" },
-  { name: "Interview Round", value: 4, color: "#22B573" },
-  { name: "Offered", value: 2, color: "#8B5CF6" },
-];
-
-// Monthly hiring applications trend
-const MONTHLY_APPLICANT_TREND = [
-  { month: "Nov", applications: 18, hires: 1 },
-  { month: "Dec", applications: 25, hires: 2 },
-  { month: "Jan", applications: 32, hires: 3 },
-  { month: "Feb", applications: 28, hires: 2 },
-  { month: "Mar", applications: 45, hires: 5 },
-  { month: "Apr", applications: 22, hires: 2 },
-];
+// Applicant pipeline breakdown & monthly trend calculated dynamically inside component
 
 export default function HRDashboardClient({
   initialJobs,
@@ -71,11 +58,32 @@ export default function HRDashboardClient({
 }: HRDashboardClientProps) {
   const searchParams = useSearchParams();
   const [jobs, setJobs] = useState<Job[]>(initialJobs);
-  const [applicants] = useState<Application[]>(initialApplicants);
-  const [interviews] = useState<Interview[]>(initialInterviews);
+  const [applicants, setApplicants] = useState<Application[]>(initialApplicants);
+  const [interviews, setInterviews] = useState<Interview[]>(initialInterviews);
   const [pipelinePeriod, setPipelinePeriod] = useState("Last 6 Months");
   const [isPostJobModalOpen, setIsPostJobModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Fetch latest HR jobs, applicants, and interviews using client-side auth token
+  React.useEffect(() => {
+    hrService.getMyJobs()
+      .then((data) => {
+        if (data && data.length > 0) setJobs(data);
+      })
+      .catch(() => {});
+
+    hrService.getApplicants()
+      .then((data) => {
+        if (data && data.length > 0) setApplicants(data);
+      })
+      .catch(() => {});
+
+    hrService.getInterviews()
+      .then((data) => {
+        if (data && data.length > 0) setInterviews(data);
+      })
+      .catch(() => {});
+  }, []);
 
   // Sync modal when URL has action=post-job or when custom event is dispatched
   React.useEffect(() => {
@@ -112,8 +120,123 @@ export default function HRDashboardClient({
     return () => window.removeEventListener("open-company-profile", handleOpenCompanyTab);
   }, []);
 
+  const [companyApprovalStatus, setCompanyApprovalStatus] = useState<CompanyApprovalStatus | null>(null);
+  const [companyName, setCompanyName] = useState<string>("");
+  const [hrUserName, setHrUserName] = useState<string>("");
+
+  React.useEffect(() => {
+    authService.getMe().then((res) => {
+      const user = res.data?.user;
+      const name = user?.name || user?.fullName || user?.hrProfile?.fullName || "Recruiter"; setHrUserName(name);
+      const hr = user?.hrProfile;
+      if (hr?.company) {
+        setCompanyName(hr.company.name);
+        const st = hr.company.approvalStatus;
+        setCompanyApprovalStatus(
+          st === "APPROVED" ? "Approved" : st === "REJECTED" ? "Rejected" : st === "SUSPENDED" ? "Suspended" : "Pending"
+        );
+      }
+    }).catch(() => {});
+  }, []);
+
   const activeJobs = jobs.filter((j) => j.status === "Published");
   const shortlistedCount = applicants.filter((a) => a.status === "Shortlisted").length;
+  const underReviewCount = applicants.filter((a) => a.status === "Under Review" || a.status === "Applied").length;
+  const offeredCount = applicants.filter((a) => a.status === "Selected").length;
+  const rejectedCount = applicants.filter((a) => a.status === "Rejected").length;
+
+  const candidatePipeline = [
+    { name: "Under Review", value: underReviewCount, color: "#1E5BE0" },
+    { name: "Shortlisted", value: shortlistedCount, color: "#FF6B00" },
+    { name: "Interview Round", value: interviews.length, color: "#22B573" },
+    { name: "Selected", value: offeredCount, color: "#8B5CF6" },
+    ...(rejectedCount > 0 ? [{ name: "Rejected", value: rejectedCount, color: "#EF4444" }] : []),
+  ];
+
+  const totalPipelineValue = candidatePipeline.reduce((sum, item) => sum + item.value, 0);
+  const pieChartData =
+    totalPipelineValue > 0
+      ? candidatePipeline.filter((i) => i.value > 0)
+      : [{ name: "No Applicants Yet", value: 1, color: "#E2E8F0" }];
+
+  const monthlyApplicantTrend = React.useMemo(() => {
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    type MonthBucket = {
+      month: string;
+      year: number;
+      monthIndex: number;
+      applications: number;
+      hires: number;
+    };
+
+    const buckets: MonthBucket[] = [];
+
+    if (pipelinePeriod === "Last 3 Months") {
+      for (let i = 2; i >= 0; i--) {
+        const d = new Date(currentYear, currentMonth - i, 1);
+        buckets.push({
+          month: monthNames[d.getMonth()],
+          year: d.getFullYear(),
+          monthIndex: d.getMonth(),
+          applications: 0,
+          hires: 0,
+        });
+      }
+    } else if (pipelinePeriod.includes("Year")) {
+      const targetYear = parseInt(pipelinePeriod.replace(/\D/g, ""), 10) || currentYear;
+      for (let m = 0; m < 12; m++) {
+        buckets.push({
+          month: monthNames[m],
+          year: targetYear,
+          monthIndex: m,
+          applications: 0,
+          hires: 0,
+        });
+      }
+    } else {
+      // Default: Last 6 Months (e.g. May, Jun, Jul, Aug, Sep, Oct)
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(currentYear, currentMonth - i, 1);
+        buckets.push({
+          month: monthNames[d.getMonth()],
+          year: d.getFullYear(),
+          monthIndex: d.getMonth(),
+          applications: 0,
+          hires: 0,
+        });
+      }
+    }
+
+    // Populate counts from real applicants
+    applicants.forEach((app) => {
+      const rawDate = app.appliedAt || app.appliedDate;
+      if (!rawDate) return;
+      const appDate = new Date(rawDate);
+      if (isNaN(appDate.getTime())) return;
+
+      const appMonth = appDate.getMonth();
+      const appYear = appDate.getFullYear();
+
+      // Find bucket matching both month and year
+      const match = buckets.find((b) => b.monthIndex === appMonth && b.year === appYear);
+      if (match) {
+        match.applications += 1;
+        if (app.status === "Selected") {
+          match.hires += 1;
+        }
+      }
+    });
+
+    return buckets.map(({ month, applications, hires }) => ({
+      month,
+      applications,
+      hires,
+    }));
+  }, [applicants, pipelinePeriod]);
 
   const handleJobCreated = (newJob: Job) => {
     setJobs([newJob, ...jobs]);
@@ -138,6 +261,45 @@ export default function HRDashboardClient({
         onJobCreated={handleJobCreated}
       />
 
+      {/* Pending / Rejected Moderation Alert Banner */}
+      {companyApprovalStatus === "Pending" && (
+        <div className="p-4 sm:p-5 bg-amber-50 rounded-[16px] border border-amber-200/90 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <Clock className="w-5 h-5 text-[#FF6B00] shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Company Profile Awaiting Admin Approval
+              </h3>
+              <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                Your company {companyName ? <span className="font-semibold text-slate-900">&quot;{companyName}&quot;</span> : ""} is currently in the moderation review queue. Active job posting will be enabled once our administration team verifies your corporate profile.
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 shrink-0 self-start sm:self-auto">
+            Pending Moderation
+          </span>
+        </div>
+      )}
+
+      {companyApprovalStatus === "Rejected" && (
+        <div className="p-4 sm:p-5 bg-rose-50 rounded-[16px] border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                Company Registration Rejected
+              </h3>
+              <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                Your company registration was not approved. Please review your company profile or contact support for assistance.
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 shrink-0 self-start sm:self-auto">
+            Registration Rejected
+          </span>
+        </div>
+      )}
+
       {/* ============================================================== */}
       {/* 1. WELCOME BANNER (Identical sleek structure to Student view)  */}
       {/* ============================================================== */}
@@ -149,10 +311,10 @@ export default function HRDashboardClient({
               Campus Recruitment Drive 2025 - 2026
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Welcome back, Sneha! 👋
+              Welcome back{hrUserName ? `, ${hrUserName}` : ""}! 👋
             </h1>
             <p className="text-sm text-slate-200/90 leading-relaxed">
-              You have <strong className="text-white font-semibold">18 new candidate submissions</strong> awaiting initial screening across your 4 active campus openings.
+              You have <strong className="text-white font-semibold">{applicants.length} candidate submission{applicants.length === 1 ? "" : "s"}</strong> across your {activeJobs.length} active campus opening{activeJobs.length === 1 ? "" : "s"}.
             </p>
           </div>
 
@@ -230,7 +392,7 @@ export default function HRDashboardClient({
             <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{activeJobs.length}</div>
             <div className="text-[14px] text-[#6B7694] mt-1">Active Jobs</div>
             <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
-              <TrendingUp className="w-3.5 h-3.5" /> 2 closing soon
+              <TrendingUp className="w-3.5 h-3.5" /> {activeJobs.length} live
             </div>
           </div>
         </div>
@@ -241,10 +403,10 @@ export default function HRDashboardClient({
             <Users className="w-6 h-6" strokeWidth={1.75} />
           </div>
           <div>
-            <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{applicants.length || 24}</div>
+            <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{applicants.length}</div>
             <div className="text-[14px] text-[#6B7694] mt-1">Total Applicants</div>
             <div className="text-[12px] font-semibold text-[#FF6B00] flex items-center gap-1 mt-1">
-              <TrendingUp className="w-3.5 h-3.5" /> +18 this week
+              <TrendingUp className="w-3.5 h-3.5" /> {applicants.length} total
             </div>
           </div>
         </div>
@@ -255,10 +417,10 @@ export default function HRDashboardClient({
             <CheckCircle2 className="w-6 h-6" strokeWidth={1.75} />
           </div>
           <div>
-            <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{shortlistedCount || 6}</div>
+            <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{shortlistedCount}</div>
             <div className="text-[14px] text-[#6B7694] mt-1">Shortlisted</div>
             <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
-              <TrendingUp className="w-3.5 h-3.5" /> 82% ATS matched
+              <TrendingUp className="w-3.5 h-3.5" /> {shortlistedCount} verified
             </div>
           </div>
         </div>
@@ -269,10 +431,10 @@ export default function HRDashboardClient({
             <Calendar className="w-6 h-6" strokeWidth={1.75} />
           </div>
           <div>
-            <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{interviews.length || 4}</div>
+            <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{interviews.length}</div>
             <div className="text-[14px] text-[#6B7694] mt-1">Interviews</div>
             <div className="text-[12px] font-semibold text-[#8B5CF6] flex items-center gap-1 mt-1">
-              <Clock className="w-3.5 h-3.5" /> 2 scheduled today
+              <Clock className="w-3.5 h-3.5" /> {interviews.length} rounds
             </div>
           </div>
         </div>
@@ -290,7 +452,7 @@ export default function HRDashboardClient({
               <p className="text-[12px] text-[#6B7694] mt-0.5">Real-time candidate funnel distribution</p>
             </div>
             <span className="text-xs font-semibold text-[#1E5BE0] bg-[#E8F0FF] px-2.5 py-1 rounded-md">
-              24 Active
+              {applicants.length} Active
             </span>
           </div>
 
@@ -299,45 +461,50 @@ export default function HRDashboardClient({
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={CANDIDATE_PIPELINE}
+                    data={pieChartData}
                     cx="50%"
                     cy="50%"
                     innerRadius={52}
                     outerRadius={76}
-                    paddingAngle={3}
+                    paddingAngle={totalPipelineValue > 0 ? 3 : 0}
                     dataKey="value"
                   >
-                    {CANDIDATE_PIPELINE.map((entry, index) => (
+                    {pieChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#0B1F4B",
-                      color: "#FFFFFF",
-                      borderRadius: 10,
-                      border: "none",
-                      fontSize: 12,
-                      fontFamily: "Poppins",
-                      padding: "6px 12px",
-                    }}
-                  />
+                  {totalPipelineValue > 0 && (
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0B1F4B",
+                        color: "#FFFFFF",
+                        borderRadius: 10,
+                        border: "none",
+                        fontSize: 12,
+                        fontFamily: "Poppins",
+                        padding: "6px 12px",
+                      }}
+                    />
+                  )}
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-[24px] font-extrabold text-[#0B1F4B] leading-none">24</span>
+                <span className="text-[24px] font-extrabold text-[#0B1F4B] leading-none">{applicants.length}</span>
                 <span className="text-[11px] text-[#6B7694] font-medium mt-0.5">Candidates</span>
               </div>
             </div>
 
             {/* Custom Legend */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 w-full sm:w-auto">
-              {CANDIDATE_PIPELINE.map((item) => (
+              {candidatePipeline.map((item) => (
                 <div key={item.name} className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                  <span
+                    className="w-3.5 h-3.5 rounded-full shrink-0 shadow-2xs border border-white"
+                    style={{ backgroundColor: item.color }}
+                  />
                   <div>
                     <div className="text-[12px] font-medium text-[#0B1F4B]">{item.name}</div>
-                    <div className="text-[13px] font-bold text-[#0B1F4B] leading-none">{item.value}</div>
+                    <div className="text-[13px] font-bold text-[#0B1F4B] leading-none mt-0.5">{item.value}</div>
                   </div>
                 </div>
               ))}
@@ -372,7 +539,7 @@ export default function HRDashboardClient({
 
           <div className="my-3 h-[180px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={MONTHLY_APPLICANT_TREND} barGap={4} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <BarChart data={monthlyApplicantTrend} barGap={4} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF1F7" />
                 <XAxis
                   dataKey="month"
@@ -464,49 +631,83 @@ export default function HRDashboardClient({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#EEF1F7]">
-                {applicants.slice(0, 5).map((app) => (
-                  <tr key={app.id} className="hover:bg-[#F7F9FD]/60 transition-colors">
-                    <td className="py-3.5 px-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[#E8F0FF] text-[#1E5BE0] font-bold text-xs flex items-center justify-center shrink-0">
-                          {app.applicantName.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-bold text-[#0B1F4B]">{app.applicantName}</p>
-                          <p className="text-[11px] text-[#6B7694]">{app.applicantEmail}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-3.5 font-semibold text-[#0B1F4B]">
-                      {app.jobTitle}
-                    </td>
-                    <td className="py-3.5 px-3.5 text-[#6B7694]">
-                      {app.applicantCollege || "NIT Trichy"}
-                    </td>
-                    <td className="py-3.5 px-3.5">
-                      <span
-                        className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                          app.status === "Shortlisted"
-                            ? "bg-[#E8F8EF] text-[#22B573]"
-                            : app.status === "Interview"
-                            ? "bg-[#FFF0E6] text-[#FF6B00]"
-                            : "bg-[#E8F0FF] text-[#1E5BE0]"
-                        }`}
-                      >
-                        {app.status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3.5 text-right">
-                      <Link
-                        href="/hr/applicants"
-                        className="inline-flex items-center px-3 py-1.5 border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white rounded-[8px] text-[11px] font-semibold transition-colors"
-                      >
-                        Review
-                      </Link>
+                {applicants.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-[#6B7694]">
+                      No candidate submissions received yet.
                     </td>
                   </tr>
-                ))}
-              </tbody>
+                ) : (
+                  applicants.slice(0, 5).map((app) => (
+                    <tr key={app.id} className="hover:bg-[#F7F9FD]/60 transition-colors">
+                      <td className="py-3.5 px-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+                            {app.applicantAvatar ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={app.applicantAvatar}
+                                alt={app.applicantName}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const fallbackUrl = app.applicantId
+                                    ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1"}/media/avatar/${app.applicantId}`
+                                    : "";
+                                  if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
+                                    e.currentTarget.src = fallbackUrl;
+                                    return;
+                                  }
+                                  const el = e.currentTarget;
+                                  el.style.display = "none";
+                                  const parent = el.parentElement;
+                                  if (parent && !parent.querySelector(".fb-init")) {
+                                    const span = document.createElement("span");
+                                    span.className = "fb-init font-bold text-xs text-white";
+                                    span.textContent = getNameInitials(app.applicantName);
+                                    parent.appendChild(span);
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <span>{getNameInitials(app.applicantName)}</span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-[#0B1F4B]">{app.applicantName}</p>
+                            <p className="text-[11px] text-[#6B7694]">{app.applicantEmail}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-3.5 font-semibold text-[#0B1F4B]">
+                        {app.jobTitle}
+                      </td>
+                      <td className="py-3.5 px-3.5 text-[#6B7694]">
+                        {app.applicantCollege || "College not specified"}
+                      </td>
+                      <td className="py-3.5 px-3.5">
+                        <span
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+                            app.status === "Shortlisted"
+                              ? "bg-[#E8F8EF] text-[#22B573]"
+                              : app.status === "Interview"
+                              ? "bg-[#FFF0E6] text-[#FF6B00]"
+                              : "bg-[#E8F0FF] text-[#1E5BE0]"
+                          }`}
+                        >
+                          {app.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3.5 text-right">
+                        <Link
+                          href="/hr/applicants"
+                          className="inline-flex items-center px-3 py-1.5 border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white rounded-[8px] text-[11px] font-semibold transition-colors"
+                        >
+                          Review
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}</tbody>
             </table>
           </div>
         </div>
@@ -525,36 +726,41 @@ export default function HRDashboardClient({
             </div>
 
             <div className="divide-y divide-[#EEF1F7] mt-1 space-y-1">
-              {jobs.slice(0, 3).map((job) => (
-                <div key={job.id} className="py-3 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 className="text-xs font-bold text-[#0B1F4B] hover:text-[#1E5BE0] transition cursor-pointer">
-                        {job.title}
-                      </h4>
-                      <p className="text-[11px] text-[#6B7694]">
-                        {job.location} • {job.jobType}
-                      </p>
-                    </div>
-                    <span className="text-[10px] font-bold text-[#22B573] bg-[#E8F8EF] px-2 py-0.5 rounded-full shrink-0">
-                      {job.status}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-[#6B7694] pt-1">
-                    <span className="font-semibold text-[#0B1F4B]">
-                      {job.applicantsCount || 24} Applicants
-                    </span>
-                    <Link
-                      href={`/hr/jobs`}
-                      className="text-[#1E5BE0] font-semibold hover:underline flex items-center gap-0.5"
-                    >
-                      View Details <ChevronRight className="w-3 h-3" />
-                    </Link>
-                  </div>
+              {jobs.length === 0 ? (
+                <div className="py-8 text-center text-xs text-[#6B7694]">
+                  No active job postings yet. Post an opening to start receiving candidates.
                 </div>
-              ))}
-            </div>
+              ) : (
+                jobs.slice(0, 3).map((job) => (
+                  <div key={job.id} className="py-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="text-xs font-bold text-[#0B1F4B] hover:text-[#1E5BE0] transition cursor-pointer">
+                          {job.title}
+                        </h4>
+                        <p className="text-[11px] text-[#6B7694]">
+                          {job.location} • {job.jobType}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold text-[#22B573] bg-[#E8F8EF] px-2 py-0.5 rounded-full shrink-0">
+                        {job.status}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-[#6B7694] pt-1">
+                      <span className="font-semibold text-[#0B1F4B]">
+                        {job.applicantsCount || 0} Applicants
+                      </span>
+                      <Link
+                        href="/hr/jobs"
+                        className="text-[#1E5BE0] font-semibold hover:underline flex items-center gap-0.5"
+                      >
+                        View Details <ChevronRight className="w-3 h-3" />
+                      </Link>
+                    </div>
+                  </div>
+                ))
+              )}</div>
           </div>
 
           {/* Quick Action Card at bottom */}

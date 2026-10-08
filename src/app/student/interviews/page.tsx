@@ -1,6 +1,10 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { studentService } from "@/services/student.service";
+import { Interview } from "@/types";
+import { getCompanyLogoProxyUrl } from "@/lib/utils";
 import {
   Calendar,
   Clock,
@@ -14,13 +18,33 @@ import {
   Sparkles,
 } from "lucide-react";
 
-export const metadata = {
-  title: "My Interviews | WeGrow Student",
-  description: "Scheduled technical, behavioral, and HR interview rounds with partner employers.",
-};
+export default function StudentInterviewsPage() {
+  const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-export default async function StudentInterviewsPage() {
-  const interviews = await studentService.getInterviews();
+  useEffect(() => {
+    let isMounted = true;
+    studentService
+      .getInterviews()
+      .then((data) => {
+        if (isMounted) {
+          setInterviews(data);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load interviews client-side:", err);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const upcoming = interviews.filter((i) => i.status === "Upcoming");
   const completed = interviews.filter((i) => i.status !== "Upcoming");
 
@@ -49,73 +73,109 @@ export default async function StudentInterviewsPage() {
           <span className="text-xs text-[#6B7694]">Live interview assessment links</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {upcoming.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white rounded-[14px] border border-[#EEF1F7] p-6 shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:border-[#1E5BE0]/40 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md space-y-4 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-blue-50 text-[#1E5BE0] font-bold text-sm flex items-center justify-center shrink-0 border border-blue-100">
-                      {item.companyName.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <h3 className="text-[15px] font-bold text-[#0B1F4B] leading-snug">
-                        {item.jobTitle}
-                      </h3>
-                      <p className="text-xs text-[#6B7694] font-medium">{item.companyName}</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#FFE9D6] text-[#E8650A]">
-                    {item.type}
-                  </span>
-                </div>
-
-                {/* Date & Time pill */}
-                <div className="mt-4 p-3 rounded-xl bg-[#F7F9FD] border border-[#EEF1F7] flex items-center justify-between text-xs text-[#0B1F4B]">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-[#1E5BE0]" />
-                    <span className="font-semibold">{item.date}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-[#6B7694]" />
-                    <span>{item.time}</span>
-                  </div>
-                </div>
-
-                {item.notes && (
-                  <div className="mt-3 text-xs bg-slate-50 p-3 rounded-xl text-[#6B7694] border border-slate-100 flex items-start gap-2">
-                    <Sparkles className="w-3.5 h-3.5 text-[#FF6B00] shrink-0 mt-0.5" />
-                    <span>Prep: {item.notes}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Bottom Join CTA */}
-              <div className="pt-4 border-t border-[#EEF1F7] flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#22B573] flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Link Active
-                </span>
-                {item.meetingLink ? (
-                  <a
-                    href={item.meetingLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-xs font-semibold px-4 py-2 rounded-[8px] transition-colors shadow-sm"
-                  >
-                    <Video className="w-3.5 h-3.5" />
-                    <span>Join Meeting</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                ) : (
-                  <span className="text-xs text-[#6B7694]">Link will be emailed</span>
-                )}
-              </div>
+        {upcoming.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-dashed border-[#D2DAE8] p-10 text-center">
+            <div className="w-12 h-12 rounded-xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center mx-auto mb-3">
+              <Calendar className="w-6 h-6" />
             </div>
-          ))}
-        </div>
+            <h3 className="text-base font-bold text-[#0B1F4B] mb-1">No Upcoming Interviews Scheduled</h3>
+            <p className="text-xs text-[#6B7694]">
+              When recruiters review your applications and shortlist you for technical or HR discussions, your interview schedules and meeting links will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {upcoming.map((item) => (
+              <div
+                key={item.id}
+                className="bg-white rounded-[14px] border border-[#EEF1F7] p-6 shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:border-[#1E5BE0]/40 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md space-y-4 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-white text-[#1E5BE0] font-bold text-sm flex items-center justify-center shrink-0 border border-[#EEF1F7] p-1 shadow-2xs overflow-hidden">
+                        {item.companyLogo || item.companyId ? (
+                          <img
+                            src={item.companyLogo || (item.companyId ? getCompanyLogoProxyUrl(item.companyId) : "")}
+                            alt={item.companyName}
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              const target = e.currentTarget as HTMLImageElement;
+                              const proxyUrl = item.companyId ? getCompanyLogoProxyUrl(item.companyId) : "";
+                              if (proxyUrl && target.src !== proxyUrl) {
+                                target.src = proxyUrl;
+                                return;
+                              }
+                              target.style.display = "none";
+                              const parent = target.parentElement;
+                              if (parent && !parent.querySelector(".logo-fb")) {
+                                const fb = document.createElement("span");
+                                fb.textContent = (item.companyName || "Co").slice(0, 2).toUpperCase();
+                                fb.className = "font-bold text-xs text-[#1E5BE0] logo-fb";
+                                parent.appendChild(fb);
+                              }
+                            }}
+                          />
+                        ) : (
+                          item.companyName.slice(0, 2).toUpperCase()
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="text-[15px] font-bold text-[#0B1F4B] leading-snug">
+                          {item.jobTitle}
+                        </h3>
+                        <p className="text-xs text-[#6B7694] font-medium">{item.companyName}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#FFE9D6] text-[#E8650A]">
+                      {item.type}
+                    </span>
+                  </div>
+
+                  {/* Date & Time pill */}
+                  <div className="mt-4 p-3 rounded-xl bg-[#F7F9FD] border border-[#EEF1F7] flex items-center justify-between text-xs text-[#0B1F4B]">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-[#1E5BE0]" />
+                      <span className="font-semibold">{item.date}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-[#6B7694]" />
+                      <span>{item.time}</span>
+                    </div>
+                  </div>
+
+                  {item.notes && (
+                    <div className="mt-3 text-xs bg-slate-50 p-3 rounded-xl text-[#6B7694] border border-slate-100 flex items-start gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-[#FF6B00] shrink-0 mt-0.5" />
+                      <span>Prep: {item.notes}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Join CTA */}
+                <div className="pt-4 border-t border-[#EEF1F7] flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#22B573] flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Link Active
+                  </span>
+                  {item.meetingLink ? (
+                    <a
+                      href={item.meetingLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-xs font-semibold px-4 py-2 rounded-[8px] transition-colors shadow-sm"
+                    >
+                      <Video className="w-3.5 h-3.5" />
+                      <span>Join Meeting</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  ) : (
+                    <span className="text-xs text-[#6B7694]">Link will be emailed</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Completed Section */}
@@ -130,12 +190,36 @@ export default async function StudentInterviewsPage() {
                 key={item.id}
                 className="bg-white rounded-[14px] border border-[#EEF1F7] p-5 shadow-sm space-y-3 opacity-90"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-[#0B1F4B]">{item.jobTitle}</h3>
-                    <p className="text-xs text-[#6B7694]">{item.companyName}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-white border border-[#EEF1F7] p-1 flex items-center justify-center shrink-0 font-bold text-xs text-[#1E5BE0] shadow-2xs overflow-hidden">
+                      {item.companyLogo || item.companyId ? (
+                        <img
+                          src={item.companyLogo || (item.companyId ? getCompanyLogoProxyUrl(item.companyId) : "")}
+                          alt={item.companyName}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            const target = e.currentTarget as HTMLImageElement;
+                            target.style.display = "none";
+                            const parent = target.parentElement;
+                            if (parent && !parent.querySelector(".logo-fb")) {
+                              const fb = document.createElement("span");
+                              fb.textContent = (item.companyName || "Co").slice(0, 2).toUpperCase();
+                              fb.className = "font-bold text-xs text-[#1E5BE0] logo-fb";
+                              parent.appendChild(fb);
+                            }
+                          }}
+                        />
+                      ) : (
+                        (item.companyName || "Co").slice(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-[#0B1F4B] truncate">{item.jobTitle}</h3>
+                      <p className="text-xs text-[#6B7694] truncate">{item.companyName}</p>
+                    </div>
                   </div>
-                  <span className="text-[11px] font-semibold bg-[#E8F8F1] text-[#22B573] px-2.5 py-0.5 rounded-full">
+                  <span className="text-[11px] font-semibold bg-[#E8F8F1] text-[#22B573] px-2.5 py-0.5 rounded-full shrink-0">
                     Completed
                   </span>
                 </div>

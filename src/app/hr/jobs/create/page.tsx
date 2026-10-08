@@ -45,7 +45,7 @@ export default function CreateJobPage() {
     setIsSubmitting(true);
 
     try {
-      await hrService.createJob({
+      const created = await hrService.createJob({
         title,
         description,
         responsibilities: responsibilities.split("\n").filter(Boolean),
@@ -59,8 +59,12 @@ export default function CreateJobPage() {
         workMode: workMode as any,
         deadline,
         openings: Number(openings),
+        publish: true as any,
       });
 
+      if (created?.id) {
+        await hrService.publishJob(created.id).catch(() => {});
+      }
       setSuccess(true);
       setTimeout(() => {
         router.push("/hr/jobs");

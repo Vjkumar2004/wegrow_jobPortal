@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Job } from "@/types";
-import { formatSalary, formatDate } from "@/lib/utils";
+import { formatSalary, formatDate, getCompanyLogoUrl, getCompanyLogoProxyUrl } from "@/lib/utils";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { Modal } from "@/components/common/Modal";
@@ -28,9 +28,11 @@ import { authService } from "@/services/auth.service";
 
 export default function JobDetailsClient({ job }: { job: Job }) {
   const router = useRouter();
+  const { hasApplied, applicationId } = job;
   const [isSaved, setIsSaved] = useState(false);
   const [applyModalOpen, setApplyModalOpen] = useState(false);
-  const [applied, setApplied] = useState(false);
+  const [applied, setApplied] = useState(Boolean(hasApplied));
+  const [submittingAppId, setSubmittingAppId] = useState<string | undefined>(applicationId);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Application form state
@@ -84,9 +86,25 @@ export default function JobDetailsClient({ job }: { job: Job }) {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
-                  {job.company.logo ? (
+                  {job.company.logo || job.company.id ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={job.company.logo} alt={job.company.name} className="w-full h-full object-cover" />
+                    <img
+                      src={getCompanyLogoUrl(job.company, job.company.id)}
+                      alt={job.company.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        const proxyUrl = job.company.id ? getCompanyLogoProxyUrl(job.company.id) : "";
+                        if (proxyUrl && target.src !== proxyUrl) {
+                          target.src = proxyUrl;
+                        } else {
+                          target.style.display = "none";
+                          if (target.parentElement && !target.parentElement.querySelector("svg")) {
+                            target.parentElement.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
+                          }
+                        }
+                      }}
+                    />
                   ) : (
                     <Building2 className="w-8 h-8 text-slate-400" />
                   )}
@@ -112,15 +130,25 @@ export default function JobDetailsClient({ job }: { job: Job }) {
                 >
                   <Bookmark className={`w-5 h-5 ${isSaved ? "fill-current" : ""}`} />
                 </button>
-                <Button
-                  variant={applied ? "outline" : "secondary"}
-                  size="md"
-                  onClick={handleApplyClick}
-                  disabled={applied}
-                  className="font-bold px-6"
-                >
-                  {applied ? "Applied ✓" : "Apply via Student Portal"}
-                </Button>
+                {applied ? (
+                  <Button
+                    variant="outline"
+                    size="md"
+                    disabled
+                    className="font-bold px-6 bg-[#22B573] text-white border-[#22B573] cursor-not-allowed"
+                  >
+                    Already Applied ✓
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    onClick={handleApplyClick}
+                    className="font-bold px-6"
+                  >
+                    Apply Now
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -257,15 +285,25 @@ export default function JobDetailsClient({ job }: { job: Job }) {
             </div>
 
             <div className="pt-3">
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={handleApplyClick}
-                disabled={applied}
-                className="w-full font-bold shadow-md"
-              >
-                {applied ? "Applied Successfully" : "Apply via Student Portal"}
-              </Button>
+              {applied ? (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  disabled
+                  className="w-full font-bold shadow-none bg-[#22B573] text-white border-[#22B573] cursor-not-allowed"
+                >
+                  Already Applied ✓
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={handleApplyClick}
+                  className="w-full font-bold shadow-md"
+                >
+                  Apply Now
+                </Button>
+              )}
             </div>
           </div>
 

@@ -21,6 +21,7 @@ import {
   Headphones,
 } from "lucide-react";
 import { authService } from "@/services/auth.service";
+import { hrService } from "@/services/hr.service";
 
 interface SidebarItem {
   label: string;
@@ -31,11 +32,30 @@ interface SidebarItem {
 
 const HRShellContext = React.createContext<boolean>(false);
 
+import { AuthGuard } from "@/components/common/AuthGuard";
+
 export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isInsideShell = React.useContext(HRShellContext);
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hrUserName, setHrUserName] = useState("");
+  const [hrCompanyName, setHrCompanyName] = useState("");
+  const [hrCompanyLogoUrl, setHrCompanyLogoUrl] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (isInsideShell) return;
+    authService.getMe().then((res) => {
+      const user = res.data?.user;
+      const name = user?.name || user?.fullName || user?.hrProfile?.fullName || "Recruiter"; setHrUserName(name);
+      const company = user?.hrProfile?.company;
+      if (company?.name) setHrCompanyName(company.name);
+    }).catch(() => {});
+
+    hrService.getCompanyProfile().then((comp: any) => {
+      if (comp?.logoUrl) setHrCompanyLogoUrl(comp.logoUrl);
+    }).catch(() => {});
+  }, [isInsideShell]);
 
   // If already inside the shell, only render children
   if (isInsideShell) {
@@ -48,24 +68,25 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <>{children}</>;
   }
 
-  const handleLogout = () => {
-    authService.logout();
-    router.push("/hr/login");
+  const handleLogout = async () => {
+    await authService.logout();
+    router.replace("/hr/login");
   };
 
   const sidebarLinks: SidebarItem[] = [
     { label: "Dashboard", href: "/hr/dashboard", icon: LayoutDashboard },
     { label: "My Jobs", href: "/hr/jobs", icon: Briefcase },
     { label: "Post New Job", href: "/hr/dashboard?action=post-job", icon: PlusCircle },
-    { label: "Applicants", href: "/hr/applicants", icon: Users, badge: "18" },
-    { label: "Interviews", href: "/hr/interviews", icon: Calendar, badge: "4" },
+    { label: "Applicants", href: "/hr/applicants", icon: Users },
+    { label: "Interviews", href: "/hr/interviews", icon: Calendar },
     { label: "Company Profile", href: "/hr/dashboard?tab=company", icon: Building },
     { label: "Reports & Analytics", href: "/hr/reports", icon: BarChart3 },
   ];
 
   return (
-    <HRShellContext.Provider value={true}>
-      <div className="min-h-screen bg-[#F7F9FD] text-[#0B1F4B] font-['Poppins',sans-serif] flex flex-col">
+    <AuthGuard allowedRoles={["HR"]} loginRoute="/hr/login">
+      <HRShellContext.Provider value={true}>
+        <div className="min-h-screen bg-[#F7F9FD] text-[#0B1F4B] font-['Poppins',sans-serif] flex flex-col">
         {/* ============================================================== */}
         {/* 1. TOP BAR (~66px height, white, bottom border, sticky top) */}
         {/* ============================================================== */}
@@ -111,12 +132,9 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
               Recruiter Portal
             </span>
 
-            {/* Bell Icon with red badge "4" */}
+            {/* Bell Icon */}
             <div className="relative p-2 rounded-xl text-[#0B1F4B] hover:bg-[#F1F4F9] transition cursor-pointer">
               <Bell className="w-5 h-5 text-[#0B1F4B]" strokeWidth={1.75} />
-              <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#EF4444] text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none ring-2 ring-white">
-                4
-              </span>
             </div>
 
             {/* Recruiter profile capsule */}
@@ -125,14 +143,24 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
               className="flex items-center gap-3 pl-2 sm:pl-3 border-l border-[#EEF1F7] hover:opacity-90 transition"
             >
               <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-tr from-[#FF6B00] to-amber-400 text-white font-bold text-sm flex items-center justify-center shadow-sm shrink-0">
-                SR
+                {hrCompanyLogoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={hrCompanyLogoUrl}
+                    alt="Company Logo"
+                    className="w-full h-full object-cover"
+                    onError={() => setHrCompanyLogoUrl(null)}
+                  />
+                ) : (
+                  hrUserName ? hrUserName.slice(0, 2).toUpperCase() : "HR"
+                )}
               </div>
               <div className="hidden sm:block text-left">
                 <div className="text-[14px] font-semibold text-[#0B1F4B] leading-snug">
-                  Sneha Roy
+                  {hrUserName || "Recruiter"}
                 </div>
                 <div className="text-[12px] text-[#6B7694] leading-none">
-                  Infosys Technologies
+                  {hrCompanyName || "WeGrow Partner"}
                 </div>
               </div>
               <ChevronDown className="w-4 h-4 text-[#6B7694] cursor-pointer" />
@@ -238,6 +266,7 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </div>
       </div>
     </HRShellContext.Provider>
+    </AuthGuard>
   );
 };
 

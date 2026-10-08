@@ -32,12 +32,21 @@ import {
   Cell,
 } from "recharts";
 import { StudentApplicationsPageData, StudentApplicationTrackerItem } from "@/types";
+import { applicationsService } from "@/services/applications.service";
+
+const DEFAULT_APPLICATIONS_DATA: StudentApplicationsPageData = {
+  stats: { totalApplied: 0, underReview: 0, shortlisted: 0, interviews: 0, selected: 0, rejected: 0 },
+  monthlyStats: [],
+  applications: [],
+  topCompaniesApplied: [],
+  profileCompletion: { percentage: 0, checklist: [] },
+};
 
 interface StudentApplicationsClientProps {
-  initialData: StudentApplicationsPageData;
+  initialData?: StudentApplicationsPageData;
 }
 
-export default function StudentApplicationsClient({ initialData }: StudentApplicationsClientProps) {
+export default function StudentApplicationsClient({ initialData = DEFAULT_APPLICATIONS_DATA }: StudentApplicationsClientProps) {
   const [data, setData] = useState<StudentApplicationsPageData>(initialData);
   const [activeTab, setActiveTab] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState("");
@@ -45,6 +54,25 @@ export default function StudentApplicationsClient({ initialData }: StudentApplic
   const [statsPeriod, setStatsPeriod] = useState("Last 6 Months");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [selectedAppForDrawer, setSelectedAppForDrawer] = useState<StudentApplicationTrackerItem | null>(null);
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+
+  React.useEffect(() => {
+    let isMounted = true;
+    applicationsService
+      .getStudentApplicationsPageData()
+      .then((res) => {
+        if (isMounted && res) {
+          setData(res);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load applications data client-side:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Status Tab filters
   const tabs = [
@@ -74,22 +102,25 @@ export default function StudentApplicationsClient({ initialData }: StudentApplic
     }
   };
 
-  // Filtered applications list
-  const filteredApps = data.applications.filter((app) => {
-    // Tab filter
-    if (activeTab !== "All" && app.status.toLowerCase() !== activeTab.toLowerCase()) {
-      return false;
-    }
-    // Search filter
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase();
-      const matchTitle = app.title.toLowerCase().includes(q);
-      const matchComp = app.companyName.toLowerCase().includes(q);
-      const matchLoc = app.location.toLowerCase().includes(q);
-      if (!matchTitle && !matchComp && !matchLoc) return false;
-    }
-    return true;
-  });
+  // Filtered + sorted applications list
+  const filteredApps = data.applications
+    .filter((app) => {
+      if (activeTab !== "All" && app.status.toLowerCase() !== activeTab.toLowerCase()) return false;
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase();
+        if (
+          !app.title.toLowerCase().includes(q) &&
+          !app.companyName.toLowerCase().includes(q) &&
+          !(app.location || "").toLowerCase().includes(q)
+        ) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === "Oldest First") return new Date(a.appliedDateText).getTime() - new Date(b.appliedDateText).getTime();
+      if (sortBy === "Status") return a.status.localeCompare(b.status);
+      return new Date(b.appliedDateText).getTime() - new Date(a.appliedDateText).getTime();
+    });
 
   return (
     <div className="flex-1 flex flex-col xl:flex-row min-w-0 p-4 sm:p-6 lg:p-7 gap-5 overflow-hidden font-['Poppins',sans-serif] text-[#0B1F4B]">
@@ -276,24 +307,18 @@ export default function StudentApplicationsClient({ initialData }: StudentApplic
                         app.companyLogoBg || "bg-[#F7F9FD] text-[#1E5BE0]"
                       }`}
                     >
-                      {app.companyLogo ? (
+                      {app.companyLogo && !failedImages[app.id] ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={app.companyLogo}
                           alt={app.companyName}
-                          className="w-full h-full object-contain p-1"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLElement).style.display = "none";
-                            if (e.currentTarget.parentElement) {
-                              const fallback = document.createElement("span");
-                              fallback.textContent = app.companyInitials || app.companyName.slice(0, 3);
-                              fallback.className = "font-bold text-sm text-[#0B1F4B]";
-                              e.currentTarget.parentElement.appendChild(fallback);
-                            }
+                            className="w-full h-full object-contain p-1"
+                          onError={() => {
+                            setFailedImages((prev) => ({ ...prev, [app.id]: true }));
                           }}
                         />
                       ) : (
-                        <span>{app.companyInitials || app.companyName.slice(0, 3)}</span>
+                        <span className="font-bold text-sm text-[#1E5BE0]">{app.companyInitials || app.companyName.slice(0, 3).toUpperCase()}</span>
                       )}
                     </div>
 
@@ -601,24 +626,18 @@ export default function StudentApplicationsClient({ initialData }: StudentApplic
                       comp.logoColor || "bg-[#F7F9FD] text-[#0B1F4B]"
                     }`}
                   >
-                    {comp.companyLogo ? (
+                    {comp.companyLogo && !failedImages[`tc-${comp.id}`] ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={comp.companyLogo}
                         alt={comp.name}
                         className="w-full h-full object-contain p-0.5"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLElement).style.display = "none";
-                          if (e.currentTarget.parentElement) {
-                            const fallback = document.createElement("span");
-                            fallback.textContent = comp.initials || comp.name.slice(0, 3);
-                            fallback.className = "font-bold text-xs text-[#0B1F4B]";
-                            e.currentTarget.parentElement.appendChild(fallback);
-                          }
+                        onError={() => {
+                          setFailedImages((prev) => ({ ...prev, [`tc-${comp.id}`]: true }));
                         }}
                       />
                     ) : (
-                      <span>{comp.initials || comp.name.slice(0, 3)}</span>
+                      <span className="font-bold text-xs text-[#1E5BE0]">{comp.initials || comp.name.slice(0, 3).toUpperCase()}</span>
                     )}
                   </div>
                   <div>
@@ -675,15 +694,18 @@ export default function StudentApplicationsClient({ initialData }: StudentApplic
               <div className="flex items-center justify-between pb-4 border-b border-[#EEF1F7]">
                 <div className="flex items-center gap-3">
                   <div className="w-[52px] h-[52px] rounded-xl border border-[#EEF1F7] p-1.5 flex items-center justify-center font-bold text-xs bg-white shrink-0 overflow-hidden shadow-xs">
-                    {selectedAppForDrawer.companyLogo ? (
+                    {selectedAppForDrawer.companyLogo && !failedImages[`dr-${selectedAppForDrawer.id}`] ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={selectedAppForDrawer.companyLogo}
                         alt={selectedAppForDrawer.companyName}
                         className="w-full h-full object-contain p-0.5"
+                        onError={() => {
+                          setFailedImages((prev) => ({ ...prev, [`dr-${selectedAppForDrawer.id}`]: true }));
+                        }}
                       />
                     ) : (
-                      <span>{selectedAppForDrawer.companyInitials || selectedAppForDrawer.companyName.slice(0, 3)}</span>
+                      <span className="font-bold text-xs text-[#1E5BE0]">{selectedAppForDrawer.companyInitials || selectedAppForDrawer.companyName.slice(0, 3).toUpperCase()}</span>
                     )}
                   </div>
                   <div>

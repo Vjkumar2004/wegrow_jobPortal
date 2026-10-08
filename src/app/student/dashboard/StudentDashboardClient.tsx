@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -48,6 +48,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import { authService } from "@/services/auth.service";
+import { getCompanyLogoUrl, getCompanyLogoProxyUrl, getNameInitials } from "@/lib/utils";
 
 // Application status data for Donut Chart
 const DONUT_DATA = [
@@ -68,6 +69,7 @@ const TREND_DATA = [
 ];
 
 import { StudentDashboardData } from "@/types";
+import { studentService } from "@/services/student.service";
 
 interface StudentDashboardClientProps {
   initialData?: StudentDashboardData;
@@ -77,56 +79,91 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
   const pathname = usePathname();
   const router = useRouter();
 
-  // Dynamic state populated from initialData or fallback
-  const student = initialData?.student || {
-    id: "stu-1",
-    name: "Vijayakumar M",
-    email: "vijayakumar.m@example.com",
-    course: "B.E Computer Science",
+  const [dashboardData, setDashboardData] = useState<StudentDashboardData | undefined>(initialData);
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(!initialData);
+
+  useEffect(() => {
+    let isMounted = true;
+    studentService
+      .getDashboardData()
+      .then((data) => {
+        if (isMounted && data) {
+          setDashboardData(data);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load dashboard data client-side:", err);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingData(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Dynamic state populated from dashboardData
+  const student = dashboardData?.student || {
+    id: "",
+    name: "Student",
+    email: "",
+    course: "Candidate",
     college: "WeGrow Skill Campus",
   };
 
-  const stats = initialData?.stats || {
-    jobsApplied: 24,
-    jobsAppliedTrend: "+4 this month",
-    interviews: 8,
-    interviewsTrend: "+2 this month",
-    shortlisted: 5,
-    shortlistedTrend: "+3 this month",
-    offers: 1,
-    offersTrend: "+1 this month",
+  const stats = dashboardData?.stats || {
+    jobsApplied: 0,
+    jobsAppliedTrend: "0 applied",
+    interviews: 0,
+    interviewsTrend: "0 rounds",
+    shortlisted: 0,
+    shortlistedTrend: "0 shortlisted",
+    offers: 0,
+    offersTrend: "0 offers",
   };
 
-  const donutData = initialData?.applicationStatus || DONUT_DATA;
-  const trendData = initialData?.applicationTrends || TREND_DATA;
-  const recommendedJobsList = initialData?.recommendedJobs || [];
-  const recentApplicationsList = initialData?.recentApplications || [];
-  const upcomingInterviewsList = initialData?.upcomingInterviews || [];
-  const notificationsList = initialData?.notifications || [];
-  const profileCompletion = initialData?.profileCompletion || {
-    percentage: 75,
-    checklist: [
-      { label: "Personal Information", done: true },
-      { label: "Education Details", done: true },
-      { label: "Add Skills", done: true },
-      { label: "Upload Resume", done: true },
-      { label: "Add Projects", done: false },
-    ],
+  const donutData = dashboardData?.applicationStatus || [];
+  const trendData = dashboardData?.applicationTrends || [];
+  const recommendedJobsList = dashboardData?.recommendedJobs || [];
+  const recentApplicationsList = dashboardData?.recentApplications || [];
+  const upcomingInterviewsList = dashboardData?.upcomingInterviews || [];
+  const notificationsList = dashboardData?.notifications || [];
+  const profileCompletion = dashboardData?.profileCompletion || {
+    percentage: 0,
+    checklist: [],
   };
 
   // State for interactive elements
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const [trendRange, setTrendRange] = useState("Last 6 Months");
-  const [savedJobs, setSavedJobs] = useState<{ [id: string]: boolean }>({
-    "rec-1": false,
-    "rec-2": true,
-    "rec-3": false,
-  });
-  const [likedJobs, setLikedJobs] = useState<{ [id: string]: boolean }>({
-    "rec-1": false,
-    "rec-2": false,
-    "rec-3": true, // User spec: third one filled red
-  });
+  const [savedJobs, setSavedJobs] = useState<{ [id: string]: boolean }>({});
+  const [likedJobs, setLikedJobs] = useState<{ [id: string]: boolean }>({});
+
+  useEffect(() => {
+    const handleAvatarUpdate = (e: Event) => {
+      const detail = (e as CustomEvent<{ avatarUrl?: string; avatar?: string; photoUrl?: string }>).detail;
+      const newUrl = detail?.avatarUrl || detail?.avatar || detail?.photoUrl;
+      if (newUrl) {
+        setAvatarError(false);
+        setDashboardData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            student: {
+              ...prev.student,
+              avatarUrl: newUrl,
+            },
+          };
+        });
+      }
+    };
+    window.addEventListener("avatarUpdated", handleAvatarUpdate);
+    return () => window.removeEventListener("avatarUpdated", handleAvatarUpdate);
+  }, []);
 
   const toggleSave = (id: string) => {
     setSavedJobs((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -136,21 +173,21 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
     setLikedJobs((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleLogout = () => {
-    authService.logout();
-    router.push("/student/login");
+  const handleLogout = async () => {
+    await authService.logout();
+    router.replace("/student/login");
   };
 
   const sidebarLinks = [
     { label: "Dashboard", href: "/student/dashboard", icon: LayoutDashboard },
     { label: "Browse Jobs", href: "/student/jobs", icon: Briefcase },
-    { label: "My Applications", href: "/student/applications", icon: FileCheck, badge: `${stats.shortlisted || 5}` },
+    { label: "My Applications", href: "/student/applications", icon: FileCheck },
     { label: "Interviews", href: "/student/interviews", icon: Calendar },
     { label: "Saved Jobs", href: "/student/saved-jobs", icon: Bookmark },
     { label: "Profile", href: "/student/profile", icon: User },
     { label: "Resume", href: "/student/resume", icon: FileText },
     { label: "Reports", href: "/student/reports", icon: BarChart3 },
-    { label: "Notifications", href: "/student/notifications", icon: Bell, badge: "3" },
+    { label: "Notifications", href: "/student/notifications", icon: Bell },
     { label: "Settings", href: "/student/settings", icon: Settings },
   ];
 
@@ -160,13 +197,41 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
           <main className="flex-1 min-w-0 space-y-5">
             {/* 1. Welcome Banner: Soft peach-to-blue gradient card */}
             <div className="relative overflow-hidden rounded-[14px] p-6 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md">
-              <div>
-                <h1 className="text-[22px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight flex items-center gap-2">
-                  Good Morning, {student.name.split(" ")[0]}! 👋
-                </h1>
-                <p className="text-[14px] text-[#6B7694] mt-1.5">
-                  Keep going! New opportunities are waiting for you.
-                </p>
+              <div className="flex items-center gap-4">
+                <Link href="/student/profile" className="relative group shrink-0" title="View profile">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-white shadow-md overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] flex items-center justify-center">
+                    {student.avatarUrl && !avatarError ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={student.avatarUrl}
+                        alt={student.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        onError={(e) => {
+                          const fallbackUrl = student.id
+                            ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1"}/media/avatar/${student.id}`
+                            : "";
+                          if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
+                            e.currentTarget.src = fallbackUrl;
+                            return;
+                          }
+                          setAvatarError(true);
+                        }}
+                      />
+                    ) : (
+                      <span className="text-white font-extrabold text-lg sm:text-xl tracking-wider select-none">
+                        {getNameInitials(student.name)}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+                <div>
+                  <h1 className="text-[22px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight flex items-center gap-2">
+                    Good Morning, {student.name.split(" ")[0]}! 👋
+                  </h1>
+                  <p className="text-[14px] text-[#6B7694] mt-1">
+                    {student.course} • {student.college}
+                  </p>
+                </div>
               </div>
 
               {/* White quote card with orange quote mark */}
@@ -254,27 +319,27 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={donutData}
+                          data={stats.jobsApplied === 0 ? [{ name: "No applications", value: 1, color: "#E2E8F0" }] : donutData}
                           cx="50%"
                           cy="50%"
                           innerRadius={52}
                           outerRadius={75}
-                          paddingAngle={3}
+                          paddingAngle={stats.jobsApplied === 0 ? 0 : 3}
                           dataKey="value"
                         >
-                          {donutData.map((entry, index) => (
+                          {(stats.jobsApplied === 0 ? [{ name: "No applications", value: 1, color: "#E2E8F0" }] : donutData).map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
                       </PieChart>
                     </ResponsiveContainer>
-                    {/* Donut Center Text: "24" bold and "Total Applications" small */}
+                    {/* Donut Center Text */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                       <span className="text-[24px] font-bold text-[#0B1F4B] leading-none">
                         {stats.jobsApplied}
                       </span>
                       <span className="text-[10px] text-[#6B7694] font-medium leading-tight mt-1 max-w-[70px]">
-                        Total Applications
+                        {stats.jobsApplied === 0 ? "No Submissions" : "Total Applications"}
                       </span>
                     </div>
                   </div>
@@ -286,7 +351,7 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                         <div className="flex items-center gap-2">
                           <span
                             className="w-3 h-3 rounded-full shrink-0"
-                            style={{ backgroundColor: item.color }}
+                            style={{ backgroundColor: stats.jobsApplied === 0 ? "#CBD5E1" : item.color }}
                           />
                           <span className="text-[#6B7694]">{item.name}</span>
                         </div>
@@ -297,7 +362,9 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                 </div>
 
                 <div className="pt-3 border-t border-[#EEF1F7] text-center text-[12px] text-[#6B7694]">
-                  High activity: 8 interviews currently underway
+                  {stats.interviews > 0
+                    ? `Activity: ${stats.interviews} interview rounds underway`
+                    : "No active application reviews yet"}
                 </div>
               </div>
 
@@ -320,66 +387,84 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                   </select>
                 </div>
 
-                {/* Vertical Bar Chart with Light-to-strong blue gradient bars */}
-                <div className="h-[210px] w-full mt-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="barGradientLight" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#A9CCFF" />
-                          <stop offset="100%" stopColor="#4D8FFF" />
-                        </linearGradient>
-                        <linearGradient id="barGradientBold" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#2F7BFF" />
-                          <stop offset="100%" stopColor="#1E5BE0" />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF1F7" />
-                      <XAxis
-                        dataKey="month"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "#6B7694", fontSize: 12 }}
-                      />
-                      <YAxis
-                        domain={[0, 20]}
-                        ticks={[0, 5, 10, 15, 20]}
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "#6B7694", fontSize: 12 }}
-                      />
-                      <Tooltip
-                        cursor={{ fill: "rgba(30, 91, 224, 0.05)" }}
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            return (
-                              <div className="bg-[#0B1F4B] text-white text-[12px] py-1.5 px-3 rounded-lg shadow-lg">
-                                <span className="font-bold">{payload[0].value}</span> applications
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Bar
-                        dataKey="applications"
-                        radius={[6, 6, 0, 0]}
-                        animationDuration={1200}
-                      >
-                        {trendData.map((entry, index) => (
-                          <Cell
-                            key={`bar-${index}`}
-                            fill={index === trendData.length - 1 ? "url(#barGradientBold)" : "url(#barGradientLight)"}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                {/* Vertical Bar Chart or Gray Empty State */}
+                <div className="h-[210px] w-full mt-4 flex items-center justify-center">
+                  {trendData.length === 0 || stats.jobsApplied === 0 ? (
+                    <div className="w-full h-full rounded-xl bg-[#F8FAFC] border border-dashed border-[#CBD5E1] flex flex-col items-center justify-center p-4 text-center">
+                      <div className="w-10 h-10 rounded-full bg-[#EEF2F6] text-[#94A3B8] flex items-center justify-center mb-2">
+                        <BarChart3 className="w-5 h-5" />
+                      </div>
+                      <p className="text-[13px] font-semibold text-[#64748B]">No Submission Trends Yet</p>
+                      <p className="text-[11px] text-[#94A3B8] max-w-xs mt-0.5">
+                        Apply to job openings to view your monthly submission activity and progress trends.
+                      </p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="barGradientLight" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#A9CCFF" />
+                            <stop offset="100%" stopColor="#4D8FFF" />
+                          </linearGradient>
+                          <linearGradient id="barGradientBold" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#2F7BFF" />
+                            <stop offset="100%" stopColor="#1E5BE0" />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF1F7" />
+                        <XAxis
+                          dataKey="month"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: "#6B7694", fontSize: 12 }}
+                        />
+                        <YAxis
+                          domain={[0, 20]}
+                          ticks={[0, 5, 10, 15, 20]}
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: "#6B7694", fontSize: 12 }}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "rgba(30, 91, 224, 0.05)" }}
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-[#0B1F4B] text-white text-[12px] py-1.5 px-3 rounded-lg shadow-lg">
+                                  <span className="font-bold">{payload[0].value}</span> applications
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar
+                          dataKey="applications"
+                          radius={[6, 6, 0, 0]}
+                          animationDuration={1200}
+                        >
+                          {trendData.map((entry, index) => (
+                            <Cell
+                              key={`bar-${index}`}
+                              fill={index === trendData.length - 1 ? "url(#barGradientBold)" : "url(#barGradientLight)"}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
 
                 <div className="pt-3 border-t border-[#EEF1F7] flex items-center justify-between text-[12px] text-[#6B7694]">
-                  <span>Peak submission: Sep (19 applications)</span>
-                  <span className="font-semibold text-[#1E5BE0]">Trending +26%</span>
+                  <span>
+                    {stats.jobsApplied > 0
+                      ? `Total submissions: ${stats.jobsApplied}`
+                      : "No application activity recorded"}
+                  </span>
+                  <span className="font-semibold text-[#1E5BE0]">
+                    {stats.jobsApplied > 0 ? "Tracking Active" : "Empty Record"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -401,284 +486,133 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
 
               {/* 3 Job Cards in a row */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-x-auto pb-1">
-                {/* Job 1: Zoho */}
-                <div className="rounded-[14px] border border-[#EEF1F7] p-5 hover:border-[#1E5BE0]/40 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between bg-white">
-                  <div>
-                    {/* Top company logo + job title + bookmark icon */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 border border-[#EEF1F7] shadow-2xs overflow-hidden">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src="https://upload.wikimedia.org/wikipedia/commons/6/6d/Zoho_Corporation_logo.svg"
-                            alt="Zoho"
-                            className="w-full h-full object-contain p-0.5"
-                          />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-[14px] text-[#0B1F4B] leading-snug">
-                            Frontend Developer
-                          </h4>
-                          <p className="text-[12px] text-[#6B7694]">Zoho Corporation</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleSave("rec-1")}
-                        className="p-1.5 text-[#6B7694] hover:text-[#1E5BE0] transition cursor-pointer"
-                        title="Bookmark job"
-                      >
-                        <Bookmark
-                          className={`w-4 h-4 ${
-                            savedJobs["rec-1"] ? "fill-[#1E5BE0] text-[#1E5BE0]" : ""
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Two Meta Rows with Icons */}
-                    <div className="mt-4 space-y-1.5 text-[12px] text-[#6B7694]">
-                      <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-[#6B7694]" /> Chennai
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Briefcase className="w-3.5 h-3.5 text-[#6B7694]" /> Full Time
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-[#6B7694]" /> 0-2 Years
-                        </span>
-                        <span className="flex items-center gap-1.5 font-semibold text-[#0B1F4B]">
-                          <IndianRupee className="w-3.5 h-3.5 text-[#22B573]" /> Rs 4 - 7 LPA
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Skill Chips (bg #E8F0FF, text #1E5BE0, 6px radius, 11px) */}
-                    <div className="mt-4 flex flex-wrap gap-1.5">
-                      {["React", "JavaScript", "Frontend"].map((skill) => (
-                        <span
-                          key={skill}
-                          className="bg-[#E8F0FF] text-[#1E5BE0] text-[11px] font-medium px-2.5 py-1 rounded-[6px]"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
+                {recommendedJobsList.length === 0 ? (
+                  <div className="col-span-full py-10 text-center text-[#6B7694] bg-[#F7F9FD] rounded-xl border border-[#EEF1F7]">
+                    <Briefcase className="w-8 h-8 text-[#1E5BE0] mx-auto mb-2 opacity-60" />
+                    <p className="font-semibold text-[#0B1F4B]">No recommended jobs available right now</p>
+                    <p className="text-xs text-[#6B7694] mt-0.5">Explore our jobs board to discover new campus opportunities.</p>
                   </div>
-
-                  {/* Footer with 2 days ago, heart icon, solid blue Apply Now button */}
-                  <div className="mt-5 pt-4 border-t border-[#EEF1F7] flex items-center justify-between">
-                    <span className="text-[12px] text-[#6B7694]">2 days ago</span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => toggleLike("rec-1")}
-                        className="p-1.5 rounded-lg text-[#6B7694] hover:bg-slate-50 transition cursor-pointer"
-                        title="Save to favorites"
-                      >
-                        <Heart
-                          className={`w-4 h-4 ${
-                            likedJobs["rec-1"] ? "fill-[#EF4444] text-[#EF4444]" : ""
-                          }`}
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        className="bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-[13px] font-semibold px-4 py-2 rounded-[8px] transition-colors shadow-sm"
-                      >
-                        Apply Now
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Job 2: TCS */}
-                <div className="rounded-[14px] border border-[#EEF1F7] p-5 hover:border-[#1E5BE0]/40 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between bg-white">
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 border border-[#EEF1F7] shadow-2xs overflow-hidden">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg"
-                            alt="TCS"
-                            className="w-full h-full object-contain p-0.5"
-                          />
+                ) : (
+                  recommendedJobsList.slice(0, 3).map((job) => (
+                    <div
+                      key={job.id}
+                      className="rounded-[14px] border border-[#EEF1F7] p-5 hover:border-[#1E5BE0]/40 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between bg-white"
+                    >
+                      <div>
+                        {/* Top company logo + job title + bookmark icon */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 border border-[#EEF1F7] shadow-2xs overflow-hidden font-bold text-xs text-[#1E5BE0]">
+                              {getCompanyLogoUrl(job.company, job.company?.id) ? (
+                                <img
+                                  src={getCompanyLogoUrl(job.company, job.company?.id)}
+                                  alt={job.company?.name || "Company"}
+                                  className="w-full h-full object-contain p-0.5"
+                                  onError={(e) => {
+                                    const target = e.currentTarget as HTMLImageElement;
+                                    const proxyUrl = job.company?.id ? getCompanyLogoProxyUrl(job.company.id) : "";
+                                    if (proxyUrl && target.src !== proxyUrl) {
+                                      target.src = proxyUrl;
+                                      return;
+                                    }
+                                    target.style.display = "none";
+                                    const parent = target.parentElement;
+                                    if (parent && !parent.querySelector(".logo-fb")) {
+                                      const fb = document.createElement("span");
+                                      fb.textContent = (job.company?.name || "Co").slice(0, 2).toUpperCase();
+                                      fb.className = "font-bold text-xs text-[#1E5BE0] logo-fb";
+                                      parent.appendChild(fb);
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <Building2 className="w-5 h-5 text-[#1E5BE0]" />
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-[14px] text-[#0B1F4B] leading-snug">
+                                {job.title}
+                              </h4>
+                              <p className="text-[12px] text-[#6B7694]">{job.company?.name || "Company"}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => toggleSave(job.id)}
+                            className="p-1.5 text-[#6B7694] hover:text-[#1E5BE0] transition cursor-pointer"
+                            title="Bookmark job"
+                          >
+                            <Bookmark
+                              className={`w-4 h-4 ${
+                                savedJobs[job.id] ? "fill-[#1E5BE0] text-[#1E5BE0]" : ""
+                              }`}
+                            />
+                          </button>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-[14px] text-[#0B1F4B] leading-snug">
-                            Software Engineer
-                          </h4>
-                          <p className="text-[12px] text-[#6B7694]">Tata Consultancy Services</p>
+
+                        {/* Two Meta Rows with Icons */}
+                        <div className="mt-4 space-y-1.5 text-[12px] text-[#6B7694]">
+                          <div className="flex items-center gap-4">
+                            <span className="flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-[#6B7694]" /> {job.location}
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                              <Briefcase className="w-3.5 h-3.5 text-[#6B7694]" /> {job.jobType}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-[#6B7694]" /> {job.experience}
+                            </span>
+                            <span className="flex items-center gap-1.5 font-semibold text-[#0B1F4B]">
+                              <IndianRupee className="w-3.5 h-3.5 text-[#22B573]" /> Rs {job.salaryMin ? (job.salaryMin / 100000).toFixed(0) : "3"} - {job.salaryMax ? (job.salaryMax / 100000).toFixed(0) : "6"} LPA
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Skill Chips */}
+                        <div className="mt-4 flex flex-wrap gap-1.5">
+                          {job.skills?.slice(0, 3).map((skill) => (
+                            <span
+                              key={skill}
+                              className="bg-[#E8F0FF] text-[#1E5BE0] text-[11px] font-medium px-2.5 py-1 rounded-[6px]"
+                            >
+                              {skill}
+                            </span>
+                          ))}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleSave("rec-2")}
-                        className="p-1.5 text-[#6B7694] hover:text-[#1E5BE0] transition cursor-pointer"
-                        title="Bookmark job"
-                      >
-                        <Bookmark
-                          className={`w-4 h-4 ${
-                            savedJobs["rec-2"] ? "fill-[#1E5BE0] text-[#1E5BE0]" : ""
-                          }`}
-                        />
-                      </button>
-                    </div>
 
-                    <div className="mt-4 space-y-1.5 text-[12px] text-[#6B7694]">
-                      <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-[#6B7694]" /> Bangalore
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Briefcase className="w-3.5 h-3.5 text-[#6B7694]" /> Full Time
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-[#6B7694]" /> 0-2 Years
-                        </span>
-                        <span className="flex items-center gap-1.5 font-semibold text-[#0B1F4B]">
-                          <IndianRupee className="w-3.5 h-3.5 text-[#22B573]" /> Rs 4 - 8 LPA
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-1.5">
-                      {["Java", "Spring Boot", "MySQL"].map((skill) => (
-                        <span
-                          key={skill}
-                          className="bg-[#E8F0FF] text-[#1E5BE0] text-[11px] font-medium px-2.5 py-1 rounded-[6px]"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 pt-4 border-t border-[#EEF1F7] flex items-center justify-between">
-                    <span className="text-[12px] text-[#6B7694]">2 days ago</span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => toggleLike("rec-2")}
-                        className="p-1.5 rounded-lg text-[#6B7694] hover:bg-slate-50 transition cursor-pointer"
-                        title="Save to favorites"
-                      >
-                        <Heart
-                          className={`w-4 h-4 ${
-                            likedJobs["rec-2"] ? "fill-[#EF4444] text-[#EF4444]" : ""
-                          }`}
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        className="bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-[13px] font-semibold px-4 py-2 rounded-[8px] transition-colors shadow-sm"
-                      >
-                        Apply Now
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Job 3: Infosys */}
-                <div className="rounded-[14px] border border-[#EEF1F7] p-5 hover:border-[#1E5BE0]/40 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between bg-white">
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 border border-[#EEF1F7] shadow-2xs overflow-hidden">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src="https://upload.wikimedia.org/wikipedia/commons/9/95/Infosys_logo.svg"
-                            alt="Infosys"
-                            className="w-full h-full object-contain p-0.5"
-                          />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-[14px] text-[#0B1F4B] leading-snug">
-                            UI/UX Designer
-                          </h4>
-                          <p className="text-[12px] text-[#6B7694]">Infosys Limited</p>
+                      {/* Footer */}
+                      <div className="mt-5 pt-4 border-t border-[#EEF1F7] flex items-center justify-between">
+                        <span className="text-[12px] text-[#6B7694]">{job.postedDate}</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleLike(job.id)}
+                            className="p-1.5 rounded-lg text-[#6B7694] hover:bg-slate-50 transition cursor-pointer"
+                            title="Save to favorites"
+                          >
+                            <Heart
+                              className={`w-4 h-4 ${
+                                likedJobs[job.id] ? "fill-[#EF4444] text-[#EF4444]" : ""
+                              }`}
+                            />
+                          </button>
+                          <Link
+                            href={`/student/jobs/${job.id}`}
+                            className="bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-[13px] font-semibold px-4 py-2 rounded-[8px] transition-colors shadow-sm inline-block"
+                          >
+                            Apply Now
+                          </Link>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleSave("rec-3")}
-                        className="p-1.5 text-[#6B7694] hover:text-[#1E5BE0] transition cursor-pointer"
-                        title="Bookmark job"
-                      >
-                        <Bookmark
-                          className={`w-4 h-4 ${
-                            savedJobs["rec-3"] ? "fill-[#1E5BE0] text-[#1E5BE0]" : ""
-                          }`}
-                        />
-                      </button>
                     </div>
-
-                    <div className="mt-4 space-y-1.5 text-[12px] text-[#6B7694]">
-                      <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-[#6B7694]" /> Remote
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Briefcase className="w-3.5 h-3.5 text-[#6B7694]" /> Full Time
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-[#6B7694]" /> 1-3 Years
-                        </span>
-                        <span className="flex items-center gap-1.5 font-semibold text-[#0B1F4B]">
-                          <IndianRupee className="w-3.5 h-3.5 text-[#22B573]" /> Rs 5 - 9 LPA
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-1.5">
-                      {["Figma", "UI/UX", "Design"].map((skill) => (
-                        <span
-                          key={skill}
-                          className="bg-[#E8F0FF] text-[#1E5BE0] text-[11px] font-medium px-2.5 py-1 rounded-[6px]"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 pt-4 border-t border-[#EEF1F7] flex items-center justify-between">
-                    <span className="text-[12px] text-[#6B7694]">2 days ago</span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => toggleLike("rec-3")}
-                        className="p-1.5 rounded-lg text-[#6B7694] hover:bg-slate-50 transition cursor-pointer"
-                        title="Save to favorites"
-                      >
-                        {/* Third one filled red as requested in prompt */}
-                        <Heart
-                          className={`w-4 h-4 ${
-                            likedJobs["rec-3"] ? "fill-[#EF4444] text-[#EF4444]" : ""
-                          }`}
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        className="bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-[13px] font-semibold px-4 py-2 rounded-[8px] transition-colors shadow-sm"
-                      >
-                        Apply Now
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                  ))
+                )}
               </div>
             </div>
-
-            {/* 5. "Recent Applications" Card with Table */}
+                        {/* 5. "Recent Applications" Card with Table */}
             <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)]">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -706,156 +640,74 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EEF1F7] text-[13px]">
-                    {/* Row 1: Zoho / Frontend Developer / Sep 15, 2026 / Under Review */}
-                    <tr className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center border border-[#EEF1F7] shadow-2xs overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src="https://upload.wikimedia.org/wikipedia/commons/6/6d/Zoho_Corporation_logo.svg"
-                              alt="Zoho"
-                              className="w-full h-full object-contain p-0.5"
-                            />
-                          </div>
-                          <span className="font-semibold text-[#0B1F4B]">Zoho</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 font-medium text-[#0B1F4B]">Frontend Developer</td>
-                      <td className="px-4 py-3.5 text-[#6B7694]">Sep 15, 2026</td>
-                      <td className="px-4 py-3.5">
-                        <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-[#DCEBFF] text-[#1E5BE0]">
-                          Under Review
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-                          >
-                            View
-                          </button>
-                          <button type="button" className="p-1 text-[#6B7694] hover:text-[#0B1F4B]">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-
-                    {/* Row 2: TCS / Software Engineer / Sep 12, 2026 / Shortlisted */}
-                    <tr className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center border border-[#EEF1F7] shadow-2xs overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg"
-                              alt="TCS"
-                              className="w-full h-full object-contain p-0.5"
-                            />
-                          </div>
-                          <span className="font-semibold text-[#0B1F4B]">TCS</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 font-medium text-[#0B1F4B]">Software Engineer</td>
-                      <td className="px-4 py-3.5 text-[#6B7694]">Sep 12, 2026</td>
-                      <td className="px-4 py-3.5">
-                        <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-[#DDF5E8] text-[#1E9E63]">
-                          Shortlisted
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-                          >
-                            View
-                          </button>
-                          <button type="button" className="p-1 text-[#6B7694] hover:text-[#0B1F4B]">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-
-                    {/* Row 3: Infosys / React Developer / Sep 10, 2026 / Interview */}
-                    <tr className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center border border-[#EEF1F7] shadow-2xs overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src="https://upload.wikimedia.org/wikipedia/commons/9/95/Infosys_logo.svg"
-                              alt="Infosys"
-                              className="w-full h-full object-contain p-0.5"
-                            />
-                          </div>
-                          <span className="font-semibold text-[#0B1F4B]">Infosys</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 font-medium text-[#0B1F4B]">React Developer</td>
-                      <td className="px-4 py-3.5 text-[#6B7694]">Sep 10, 2026</td>
-                      <td className="px-4 py-3.5">
-                        <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-[#FFE9D6] text-[#E8650A]">
-                          Interview
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-                          >
-                            View
-                          </button>
-                          <button type="button" className="p-1 text-[#6B7694] hover:text-[#0B1F4B]">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-
-                    {/* Row 4: Amazon / Software Development Intern / Sep 05, 2026 / Rejected */}
-                    <tr className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center border border-[#EEF1F7] shadow-2xs overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src="https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg"
-                              alt="Amazon"
-                              className="w-full h-full object-contain p-0.5"
-                            />
-                          </div>
-                          <span className="font-semibold text-[#0B1F4B]">Amazon</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 font-medium text-[#0B1F4B]">
-                        Software Development Intern
-                      </td>
-                      <td className="px-4 py-3.5 text-[#6B7694]">Sep 05, 2026</td>
-                      <td className="px-4 py-3.5">
-                        <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-[#FFE0E0] text-[#D93636]">
-                          Rejected
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-                          >
-                            View
-                          </button>
-                          <button type="button" className="p-1 text-[#6B7694] hover:text-[#0B1F4B]">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
+                    {recentApplicationsList.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-[#6B7694]">
+                          No recent applications found. Start exploring and applying for jobs!
+                        </td>
+                      </tr>
+                    ) : (
+                      recentApplicationsList.map((app) => (
+                        <tr key={app.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center border border-[#EEF1F7] shadow-2xs overflow-hidden font-bold text-xs text-[#1E5BE0]">
+                                {app.companyLogo ? (
+                                  <img
+                                    src={app.companyLogo}
+                                    alt={app.companyName || 'Company'}
+                                    className="w-full h-full object-contain p-0.5"
+                                    onError={(e) => {
+                                      const target = e.currentTarget as HTMLImageElement;
+                                      target.style.display = "none";
+                                      const parent = target.parentElement;
+                                      if (parent && !parent.querySelector(".logo-fb")) {
+                                        const fb = document.createElement("span");
+                                        fb.textContent = (app.companyName || "C").charAt(0).toUpperCase();
+                                        fb.className = "font-bold text-xs text-[#1E5BE0] logo-fb";
+                                        parent.appendChild(fb);
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  (app.companyName || 'C').charAt(0).toUpperCase()
+                                )}
+                              </div>
+                              <span className="font-semibold text-[#0B1F4B]">{app.companyName || 'Company'}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 font-medium text-[#0B1F4B]">{app.jobTitle || (app as any).title || 'Position'}</td>
+                          <td className="px-4 py-3.5 text-[#6B7694]">{app.appliedDate || 'Recent'}</td>
+                          <td className="px-4 py-3.5">
+                            <span
+                              className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold ${
+                                app.status === 'Shortlisted'
+                                  ? 'bg-[#DDF5E8] text-[#1E9E63]'
+                                  : app.status === 'Interview'
+                                  ? 'bg-[#FFE9D6] text-[#E8650A]'
+                                  : app.status === 'Rejected'
+                                  ? 'bg-[#FFE0E0] text-[#D93636]'
+                                  : app.status === 'Selected'
+                                  ? 'bg-[#DDF5E8] text-[#1E9E63]'
+                                  : 'bg-[#DCEBFF] text-[#1E5BE0]'
+                              }`}
+                            >
+                              {app.status || 'Under Review'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-right">
+                            <div className="inline-flex items-center gap-2">
+                              <Link
+                                href="/student/applications"
+                                className="border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
+                              >
+                                View
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}</tbody>
                 </table>
               </div>
             </div>
@@ -925,74 +777,67 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
               </div>
 
               <div className="space-y-3.5">
-                {/* Interview 1: TCS */}
-                <div className="p-3.5 rounded-[12px] border border-[#EEF1F7] bg-[#FDFDFE] hover:border-[#1E5BE0]/30 transition-all flex items-center justify-between gap-3 group">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 border border-[#EEF1F7] shadow-2xs overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg"
-                        alt="TCS"
-                        className="w-full h-full object-contain p-0.5"
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[13px] text-[#0B1F4B] truncate">
-                          Software Engineer
-                        </span>
-                        {/* Mode pill: Online (light blue) */}
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#DCEBFF] text-[#1E5BE0]">
-                          Online
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[11px] text-[#6B7694] mt-1">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-[#6B7694]" /> Sep 25, 2026
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-[#6B7694]" /> 10:00 AM
-                        </span>
-                      </div>
-                    </div>
+                {upcomingInterviewsList.length === 0 ? (
+                  <div className="p-4 rounded-[12px] border border-dashed border-[#EEF1F7] text-center text-xs text-[#6B7694]">
+                    No upcoming interviews scheduled
                   </div>
-                  <ChevronRight className="w-4 h-4 text-[#6B7694] group-hover:text-[#1E5BE0] shrink-0 transition-transform group-hover:translate-x-0.5" />
-                </div>
-
-                {/* Interview 2: Zoho */}
-                <div className="p-3.5 rounded-[12px] border border-[#EEF1F7] bg-[#FDFDFE] hover:border-[#1E5BE0]/30 transition-all flex items-center justify-between gap-3 group">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 border border-[#EEF1F7] shadow-2xs overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src="https://upload.wikimedia.org/wikipedia/commons/6/6d/Zoho_Corporation_logo.svg"
-                        alt="Zoho"
-                        className="w-full h-full object-contain p-0.5"
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[13px] text-[#0B1F4B] truncate">
-                          Frontend Developer
-                        </span>
-                        {/* Mode pill: Onsite (light orange) */}
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FFE9D6] text-[#E8650A]">
-                          Onsite
-                        </span>
+                ) : (
+                  upcomingInterviewsList.map((interview) => (
+                    <div
+                      key={interview.id}
+                      className="p-3.5 rounded-[12px] border border-[#EEF1F7] bg-[#FDFDFE] hover:border-[#1E5BE0]/30 transition-all flex items-center justify-between gap-3 group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 border border-[#EEF1F7] shadow-2xs overflow-hidden font-bold text-xs text-[#1E5BE0]">
+                          {interview.companyLogo ? (
+                            <img
+                              src={interview.companyLogo}
+                              alt={interview.companyName || "Company"}
+                              className="w-full h-full object-contain p-0.5"
+                              onError={(e) => {
+                                const target = e.currentTarget as HTMLImageElement;
+                                const proxyUrl = interview.companyId ? getCompanyLogoProxyUrl(interview.companyId) : "";
+                                if (proxyUrl && target.src !== proxyUrl) {
+                                  target.src = proxyUrl;
+                                  return;
+                                }
+                                target.style.display = "none";
+                                const parent = target.parentElement;
+                                if (parent && !parent.querySelector(".logo-fb")) {
+                                  const fb = document.createElement("span");
+                                  fb.textContent = (interview.companyName || "C").slice(0, 2).toUpperCase();
+                                  fb.className = "font-bold text-xs text-[#1E5BE0] logo-fb";
+                                  parent.appendChild(fb);
+                                }
+                              }}
+                            />
+                          ) : (
+                            (interview.companyName || 'C').slice(0, 2).toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-[13px] text-[#0B1F4B] truncate">
+                              {interview.jobTitle}
+                            </span>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#DCEBFF] text-[#1E5BE0]">
+                              {interview.type}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] text-[#6B7694] mt-1">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-[#6B7694]" /> {interview.date}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-[#6B7694]" /> {interview.time}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 text-[11px] text-[#6B7694] mt-1">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-[#6B7694]" /> Sep 28, 2026
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-[#6B7694]" /> 02:00 PM
-                        </span>
-                      </div>
+                      <ChevronRight className="w-4 h-4 text-[#6B7694] group-hover:text-[#1E5BE0] shrink-0 transition-transform group-hover:translate-x-0.5" />
                     </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-[#6B7694] group-hover:text-[#1E5BE0] shrink-0 transition-transform group-hover:translate-x-0.5" />
-                </div>
-              </div>
+                  ))
+                )}</div>
             </div>
 
             {/* 3. Latest Notifications Card */}
@@ -1008,78 +853,61 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
               </div>
 
               <div className="space-y-3.5">
-                {/* Notification 1: Green icon tile */}
-                <div className="flex items-start justify-between gap-3 text-[13px]">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0 mt-0.5">
-                      <CheckCircle2 className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-[#0B1F4B] text-[13px] leading-tight">
-                        Your application is shortlisted
-                      </p>
-                      <p className="text-[12px] text-[#6B7694] mt-0.5 truncate">
-                        Zoho - Software Engineer
-                      </p>
-                    </div>
+                {notificationsList.length === 0 ? (
+                  <div className="p-4 rounded-[12px] border border-dashed border-[#EEF1F7] text-center text-xs text-[#6B7694]">
+                    No new notifications
                   </div>
-                  <span className="text-[11px] text-[#6B7694] shrink-0">2h ago</span>
-                </div>
-
-                {/* Notification 2: Blue icon tile */}
-                <div className="flex items-start justify-between gap-3 text-[13px]">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0 mt-0.5">
-                      <Calendar className="w-4 h-4" />
+                ) : (
+                  notificationsList.map((notif: any) => (
+                    <div key={notif.id} className="flex items-start justify-between gap-3 text-[13px]">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-white border border-[#EEF1F7] p-1 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden font-bold text-xs text-[#1E5BE0]">
+                          {notif.companyLogo ? (
+                            <img
+                              src={notif.companyLogo}
+                              alt={notif.companyName || "Company"}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const target = e.currentTarget as HTMLImageElement;
+                                const proxyUrl = notif.companyId ? getCompanyLogoProxyUrl(notif.companyId) : "";
+                                if (proxyUrl && target.src !== proxyUrl) {
+                                  target.src = proxyUrl;
+                                  return;
+                                }
+                                target.style.display = "none";
+                                const parent = target.parentElement;
+                                if (parent && !parent.querySelector(".logo-fb")) {
+                                  const fb = document.createElement("span");
+                                  fb.textContent = (notif.companyName || "Co").slice(0, 2).toUpperCase();
+                                  fb.className = "font-bold text-xs text-[#1E5BE0] logo-fb";
+                                  parent.appendChild(fb);
+                                }
+                              }}
+                            />
+                          ) : notif.companyName ? (
+                            <span>{notif.companyName.slice(0, 2).toUpperCase()}</span>
+                          ) : (
+                            <Bell className="w-4 h-4 text-[#1E5BE0]" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-[#0B1F4B] text-[13px] leading-tight">
+                            {notif.title}
+                          </p>
+                          {notif.subtitle && (
+                            <p className="text-[11px] font-semibold text-[#1E5BE0] mt-0.5">
+                              {notif.subtitle}
+                            </p>
+                          )}
+                          <p className="text-[12px] text-[#6B7694] mt-0.5 truncate">
+                            {notif.message}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-[#6B7694] shrink-0">{notif.timeAgo || 'Recently'}</span>
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-[#0B1F4B] text-[13px] leading-tight">
-                        Interview scheduled
-                      </p>
-                      <p className="text-[12px] text-[#6B7694] mt-0.5 truncate">
-                        TCS - Software Engineer
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-[11px] text-[#6B7694] shrink-0">1d ago</span>
-                </div>
-
-                {/* Notification 3: Orange icon tile */}
-                <div className="flex items-start justify-between gap-3 text-[13px]">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0 mt-0.5">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-[#0B1F4B] text-[13px] leading-tight">
-                        New job matches available
-                      </p>
-                      <p className="text-[12px] text-[#6B7694] mt-0.5 truncate">
-                        10 new jobs match your profile
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-[11px] text-[#6B7694] shrink-0">2d ago</span>
-                </div>
-
-                {/* Notification 4: Purple icon tile */}
-                <div className="flex items-start justify-between gap-3 text-[13px]">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0 mt-0.5">
-                      <Clock className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-[#0B1F4B] text-[13px] leading-tight">
-                        Your application is under review
-                      </p>
-                      <p className="text-[12px] text-[#6B7694] mt-0.5 truncate">
-                        Infosys - React Developer
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-[11px] text-[#6B7694] shrink-0">3d ago</span>
-                </div>
-              </div>
+                  ))
+                )}</div>
             </div>
           </aside>
         </div>

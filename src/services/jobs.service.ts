@@ -1,6 +1,20 @@
+export function formatCompanySize(size?: string): string | undefined {
+  if (!size) return undefined;
+  const map: Record<string, string> = {
+    SIZE_1_10: "1-10 Employees",
+    SIZE_11_50: "11-50 Employees",
+    SIZE_51_200: "51-200 Employees",
+    SIZE_201_500: "201-500 Employees",
+    SIZE_501_1000: "501-1,000 Employees",
+    SIZE_1000_PLUS: "1,000+ Employees",
+  };
+  return map[size] || size.replace("SIZE_", "").replace("_", "-") + " Employees";
+}
+
 import apiClient from "./api";
-import { Job, Company } from "@/types";
-import { MOCK_JOBS, MOCK_COMPANIES } from "@/constants/mockData";
+import { Job, Company, JobType, WorkMode } from "@/types";
+import { BackendPublicJob } from "@/types/api";
+import { getCompanyLogoUrl } from "@/lib/utils";
 
 export interface JobFilterParams {
   search?: string;
@@ -9,297 +23,274 @@ export interface JobFilterParams {
   experience?: string;
   workMode?: string;
   company?: string;
-  sortBy?: "newest" | "salaryHigh" | "salaryLow";
+  sortBy?: "newest" | "salaryHigh" | "salaryLow" | "latest" | "deadline" | "salary";
+  page?: number;
+  limit?: number;
+}
+
+// Convert backend EmploymentType to frontend JobType
+export function mapEmploymentTypeToJobType(type: string): JobType {
+  switch (type) {
+    case "FULL_TIME":
+      return "Full Time";
+    case "PART_TIME":
+      return "Part Time";
+    case "INTERNSHIP":
+      return "Internship";
+    case "CONTRACT":
+      return "Contract";
+    case "REMOTE":
+      return "Remote";
+    default:
+      return "Full Time";
+  }
+}
+
+// Convert backend WorkMode to frontend WorkMode
+export function mapWorkModeToFrontend(mode: string): WorkMode {
+  switch (mode) {
+    case "ON_SITE":
+      return "On-site";
+    case "REMOTE":
+      return "Remote";
+    case "HYBRID":
+      return "Hybrid";
+    default:
+      return "On-site";
+  }
+}
+
+// Map backend job to frontend Job interface
+export function mapBackendJobToFrontend(bj: BackendPublicJob): Job {
+  const skills = bj.jobSkills && Array.isArray(bj.jobSkills)
+    ? bj.jobSkills.map((js) => js.skill?.name).filter(Boolean)
+    : [];
+
+  return {
+    id: bj.id,
+    title: bj.title,
+    company: {
+      id: bj.company?.id || bj.companyId,
+      name: bj.company?.name || "Company",
+      logo: getCompanyLogoUrl(bj.company, bj.company?.id || bj.companyId) || undefined,
+      location: bj.company?.location || bj.location || "India",
+      website: bj.company?.website || undefined,
+      size: formatCompanySize(bj.company?.companySize || undefined),
+      industry: bj.company?.industry || undefined,
+      about: bj.company?.about || undefined,
+      description: bj.company?.about || undefined,
+    },
+    location: bj.location,
+    salaryMin: bj.isSalaryDisclosed && bj.salaryMin != null ? Number(bj.salaryMin) : undefined,
+    salaryMax: bj.isSalaryDisclosed && bj.salaryMax != null ? Number(bj.salaryMax) : undefined,
+    salaryCurrency: bj.salaryCurrency || "INR",
+    experience: bj.maxExperience
+      ? `${bj.minExperience}-${bj.maxExperience} Years`
+      : (bj.minExperience === 0 ? "Fresher (0 Years)" : `${bj.minExperience}+ Years`),
+    jobType: mapEmploymentTypeToJobType(bj.employmentType),
+    workMode: mapWorkModeToFrontend(bj.workMode),
+    skills: skills,
+    description: bj.description || "",
+    responsibilities: bj.responsibilities
+      ? bj.responsibilities.split("\n").map((s) => s.trim()).filter(Boolean)
+      : [],
+    requirements: bj.requirements
+      ? bj.requirements.split("\n").map((s) => s.trim()).filter(Boolean)
+      : [],
+    benefits: bj.benefits || [],
+    postedDate: bj.publishedAt || bj.createdAt,
+    deadline: bj.deadline || undefined,
+    openings: bj.openings || 1,
+    status: (bj.status === "PUBLISHED" ? "Published" : "Draft") as "Published" | "Draft",
+    applicantsCount: 0,
+    hasApplied: Boolean((bj as any).hasApplied),
+    applicationId: (bj as any).applicationId || undefined,
+  };
 }
 
 export const jobsService = {
   async getJobs(params?: JobFilterParams): Promise<Job[]> {
     try {
-      const response = await apiClient.get("/jobs", { params });
-      return response.data?.data || response.data;
-    } catch {
-      // Standalone realistic mock fallback
-      let filtered = [...MOCK_JOBS];
-      if (params?.search) {
-        const q = params.search.toLowerCase();
-        filtered = filtered.filter(
-          (j) =>
-            j.title.toLowerCase().includes(q) ||
-            j.company.name.toLowerCase().includes(q) ||
-            j.skills.some((s) => s.toLowerCase().includes(q))
-        );
-      }
-      if (params?.location && params.location !== "All") {
-        filtered = filtered.filter((j) =>
-          j.location.toLowerCase().includes(params.location!.toLowerCase())
-        );
-      }
-      if (params?.jobType && params.jobType !== "All") {
-        filtered = filtered.filter((j) => j.jobType === params.jobType);
-      }
+      const queryParams: Record<string, string | number> = {};
+      if (params?.search) queryParams.search = params.search;
+      if (params?.location && params.location !== "All") queryParams.location = params.location;
+      if (params?.page) queryParams.page = params.page;
+      if (params?.limit) queryParams.limit = params.limit;
+
+      // Map workMode filter
       if (params?.workMode && params.workMode !== "All") {
-        filtered = filtered.filter((j) => j.workMode === params.workMode);
+        const wmUpper = params.workMode.toUpperCase().replace("-", "_").replace(" ", "_");
+        if (["ON_SITE", "REMOTE", "HYBRID"].includes(wmUpper)) {
+          queryParams.workMode = wmUpper;
+        }
       }
+
+      // Map employmentType filter
+      if (params?.jobType && params.jobType !== "All") {
+        const jtUpper = params.jobType.toUpperCase().replace(" ", "_");
+        if (["FULL_TIME", "PART_TIME", "INTERNSHIP", "CONTRACT", "REMOTE"].includes(jtUpper)) {
+          queryParams.employmentType = jtUpper;
+        }
+      }
+
+      // Map sortBy
       if (params?.sortBy === "salaryHigh") {
-        filtered.sort((a, b) => (b.salaryMax || 0) - (a.salaryMax || 0));
+        queryParams.sortBy = "salary";
+        queryParams.sortOrder = "desc";
       } else if (params?.sortBy === "salaryLow") {
-        filtered.sort((a, b) => (a.salaryMin || 0) - (b.salaryMin || 0));
+        queryParams.sortBy = "salary";
+        queryParams.sortOrder = "asc";
       } else {
-        filtered.sort((a, b) => new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime());
+        queryParams.sortBy = "latest";
       }
-      return filtered;
+
+      const response = await apiClient.get<{ success: boolean; data: { items: BackendPublicJob[]; total: number } }>("/jobs", {
+        params: queryParams,
+      });
+
+      const items = response.data?.data?.items;
+      if (Array.isArray(items)) {
+        return items.map(mapBackendJobToFrontend);
+      }
+      return [];
+    } catch {
+      return [];
     }
   },
 
   async getJobById(jobId: string): Promise<Job | null> {
     try {
-      const response = await apiClient.get(`/jobs/${jobId}`);
-      return response.data?.data || response.data;
+      const response = await apiClient.get<{ success: boolean; data: BackendPublicJob }>(`/jobs/${jobId}`);
+      if (response.data?.data) {
+        return mapBackendJobToFrontend(response.data.data);
+      }
+      return null;
     } catch {
-      const found = MOCK_JOBS.find((j) => j.id === jobId);
-      return found || MOCK_JOBS[0];
+      return null;
     }
   },
 
   async getCompanies(): Promise<Company[]> {
     try {
-      const response = await apiClient.get("/companies");
-      return response.data?.data || response.data;
+      const response = await apiClient.get<{ success: boolean; data: { items: any[] } | any[] }>("/jobs?limit=50");
+      const items = (response.data as any)?.data?.items || (response.data as any)?.data || [];
+      const companyMap = new Map<string, Company>();
+
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          const comp = item.company;
+          if (comp && comp.id && !companyMap.has(comp.id)) {
+            companyMap.set(comp.id, {
+              id: comp.id,
+              name: comp.name || "Company",
+              logo: getCompanyLogoUrl(comp, comp.id) || "",
+              description: comp.about || comp.industry || "Hiring partner on WeGrow Skill Campus.",
+              website: comp.website || "",
+              industry: comp.industry || "Technology",
+              location: comp.location || item.location || "India",
+              size: comp.companySize || "50-200 employees",
+              about: comp.about || "",
+              status: "Approved",
+              activeJobsCount: 1,
+              joinedDate: item.createdAt || new Date().toISOString(),
+            });
+          } else if (comp && comp.id && companyMap.has(comp.id)) {
+            const existing = companyMap.get(comp.id)!;
+            existing.activeJobsCount += 1;
+          }
+        }
+      }
+      return Array.from(companyMap.values());
     } catch {
-      return MOCK_COMPANIES;
+      return [];
     }
   },
 
   async getBrowseJobsPageData(params?: JobFilterParams): Promise<import("@/types").StudentBrowseJobsPageData> {
     try {
-      const response = await apiClient.get("/student/browse-jobs", { params });
-      if (response.data?.data) {
-        return response.data.data;
-      }
-      if (response.data) {
-        return response.data;
-      }
-    } catch {
-      // Graceful fallback to rich mock data matching the exact user specification
-    }
+      const jobs = await this.getJobs(params);
+      const studentBrowseItems = jobs.map((j) => ({
+        id: j.id,
+        title: j.title,
+        company: {
+          id: j.company.id,
+          name: j.company.name,
+          logo: j.company.logo,
+          location: j.company.location,
+          initials: j.company.name.slice(0, 3).toUpperCase(),
+        },
+        verified: true,
+        location: j.location,
+        jobType: j.jobType,
+        workMode: j.workMode,
+        experience: j.experience,
+        salaryText: j.salaryMin && j.salaryMax
+          ? `Rs ${Math.round(j.salaryMin / 100000)} - ${Math.round(j.salaryMax / 100000)} LPA`
+          : "Not Disclosed",
+        skills: j.skills,
+        overflowSkillsCount: Math.max(0, j.skills.length - 3),
+        postedAgo: "Recently",
+        isBookmarked: false,
+        hasApplied: j.hasApplied,
+        applicationId: j.applicationId,
+      }));
 
-    return {
-      totalJobsCount: 512,
-      jobs: [
-        {
-          id: "job-tcs-1",
-          title: "Frontend Developer",
-          company: {
-            id: "comp-tcs",
-            name: "TCS",
-            logo: "https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg",
-            location: "Chennai",
-            initials: "TCS",
-          },
-          verified: true,
-          location: "Chennai",
-          jobType: "Full Time",
-          workMode: "On-site",
-          experience: "0-2 Years",
-          salaryText: "Rs 4 - 7 LPA",
-          skills: ["React", "JavaScript", "TypeScript"],
-          overflowSkillsCount: 2,
-          postedAgo: "2 days ago",
-          isBookmarked: false,
+      // Derive top companies dynamically from real job listings
+      const companyCountMap = new Map<string, { id: string; name: string; logo?: string; openings: number }>();
+      for (const j of jobs) {
+        if (!companyCountMap.has(j.company.id)) {
+          companyCountMap.set(j.company.id, {
+            id: j.company.id,
+            name: j.company.name,
+            logo: j.company.logo,
+            openings: 1,
+          });
+        } else {
+          companyCountMap.get(j.company.id)!.openings += 1;
+        }
+      }
+
+      const topCompanies = Array.from(companyCountMap.values()).map((c) => ({
+        id: c.id,
+        name: c.name,
+        openings: `${c.openings} Opening${c.openings > 1 ? "s" : ""}`,
+        logo: getCompanyLogoUrl(c, c.id) || undefined,
+        logoColor: "bg-blue-50 text-[#1E5BE0]",
+        initials: c.name.slice(0, 3).toUpperCase(),
+      }));
+
+      const latestJobs = jobs.slice(0, 5).map((j) => ({
+        id: j.id,
+        title: j.title,
+        companyCity: `${j.company.name} - ${j.location}`,
+        timeAgo: "Recently",
+        logo: getCompanyLogoUrl(j.company, j.company.id) || undefined,
+        initials: j.company.name.slice(0, 3).toUpperCase(),
+      }));
+
+      return {
+        totalJobsCount: studentBrowseItems.length,
+        jobs: studentBrowseItems,
+        topCompanies,
+        latestJobs,
+        profileCompletion: {
+          percentage: 0,
+          checklist: [],
         },
-        {
-          id: "job-infy-1",
-          title: "Software Engineer",
-          company: {
-            id: "comp-infosys",
-            name: "Infosys",
-            logo: "https://upload.wikimedia.org/wikipedia/commons/9/95/Infosys_logo.svg",
-            location: "Bangalore",
-            initials: "INFY",
-          },
-          verified: true,
-          location: "Bangalore",
-          jobType: "Full Time",
-          workMode: "Hybrid",
-          experience: "1-3 Years",
-          salaryText: "Rs 5 - 9 LPA",
-          skills: ["Java", "Spring Boot", "MySQL", "REST APIs"],
-          overflowSkillsCount: 0,
-          postedAgo: "3 days ago",
-          isBookmarked: false,
+      };
+    } catch {
+      return {
+        totalJobsCount: 0,
+        jobs: [],
+        topCompanies: [],
+        latestJobs: [],
+        profileCompletion: {
+          percentage: 0,
+          checklist: [],
         },
-        {
-          id: "job-zoho-1",
-          title: "Product Designer",
-          company: {
-            id: "comp-zoho",
-            name: "Zoho",
-            logo: "https://upload.wikimedia.org/wikipedia/commons/6/6d/Zoho_Corporation_logo.svg",
-            location: "Chennai",
-            initials: "ZOHO",
-          },
-          verified: true,
-          location: "Chennai",
-          jobType: "Full Time",
-          workMode: "Remote",
-          experience: "0-2 Years",
-          salaryText: "Rs 4 - 8 LPA",
-          skills: ["Figma", "UI/UX", "Design Systems"],
-          overflowSkillsCount: 0,
-          postedAgo: "4 days ago",
-          isBookmarked: true,
-        },
-        {
-          id: "job-fresh-1",
-          title: "Backend Engineer",
-          company: {
-            id: "comp-freshworks",
-            name: "Freshworks",
-            logo: "https://asset.brandfetch.io/idgXw6gX7k/id2qF19m1l.svg",
-            location: "Chennai",
-            initials: "FW",
-          },
-          verified: true,
-          location: "Chennai",
-          jobType: "Full Time",
-          workMode: "Hybrid",
-          experience: "1-4 Years",
-          salaryText: "Rs 6 - 10 LPA",
-          skills: ["Node.js", "Express.js", "MongoDB"],
-          overflowSkillsCount: 2,
-          postedAgo: "5 days ago",
-          isBookmarked: false,
-        },
-        {
-          id: "job-razor-1",
-          title: "Associate DevOps Engineer",
-          company: {
-            id: "comp-razorpay",
-            name: "Razorpay",
-            logo: "https://upload.wikimedia.org/wikipedia/commons/8/89/Razorpay_logo.svg",
-            location: "Bangalore",
-            initials: "RZP",
-          },
-          verified: true,
-          location: "Bangalore",
-          jobType: "Full Time",
-          workMode: "Remote",
-          experience: "0-2 Years",
-          salaryText: "Rs 5 - 8 LPA",
-          skills: ["AWS", "Docker", "Kubernetes", "Linux"],
-          overflowSkillsCount: 0,
-          postedAgo: "6 days ago",
-          isBookmarked: false,
-        },
-        {
-          id: "job-techm-1",
-          title: "Software Development Engineer",
-          company: {
-            id: "comp-techm",
-            name: "Tech Mahindra",
-            logo: "https://upload.wikimedia.org/wikipedia/commons/1/1d/Tech_Mahindra_New_Logo.svg",
-            location: "Pune",
-            initials: "TM",
-          },
-          verified: true,
-          location: "Pune",
-          jobType: "Full Time",
-          workMode: "Work From Office",
-          experience: "1-3 Years",
-          salaryText: "Rs 4 - 7 LPA",
-          skills: ["Java", "Spring Boot", "Hibernate", "SQL"],
-          overflowSkillsCount: 0,
-          postedAgo: "1 week ago",
-          isBookmarked: false,
-        },
-        {
-          id: "job-msft-1",
-          title: "Data Analyst",
-          company: {
-            id: "comp-msft",
-            name: "Microsoft",
-            logo: "https://upload.wikimedia.org/wikipedia/commons/9/96/Microsoft_logo_%282012%29.svg",
-            location: "Bangalore",
-            initials: "MSFT",
-          },
-          verified: true,
-          location: "Bangalore",
-          jobType: "Full Time",
-          workMode: "Hybrid",
-          experience: "0-2 Years",
-          salaryText: "Rs 6 - 10 LPA",
-          skills: ["Python", "SQL", "Power BI"],
-          overflowSkillsCount: 2,
-          postedAgo: "1 week ago",
-          isBookmarked: false,
-        },
-        {
-          id: "job-amzn-1",
-          title: "Software Development Intern",
-          company: {
-            id: "comp-amazon",
-            name: "Amazon",
-            logo: "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
-            location: "Chennai",
-            initials: "AMZN",
-          },
-          verified: true,
-          location: "Chennai",
-          jobType: "Internship",
-          workMode: "Hybrid",
-          experience: "0-1 Years",
-          salaryText: "Rs 25,000 - Rs 35,000 / month",
-          skills: ["Java", "DSA", "System Design"],
-          overflowSkillsCount: 2,
-          postedAgo: "1 week ago",
-          isBookmarked: true,
-        },
-        {
-          id: "job-wipro-1",
-          title: "UI/UX Designer",
-          company: {
-            id: "comp-wipro",
-            name: "Wipro",
-            logo: "https://upload.wikimedia.org/wikipedia/commons/a/a0/Wipro_Primary_Logo_Color_RGB.svg",
-            location: "Bangalore",
-            initials: "WIPRO",
-          },
-          verified: true,
-          location: "Bangalore",
-          jobType: "Full Time",
-          workMode: "Remote",
-          experience: "1-3 Years",
-          salaryText: "Rs 5 - 9 LPA",
-          skills: ["Figma", "UI/UX", "Prototyping"],
-          overflowSkillsCount: 2,
-          postedAgo: "1 week ago",
-          isBookmarked: false,
-        },
-      ],
-      topCompanies: [
-        { id: "top-1", name: "TCS", openings: "120+ Openings", logo: "https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg", logoColor: "bg-blue-50 text-[#1E5BE0]", initials: "TCS" },
-        { id: "top-2", name: "Infosys", openings: "95+ Openings", logo: "https://upload.wikimedia.org/wikipedia/commons/9/95/Infosys_logo.svg", logoColor: "bg-sky-50 text-sky-700", initials: "INFY" },
-        { id: "top-3", name: "Zoho", openings: "65+ Openings", logo: "https://upload.wikimedia.org/wikipedia/commons/6/6d/Zoho_Corporation_logo.svg", logoColor: "bg-red-50 text-red-600", initials: "ZOHO" },
-        { id: "top-4", name: "Microsoft", openings: "80+ Openings", logo: "https://upload.wikimedia.org/wikipedia/commons/9/96/Microsoft_logo_%282012%29.svg", logoColor: "bg-amber-50 text-amber-700", initials: "MSFT" },
-        { id: "top-5", name: "Amazon", openings: "150+ Openings", logo: "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg", logoColor: "bg-orange-50 text-[#FF6B00]", initials: "AMZN" },
-      ],
-      latestJobs: [
-        { id: "lj-1", title: "Frontend Developer", companyCity: "TCS - Chennai", timeAgo: "2 days ago", logo: "https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg", initials: "TCS" },
-        { id: "lj-2", title: "Software Engineer", companyCity: "Infosys - Bangalore", timeAgo: "3 days ago", logo: "https://upload.wikimedia.org/wikipedia/commons/9/95/Infosys_logo.svg", initials: "INFY" },
-        { id: "lj-3", title: "Product Designer", companyCity: "Zoho - Remote", timeAgo: "4 days ago", logo: "https://upload.wikimedia.org/wikipedia/commons/6/6d/Zoho_Corporation_logo.svg", initials: "ZOHO" },
-        { id: "lj-4", title: "Backend Engineer", companyCity: "Freshworks - Chennai", timeAgo: "5 days ago", logo: "https://asset.brandfetch.io/idgXw6gX7k/id2qF19m1l.svg", initials: "FW" },
-        { id: "lj-5", title: "DevOps Engineer", companyCity: "Razorpay - Bangalore", timeAgo: "6 days ago", logo: "https://upload.wikimedia.org/wikipedia/commons/8/89/Razorpay_logo.svg", initials: "RZP" },
-      ],
-      profileCompletion: {
-        percentage: 75,
-        checklist: [
-          { label: "Personal Information", done: true },
-          { label: "Education Details", done: true },
-          { label: "Skills", done: true },
-          { label: "Add Projects", done: false },
-          { label: "Upload Resume", done: false },
-        ],
-      },
-    };
+      };
+    }
   },
 };
+
+export default jobsService;

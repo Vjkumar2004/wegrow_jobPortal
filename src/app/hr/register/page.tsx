@@ -60,14 +60,26 @@ export default function HRRegisterPage() {
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) setCompanyLogoUrl(result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
+    if (!allowedTypes.includes(file.type)) {
+      setErrorMessage("Please select a valid image file (PNG, JPEG, WebP, or SVG).");
+      return;
     }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setErrorMessage("Company logo must be under 2MB in size.");
+      return;
+    }
+
+    setErrorMessage("");
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) setCompanyLogoUrl(result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,8 +94,11 @@ export default function HRRegisterPage() {
     }
   };
 
+  const [errorMessage, setErrorMessage] = useState("");
+
   const handleProceedToProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage("");
     if (!hrEmail) setHrEmail(email);
     if (!hrPhone) setHrPhone(phone);
     setStep(2);
@@ -93,38 +108,60 @@ export default function HRRegisterPage() {
   const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage("");
 
     try {
-      // 1. Register corporate HR account in auth
+      const mappedSize =
+        size === "100,000+ employees" || size === "1,000 - 10,000 employees"
+          ? "SIZE_500_PLUS"
+          : size === "200 - 1,000 employees"
+          ? "SIZE_201_500"
+          : "SIZE_51_200";
+
+      // 1. Register corporate HR user account with backend including logo & company profile
       await authService.register({
-        name,
-        email,
-        companyName,
-        phone,
+        name: name.trim(),
+        email: email.trim(),
+        companyName: companyName.trim(),
+        phone: phone.trim(),
         password,
         role: "HR",
+        companyWebsite: website.trim() || undefined,
+        companyIndustry: industry.trim() || undefined,
+        companyLocation: location.trim() || undefined,
+        designation: "Hiring Lead",
+        companyLogo: companyLogoUrl || undefined,
+        companySize: mappedSize,
+        about: description.trim() || undefined,
       });
 
-      // 2. Submit complete company profile setup to admin service with "Pending" moderation status
-      await adminService.registerCompany({
-        name: companyName,
-        logo: companyLogoUrl || "",
-        website: website || "https://" + companyName.toLowerCase().replace(/[^a-z0-9]/g, "") + ".com",
-        industry: industry || "Information Technology",
-        location: location || "Pan-India",
-        size: size || "50 - 200 employees",
-        description: description || `${companyName} is hiring campus talent through WeGrow Skill Campus.`,
-        about: description || `${companyName} is hiring campus talent through WeGrow Skill Campus.`,
-        tagline: tagline,
-        culture: culture,
-        hrEmail: hrEmail || email,
-        hrPhone: hrPhone || phone,
-        recruiterName: name,
-        recruiterAvatar: recruiterAvatarUrl || "",
-        status: "Pending", // Direct to Pending state for admin moderation
-      });
+      // 2. Temporarily keep company profile in sessionStorage for onboarding right after verification
+      const companyOnboardingData = {
+        companyName: companyName.trim(),
+        logoUrl: companyLogoUrl || undefined,
+        website: website.trim() || undefined,
+        industry: industry.trim() || undefined,
+        companySize: mappedSize,
+        location: location.trim() || undefined,
+        about: description.trim() || undefined,
+        fullName: name.trim() || undefined,
+        designation: "Hiring Lead",
+        phone: phone.trim() || undefined,
+      };
 
-      setSubmittedSuccess(true);
+      try {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("wegrow_hr_onboarding_" + email.trim().toLowerCase(), JSON.stringify(companyOnboardingData));
+        }
+      } catch (storageErr) {
+        console.warn("Could not save onboarding data to sessionStorage:", storageErr);
+      }
+
+      // Navigate to email verification for HR
+      router.push(`/verify-email?email=${encodeURIComponent(email)}&role=HR`);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Registration failed. Please check your credentials.";
+      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
@@ -267,6 +304,14 @@ export default function HRRegisterPage() {
                   <span className="text-xs">Company Profile & Branding</span>
                 </div>
               </div>
+
+              {/* Error Banner */}
+              {errorMessage && (
+                <div className="mt-4 p-3.5 bg-rose-50 text-rose-700 text-xs font-semibold rounded-xl border border-rose-200 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
             </div>
 
             {/* Hidden File Inputs */}

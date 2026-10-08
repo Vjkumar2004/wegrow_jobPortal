@@ -23,6 +23,8 @@ import {
   X,
 } from "lucide-react";
 import { authService } from "@/services/auth.service";
+import { studentService } from "@/services/student.service";
+import { getNameInitials } from "@/lib/utils";
 
 interface SidebarItem {
   label: string;
@@ -33,11 +35,66 @@ interface SidebarItem {
 
 const StudentShellContext = React.createContext<boolean>(false);
 
+import { AuthGuard } from "@/components/common/AuthGuard";
+
 export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isInsideShell = React.useContext(StudentShellContext);
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [navImgError, setNavImgError] = useState(false);
+  const [studentProfile, setStudentProfile] = useState<{
+    id?: string;
+    name: string;
+    headline: string;
+    avatarUrl?: string;
+    avatar?: string;
+    photoUrl?: string;
+  }>({
+    name: "Student",
+    headline: "Candidate",
+  });
+
+  React.useEffect(() => {
+    setNavImgError(false);
+  }, [studentProfile.avatarUrl, studentProfile.avatar, studentProfile.photoUrl]);
+
+  React.useEffect(() => {
+    studentService
+      .getProfile()
+      .then((p) => {
+        if (p) {
+          const url = p.avatarUrl || p.avatar || p.photoUrl;
+          setStudentProfile({
+            id: p.id,
+            name: p.name || "Student",
+            headline: p.degreeName || p.headline || "Candidate",
+            avatarUrl: url,
+            avatar: url,
+            photoUrl: url,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [pathname]);
+
+  React.useEffect(() => {
+    const handleAvatarUpdate = (e: Event) => {
+      const detail = (e as CustomEvent<{ avatarUrl?: string; avatar?: string; photoUrl?: string }>).detail;
+      const newUrl = detail?.avatarUrl || detail?.avatar || detail?.photoUrl;
+      if (newUrl) {
+        setNavImgError(false);
+        setStudentProfile((prev) => ({
+          ...prev,
+          avatarUrl: newUrl,
+          avatar: newUrl,
+          photoUrl: newUrl,
+        }));
+      }
+    };
+    window.addEventListener("avatarUpdated", handleAvatarUpdate);
+    return () => window.removeEventListener("avatarUpdated", handleAvatarUpdate);
+  }, []);
 
   // If already inside the student shell, only render children (prevents nested double sidebars)
   if (isInsideShell) {
@@ -50,26 +107,27 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
     return <>{children}</>;
   }
 
-  const handleLogout = () => {
-    authService.logout();
-    router.push("/student/login");
+  const handleLogout = async () => {
+    await authService.logout();
+    router.replace("/student/login");
   };
 
   const sidebarLinks: SidebarItem[] = [
     { label: "Dashboard", href: "/student/dashboard", icon: LayoutDashboard },
     { label: "Browse Jobs", href: "/student/jobs", icon: Briefcase },
-    { label: "My Applications", href: "/student/applications", icon: FileCheck, badge: "5" },
+    { label: "My Applications", href: "/student/applications", icon: FileCheck },
     { label: "Interviews", href: "/student/interviews", icon: Calendar },
     { label: "Saved Jobs", href: "/student/saved-jobs", icon: Bookmark },
     { label: "Profile", href: "/student/profile", icon: User },
     { label: "Resume", href: "/student/resume", icon: FileText },
     { label: "Reports", href: "/student/reports", icon: BarChart3 },
-    { label: "Notifications", href: "/student/notifications", icon: Bell, badge: "3" },
+    { label: "Notifications", href: "/student/notifications", icon: Bell },
     { label: "Settings", href: "/student/settings", icon: Settings },
   ];
 
   return (
-    <StudentShellContext.Provider value={true}>
+    <AuthGuard allowedRoles={["STUDENT"]} loginRoute="/student/login">
+      <StudentShellContext.Provider value={true}>
       <div className="min-h-screen bg-[#F7F9FD] text-[#0B1F4B] font-['Poppins',sans-serif] flex flex-col">
         {/* ============================================================== */}
         {/* 1. TOP BAR (~66px height, white, bottom border, sticky top) */}
@@ -112,16 +170,13 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
 
         {/* Right: Notification, Profile, Chevron */}
         <div className="flex items-center gap-3 sm:gap-5 shrink-0">
-          {/* Bell Icon with red badge "3" */}
+          {/* Bell Icon */}
           <Link
             href="/student/notifications"
             className="relative p-2 rounded-xl text-[#0B1F4B] hover:bg-[#F1F4F9] transition"
             aria-label="Notifications"
           >
             <Bell className="w-5 h-5 text-[#0B1F4B]" strokeWidth={1.75} />
-            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#EF4444] text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none ring-2 ring-white">
-              3
-            </span>
           </Link>
 
           {/* User profile capsule */}
@@ -129,15 +184,39 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
             href="/student/profile"
             className="flex items-center gap-3 pl-2 sm:pl-3 border-l border-[#EEF1F7] hover:opacity-90 transition"
           >
-            <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-sm flex items-center justify-center shadow-sm shrink-0">
-              VM
-            </div>
+            {(() => {
+              const navAvatar = studentProfile.avatarUrl || studentProfile.avatar || studentProfile.photoUrl;
+              return (
+                <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-sm flex items-center justify-center shadow-sm shrink-0">
+                  {navAvatar && !navImgError ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={navAvatar}
+                      alt={studentProfile.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const fallbackUrl = studentProfile.id
+                          ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1"}/media/avatar/${studentProfile.id}`
+                          : "";
+                        if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
+                          e.currentTarget.src = fallbackUrl;
+                          return;
+                        }
+                        setNavImgError(true);
+                      }}
+                    />
+                  ) : (
+                    <span>{getNameInitials(studentProfile.name)}</span>
+                  )}
+                </div>
+              );
+            })()}
             <div className="hidden sm:block text-left">
               <div className="text-[14px] font-semibold text-[#0B1F4B] leading-snug">
-                Vijayakumar M
+                {studentProfile.name}
               </div>
-              <div className="text-[12px] text-[#6B7694] leading-none">
-                B.E Computer Science
+              <div className="text-[12px] text-[#6B7694] leading-none truncate max-w-[150px]">
+                {studentProfile.headline}
               </div>
             </div>
             <ChevronDown className="w-4 h-4 text-[#6B7694] cursor-pointer" />
@@ -229,5 +308,6 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
       </div>
     </div>
     </StudentShellContext.Provider>
+    </AuthGuard>
   );
 };

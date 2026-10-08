@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AdminLayout } from "@/layouts/AdminLayout";
-import { MOCK_APPLICATIONS } from "@/constants/mockData";
+import { adminService } from "@/services/admin.service";
+import { Application } from "@/types";
 import { formatDate } from "@/lib/utils";
 import {
   FileCheck,
@@ -16,9 +17,18 @@ import {
 } from "lucide-react";
 
 export default function AdminApplicationsPage() {
-  const [applications] = useState(MOCK_APPLICATIONS);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
+
+  useEffect(() => {
+    adminService
+      .getApplications()
+      .then((data) => setApplications(data))
+      .catch(() => setApplications([]))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const filtered = applications.filter((app) => {
     const matchesSearch =
@@ -110,7 +120,20 @@ export default function AdminApplicationsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#EEF1F7] text-[13px]">
-                {filtered.map((app) => {
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-12 text-center text-[#6B7694]">
+                      Loading submitted applications...
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-12 text-center text-[#6B7694]">
+                      No campus applications found.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((app) => {
                   const initials = app.applicantName
                     .split(" ")
                     .map((n) => n[0])
@@ -177,7 +200,7 @@ export default function AdminApplicationsPage() {
                       </td>
                     </tr>
                   );
-                })}
+                }))}
               </tbody>
             </table>
           </div>

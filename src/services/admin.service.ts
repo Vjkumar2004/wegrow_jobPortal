@@ -1,6 +1,7 @@
 import apiClient from "./api";
-import { Company, Job, Application } from "@/types";
-import { MOCK_COMPANIES, MOCK_JOBS, MOCK_APPLICATIONS, MOCK_STUDENTS_ADMIN } from "@/constants/mockData";
+import { Company, Job, Application, StudentAdmin } from "@/types";
+import { mapBackendJobToFrontend } from "./jobs.service";
+import { getCompanyLogoProxyUrl } from "@/lib/utils";
 
 export interface AuditLog {
   id: string;
@@ -24,106 +25,120 @@ export interface AdminReportData {
 }
 
 export const adminService = {
+  /**
+   * GET /api/v1/admin/companies
+   */
   async getCompanies(): Promise<Company[]> {
     try {
-      const response = await apiClient.get("/admin/companies");
-      return response.data?.data || response.data;
-    } catch {
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("wegrow_companies");
-        if (stored) {
-          try {
-            return JSON.parse(stored);
-          } catch {
-            // fallback
-          }
-        }
+      const response = await apiClient.get<{ success: boolean; data: { items: any[] } }>("/admin/companies?limit=100");
+      const items = response.data?.data?.items;
+      if (Array.isArray(items)) {
+        return items.map((c) => ({
+          id: c.id,
+          name: c.name,
+          logo: c.id ? getCompanyLogoProxyUrl(c.id) : (c.logoUrl || ""),
+          description: c.about || "",
+          website: c.website || "",
+          industry: c.industry || "Technology",
+          location: c.location || "India",
+          size: c.companySize || "50 - 200 employees",
+          about: c.about || "",
+          status: c.approvalStatus === "APPROVED" ? "Approved" : c.approvalStatus === "REJECTED" ? "Rejected" : c.approvalStatus === "SUSPENDED" ? "Suspended" : "Pending",
+          activeJobsCount: c._count?.jobs || 0,
+          joinedDate: new Date(c.createdAt).toLocaleDateString(),
+          tagline: c.tagline,
+          culture: c.culture,
+          hrEmail: c.hrProfiles?.[0]?.user?.email || c.hrEmail,
+          hrPhone: c.hrProfiles?.[0]?.phone || c.hrPhone,
+          recruiterName: c.hrProfiles?.[0]?.fullName,
+          rejectionReason: c.rejectionReason,
+        }));
       }
-      return MOCK_COMPANIES;
+      return [];
+    } catch {
+      return [];
     }
   },
 
-  async registerCompany(company: Partial<Company>): Promise<Company> {
-    const newCompany: Company = {
-      id: `comp-${Date.now()}`,
-      name: company.name || "Untitled Organization",
-      logo: company.logo || "",
-      description: company.description || "",
-      website: company.website || "",
-      industry: company.industry || "Information Technology",
-      location: company.location || "Bengaluru, Karnataka",
-      size: company.size || "50 - 200 employees",
-      about: company.about || company.description || "",
-      status: "Pending", // Direct to Pending moderation state
-      activeJobsCount: 0,
-      joinedDate: new Date().toISOString().split("T")[0],
-      tagline: company.tagline,
-      culture: company.culture,
-      hrEmail: company.hrEmail,
-      hrPhone: company.hrPhone,
-      recruiterName: company.recruiterName,
-      recruiterAvatar: company.recruiterAvatar,
-    };
-
-    try {
-      const response = await apiClient.post("/admin/companies/register", newCompany);
-      return response.data?.data || newCompany;
-    } catch {
-      if (typeof window !== "undefined") {
-        const existing = localStorage.getItem("wegrow_companies");
-        const list: Company[] = existing ? JSON.parse(existing) : [...MOCK_COMPANIES];
-        const updatedList = [newCompany, ...list];
-        localStorage.setItem("wegrow_companies", JSON.stringify(updatedList));
-      }
-      return newCompany;
-    }
-  },
-
+  /**
+   * PATCH /api/v1/admin/companies/:companyId/approve | suspend | reactivate
+   */
   async updateCompanyStatus(companyId: string, status: "Approved" | "Suspended" | "Pending"): Promise<boolean> {
     try {
-      await apiClient.patch(`/admin/companies/${companyId}/status`, { status });
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("wegrow_companies");
-        const list: Company[] = stored ? JSON.parse(stored) : [...MOCK_COMPANIES];
-        const updated = list.map((c) => (c.id === companyId ? { ...c, status } : c));
-        localStorage.setItem("wegrow_companies", JSON.stringify(updated));
+      if (status === "Approved") {
+        await apiClient.patch(`/admin/companies/${companyId}/approve`);
+      } else if (status === "Suspended") {
+        await apiClient.patch(`/admin/companies/${companyId}/suspend`);
+      } else {
+        await apiClient.patch(`/admin/companies/${companyId}/reactivate`);
       }
       return true;
-    } catch {
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("wegrow_companies");
-        const list: Company[] = stored ? JSON.parse(stored) : [...MOCK_COMPANIES];
-        const updated = list.map((c) => (c.id === companyId ? { ...c, status } : c));
-        localStorage.setItem("wegrow_companies", JSON.stringify(updated));
-      }
-      return true;
+    } catch (err) {
+      throw err;
     }
   },
 
-  async getStudents(): Promise<typeof MOCK_STUDENTS_ADMIN> {
+  /**
+   * PATCH /api/v1/admin/companies/:companyId/reject
+   */
+  async rejectCompany(companyId: string, rejectionReason: string): Promise<boolean> {
+    try {
+      await apiClient.patch(`/admin/companies/${companyId}/reject`, {
+        rejectionReason,
+      });
+      return true;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  async getStudents(): Promise<StudentAdmin[]> {
     try {
       const response = await apiClient.get("/admin/students");
-      return response.data?.data || response.data;
+      const data = response.data?.data?.items || response.data?.data;
+      if (Array.isArray(data)) {
+        return data;
+      }
+      return [];
     } catch {
-      return MOCK_STUDENTS_ADMIN;
+      return [];
     }
+  },
+
+  /**
+   * PATCH /api/v1/admin/students/:studentId/status
+   * Body: { status: "Suspended" | "Active" }
+   */
+  async updateStudentStatus(studentId: string, status: "Active" | "Suspended" | string): Promise<any> {
+    const response = await apiClient.patch(`/admin/students/${studentId}/status`, {
+      status,
+    });
+    return response.data?.data || response.data;
   },
 
   async getJobs(): Promise<Job[]> {
     try {
-      const response = await apiClient.get("/admin/jobs");
-      return response.data?.data || response.data;
+      const response = await apiClient.get<{ success: boolean; data: { items: any[] } }>("/jobs?limit=100");
+      const items = response.data?.data?.items;
+      if (Array.isArray(items)) {
+        return items.map(mapBackendJobToFrontend);
+      }
+      return [];
     } catch {
-      return MOCK_JOBS;
+      return [];
     }
   },
 
   async getApplications(): Promise<Application[]> {
     try {
       const response = await apiClient.get("/admin/applications");
-      return response.data?.data || response.data;
+      const data = response.data?.data?.items || response.data?.data;
+      if (Array.isArray(data)) {
+        return data;
+      }
+      return [];
     } catch {
-      return MOCK_APPLICATIONS;
+      return [];
     }
   },
 
@@ -139,22 +154,42 @@ export const adminService = {
   async getReports(): Promise<AdminReportData> {
     try {
       const response = await apiClient.get("/admin/reports");
-      return response.data?.data || response.data;
+      if (response.data?.data) {
+        return response.data.data;
+      }
+    } catch {
+      // Derive dynamically from existing endpoints
+    }
+
+    try {
+      const [companiesRes, jobsRes, studentsRes] = await Promise.all([
+        apiClient.get<{ success: boolean; data: { items: any[] } }>("/admin/companies?limit=100").catch(() => null),
+        apiClient.get<{ success: boolean; data: { items: any[] } }>("/jobs?limit=100").catch(() => null),
+        apiClient.get<{ success: boolean; data: { items: any[] } }>("/admin/students").catch(() => null),
+      ]);
+
+      const compItems = companiesRes?.data?.data?.items || [];
+      const jobItems = jobsRes?.data?.data?.items || [];
+      const studentItems = studentsRes?.data?.data?.items || (Array.isArray(studentsRes?.data?.data) ? studentsRes?.data?.data : []);
+
+      return {
+        totalStudents: studentItems.length,
+        totalCompanies: compItems.length,
+        totalJobs: jobItems.length,
+        totalApplications: 0,
+        totalInterviews: 0,
+        totalPlacements: 0,
+        monthlyPlacements: [],
+      };
     } catch {
       return {
-        totalStudents: 52400,
-        totalCompanies: 1250,
-        totalJobs: 5400,
-        totalApplications: 142000,
-        totalInterviews: 18400,
-        totalPlacements: 12100,
-        monthlyPlacements: [
-          { month: "Nov", count: 850 },
-          { month: "Dec", count: 1100 },
-          { month: "Jan", count: 1420 },
-          { month: "Feb", count: 1890 },
-          { month: "Mar", count: 2450 }
-        ]
+        totalStudents: 0,
+        totalCompanies: 0,
+        totalJobs: 0,
+        totalApplications: 0,
+        totalInterviews: 0,
+        totalPlacements: 0,
+        monthlyPlacements: [],
       };
     }
   },
@@ -162,14 +197,15 @@ export const adminService = {
   async getAuditLogs(): Promise<AuditLog[]> {
     try {
       const response = await apiClient.get("/admin/audit-logs");
-      return response.data?.data || response.data;
+      const data = response.data?.data?.items || response.data?.data;
+      if (Array.isArray(data)) {
+        return data;
+      }
+      return [];
     } catch {
-      return [
-        { id: "log-1", action: "HR Account Approved", target: "Infosys Technologies", admin: "SuperAdmin", timestamp: "2024-03-26 10:14 AM" },
-        { id: "log-2", action: "Job Post Published", target: "Frontend Developer (Razorpay)", admin: "System", timestamp: "2024-03-25 04:30 PM" },
-        { id: "log-3", action: "Student Status Suspended", target: "vikram.m@example.com", admin: "SuperAdmin", timestamp: "2024-03-24 11:20 AM" },
-        { id: "log-4", action: "Broadcast Email Sent", target: "All 2024 Freshers", admin: "CampusLead", timestamp: "2024-03-22 09:00 AM" }
-      ];
+      return [];
     }
-  }
+  },
 };
+
+export default adminService;

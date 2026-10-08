@@ -59,16 +59,20 @@ export default function StudentRegisterPage() {
     }
 
     try {
-      await authService.register({
+      const res = await authService.register({
         name,
         email,
         collegeName,
         password,
         role: "STUDENT",
       });
-      router.push("/student/dashboard");
-    } catch {
-      setError("Registration failed. Email might already be registered.");
+      // Backend creates user with PENDING_VERIFICATION status and requires OTP verification
+      router.push(`/verify-email?email=${encodeURIComponent(email)}&role=STUDENT`);
+    } catch (err: unknown) {
+      const msg = typeof err === "object" && err !== null && "response" in err
+        ? ((err as { response?: { data?: { message?: string } } }).response?.data?.message || "Registration failed. Email might already be registered.")
+        : "Registration failed. Please check your details.";
+      setError(msg);
     } finally {
       setIsLoading(false);
     }

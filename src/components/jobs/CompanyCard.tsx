@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Company } from "@/types";
 import { Building2, MapPin, Globe, Users } from "lucide-react";
 import { Button } from "../common/Button";
+import { getCompanyLogoUrl, getCompanyLogoProxyUrl } from "@/lib/utils";
 
 export const CompanyCard: React.FC<{ company: Company }> = ({ company }) => {
   return (
@@ -10,9 +11,25 @@ export const CompanyCard: React.FC<{ company: Company }> = ({ company }) => {
       <div>
         <div className="flex items-center gap-3">
           <div className="w-14 h-14 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
-            {company.logo ? (
+            {company.logo || company.id ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={company.logo} alt={company.name} className="w-full h-full object-cover" />
+              <img
+                src={getCompanyLogoUrl(company, company.id)}
+                alt={company.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.currentTarget as HTMLImageElement;
+                  const proxyUrl = company.id ? getCompanyLogoProxyUrl(company.id) : "";
+                  if (proxyUrl && target.src !== proxyUrl) {
+                    target.src = proxyUrl;
+                    return;
+                  }
+                  target.style.display = "none";
+                  if (target.parentElement && !target.parentElement.querySelector("svg")) {
+                    target.parentElement.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
+                  }
+                }}
+              />
             ) : (
               <Building2 className="w-6 h-6 text-slate-400" />
             )}

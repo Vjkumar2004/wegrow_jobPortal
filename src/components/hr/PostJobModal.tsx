@@ -28,6 +28,7 @@ interface PostJobModalProps {
 export default function PostJobModal({ isOpen, onClose, onJobCreated }: PostJobModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Form states matching rich job portal standards
   const [title, setTitle] = useState("");
@@ -49,6 +50,7 @@ export default function PostJobModal({ isOpen, onClose, onJobCreated }: PostJobM
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrorMessage("");
 
     try {
       const created = await hrService.createJob({
@@ -67,12 +69,21 @@ export default function PostJobModal({ isOpen, onClose, onJobCreated }: PostJobM
         openings: Number(openings),
       });
 
+      // Auto-publish so it appears on the student jobs page immediately
+      if (created?.id) {
+        await hrService.publishJob(created.id);
+        created.status = "Published";
+      }
+
       setSuccess(true);
       if (onJobCreated) onJobCreated(created);
       setTimeout(() => {
         setSuccess(false);
         onClose();
       }, 1400);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to post job.";
+      setErrorMessage(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -142,6 +153,14 @@ export default function PostJobModal({ isOpen, onClose, onJobCreated }: PostJobM
           <div className="mx-6 mt-4 p-3.5 bg-[#E8F8EF] text-[#22B573] text-xs font-semibold rounded-xl border border-[#C6F0D8] flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" />
             <span>Job opening published successfully! Added to your dashboard.</span>
+          </div>
+        )}
+
+        {/* Error Alert */}
+        {errorMessage && (
+          <div className="mx-6 mt-4 p-3.5 bg-rose-50 text-rose-700 text-xs font-semibold rounded-xl border border-rose-200 flex items-start gap-2">
+            <X className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{errorMessage}</span>
           </div>
         )}
 

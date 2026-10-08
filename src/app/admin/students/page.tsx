@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AdminLayout } from "@/layouts/AdminLayout";
-import { MOCK_STUDENTS_ADMIN } from "@/constants/mockData";
+import { adminService } from "@/services/admin.service";
+import { StudentAdmin } from "@/types";
 import {
   GraduationCap,
   ShieldAlert,
@@ -15,22 +16,37 @@ import {
 } from "lucide-react";
 
 export default function AdminStudentsPage() {
-  const [students, setStudents] = useState(MOCK_STUDENTS_ADMIN);
+  const [students, setStudents] = useState<StudentAdmin[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCollege, setFilterCollege] = useState("ALL");
 
-  const toggleStudentStatus = (id: string) => {
-    setStudents(
-      students.map((s) => {
-        if (s.id === id) {
-          return {
-            ...s,
-            status: s.status === "Active" ? "Suspended" : "Active",
-          };
-        }
-        return s;
-      })
-    );
+  useEffect(() => {
+    adminService
+      .getStudents()
+      .then((data) => setStudents(data))
+      .catch(() => setStudents([]))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const toggleStudentStatus = async (stu: StudentAdmin) => {
+    const newStatus = stu.status === "Active" ? "Suspended" : "Active";
+    try {
+      await adminService.updateStudentStatus(stu.id, newStatus);
+      setStudents((prev) =>
+        prev.map((s) => (s.id === stu.id ? { ...s, status: newStatus } : s))
+      );
+      showToast(`Student ${stu.name} has been successfully ${newStatus === "Suspended" ? "suspended" : "activated"}.`);
+    } catch (err: any) {
+      showToast(err.response?.data?.message || `Failed to update status for ${stu.name}.`, "error");
+    }
   };
 
   const colleges = ["ALL", ...Array.from(new Set(students.map((s) => s.college)))];
@@ -47,6 +63,24 @@ export default function AdminStudentsPage() {
   return (
     <AdminLayout>
       <div className="p-4 sm:p-6 lg:p-7 space-y-6">
+        {/* Toast Alert */}
+        {toast && (
+          <div
+            className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-xl border text-xs font-semibold flex items-center gap-2 animate-bounce ${
+              toast.type === "success"
+                ? "bg-[#0B1F4B] text-white border-blue-400/20"
+                : "bg-rose-600 text-white border-rose-300/30"
+            }`}
+          >
+            {toast.type === "success" ? (
+              <Check className="w-4 h-4 text-[#22B573]" />
+            ) : (
+              <ShieldAlert className="w-4 h-4 text-white" />
+            )}
+            <span>{toast.message}</span>
+          </div>
+        )}
+
         {/* Banner */}
         <div className="relative overflow-hidden rounded-[14px] p-6 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div>
@@ -126,94 +160,108 @@ export default function AdminStudentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#EEF1F7] text-[13px]">
-                {filtered.map((stu) => {
-                  const initials = stu.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .substring(0, 2);
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-12 text-center text-[#6B7694]">
+                      Loading student directory...
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-12 text-center text-[#6B7694]">
+                      No student records found.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((stu) => {
+                    const initials = stu.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .substring(0, 2);
 
-                  return (
-                    <tr key={stu.id} className="hover:bg-slate-50/70 transition-colors">
-                      {/* Name & Email */}
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3.5">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
-                            {initials}
+                    return (
+                      <tr key={stu.id} className="hover:bg-slate-50/70 transition-colors">
+                        {/* Name & Email */}
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3.5">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                              {initials}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-[#0B1F4B] text-sm leading-snug">
+                                {stu.name}
+                              </p>
+                              <p className="text-[11px] text-[#6B7694] mt-0.5">{stu.email}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-semibold text-[#0B1F4B] text-sm leading-snug">
-                              {stu.name}
-                            </p>
-                            <p className="text-[11px] text-[#6B7694] mt-0.5">{stu.email}</p>
+                        </td>
+
+                        {/* College */}
+                        <td className="px-5 py-4 font-medium text-[#0B1F4B]">
+                          <span className="flex items-center gap-1.5">
+                            <School className="w-3.5 h-3.5 text-[#6B7694]" />
+                            {stu.college}
+                          </span>
+                        </td>
+
+                        {/* Batch */}
+                        <td className="px-5 py-4 text-center text-[#6B7694] font-medium">
+                          {stu.gradYear}
+                        </td>
+
+                        {/* Completion Progress Bar */}
+                        <td className="px-5 py-4">
+                          <div className="w-36 space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="font-bold text-[#0B1F4B]">{stu.completionPercentage}%</span>
+                              <span className="text-slate-400">Score</span>
+                            </div>
+                            <div className="w-full bg-[#F1F4F9] rounded-full h-2 overflow-hidden">
+                              <div
+                                className="bg-[#1E5BE0] h-full rounded-full transition-all duration-500"
+                                style={{ width: `${stu.completionPercentage}%` }}
+                              />
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* College */}
-                      <td className="px-5 py-4 font-medium text-[#0B1F4B]">
-                        <span className="flex items-center gap-1.5">
-                          <School className="w-3.5 h-3.5 text-[#6B7694]" />
-                          {stu.college}
-                        </span>
-                      </td>
+                        {/* Applications count */}
+                        <td className="px-5 py-4 text-center font-bold text-[#0756A8]">
+                          {stu.applicationsCount}
+                        </td>
 
-                      {/* Batch */}
-                      <td className="px-5 py-4 text-center text-[#6B7694] font-medium">
-                        {stu.gradYear}
-                      </td>
+                        {/* Status */}
+                        <td className="px-5 py-4 text-center">
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold ${
+                              stu.status === "Active"
+                                ? "bg-[#D8F3E5] text-[#22B573]"
+                                : "bg-[#FFE0E0] text-[#D93636]"
+                            }`}
+                          >
+                            {stu.status}
+                          </span>
+                        </td>
 
-                      {/* Completion Progress Bar */}
-                      <td className="px-5 py-4">
-                        <div className="w-36 space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="font-bold text-[#0B1F4B]">{stu.completionPercentage}%</span>
-                            <span className="text-slate-400">Score</span>
-                          </div>
-                          <div className="w-full bg-[#F1F4F9] rounded-full h-2 overflow-hidden">
-                            <div
-                              className="bg-[#1E5BE0] h-full rounded-full transition-all duration-500"
-                              style={{ width: `${stu.completionPercentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Applications count */}
-                      <td className="px-5 py-4 text-center font-bold text-[#0756A8]">
-                        {stu.applicationsCount}
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-5 py-4 text-center">
-                        <span
-                          className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold ${
-                            stu.status === "Active"
-                              ? "bg-[#D8F3E5] text-[#22B573]"
-                              : "bg-[#FFE0E0] text-[#D93636]"
-                          }`}
-                        >
-                          {stu.status}
-                        </span>
-                      </td>
-
-                      {/* Action */}
-                      <td className="px-5 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => toggleStudentStatus(stu.id)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                            stu.status === "Active"
-                              ? "border border-rose-200 text-rose-600 hover:bg-rose-50"
-                              : "bg-[#22B573] text-white hover:bg-emerald-600 shadow-xs"
-                          }`}
-                        >
-                          {stu.status === "Active" ? "Suspend" : "Re-activate"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        {/* Action */}
+                        <td className="px-5 py-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => toggleStudentStatus(stu)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                              stu.status === "Active"
+                                ? "border border-rose-200 text-rose-600 hover:bg-rose-50"
+                                : "bg-[#22B573] text-white hover:bg-emerald-600 shadow-xs"
+                            }`}
+                          >
+                            {stu.status === "Active" ? "Suspend" : "Re-activate"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>

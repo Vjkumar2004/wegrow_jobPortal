@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Application } from "@/types";
-import { formatDate } from "@/lib/utils";
+import { formatDate, getNameInitials } from "@/lib/utils";
 import {
   Users,
   Search,
@@ -39,6 +39,12 @@ const STATUS_TABS = [
 export default function HRApplicantsClient({ initialApplicants }: { initialApplicants: Application[] }) {
   const [applicants, setApplicants] = useState<Application[]>(initialApplicants);
   const [activeTab, setActiveTab] = useState("All");
+
+  useEffect(() => {
+    hrService.getApplicants().then((data) => {
+      if (data.length > 0) setApplicants(data);
+    });
+  }, []);
   const [searchTerm, setSearchTerm] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -219,8 +225,37 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                     {/* Candidate */}
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
-                          {app.applicantName.slice(0, 2).toUpperCase()}
+                        <div className="w-10 h-10 rounded-full shrink-0 shadow-xs overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-blue-400 flex items-center justify-center">
+                          {app.applicantAvatar ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={app.applicantAvatar}
+                              alt={app.applicantName}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const fallbackUrl = app.applicantId
+                                  ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1"}/media/avatar/${app.applicantId}`
+                                  : "";
+                                if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
+                                  e.currentTarget.src = fallbackUrl;
+                                  return;
+                                }
+                                const el = e.currentTarget;
+                                el.style.display = "none";
+                                const parent = el.parentElement;
+                                if (parent && !parent.querySelector(".fb-init")) {
+                                  const span = document.createElement("span");
+                                  span.className = "fb-init text-white font-bold text-sm";
+                                  span.textContent = getNameInitials(app.applicantName);
+                                  parent.appendChild(span);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <span className="text-white font-bold text-sm">
+                              {getNameInitials(app.applicantName)}
+                            </span>
+                          )}
                         </div>
                         <div>
                           <p className="font-bold text-[#0B1F4B] text-[13px]">{app.applicantName}</p>
@@ -239,13 +274,16 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                     {/* Job Role */}
                     <td className="py-4 px-4">
                       <span className="font-semibold text-[#0B1F4B] block">{app.jobTitle}</span>
-                      <span className="text-[11px] text-[#6B7694]">Campus Vacancy</span>
+                      <span className="text-[11px] text-[#6B7694]">Campus Opportunity</span>
                     </td>
 
                     {/* College */}
                     <td className="py-4 px-4">
-                      <p className="font-medium text-[#0B1F4B]">{app.applicantCollege || "NIT Trichy"}</p>
-                      <p className="text-[11px] text-[#6B7694]">Batch 2025 / Computer Science</p>
+                      <p className="font-medium text-[#0B1F4B]">{app.applicantCollege || "College not specified"}</p>
+                      <p className="text-[11px] text-[#6B7694]">
+                        {app.applicantGradYear ? `Batch ${app.applicantGradYear}` : "Candidate"}
+                        {app.applicantExperience ? ` • ${app.applicantExperience}` : ""}
+                      </p>
                     </td>
 
                     {/* Applied Date */}
@@ -280,6 +318,35 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                     {/* Action buttons */}
                     <td className="py-4 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {/* Download / View Candidate Resume from Cloudflare R2 */}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (app.resumeId) {
+                              try {
+                                const dl = await hrService.getCandidateResumeDownloadUrl(app.resumeId);
+                                if (dl?.downloadUrl) {
+                                  window.open(dl.downloadUrl, "_blank", "noopener,noreferrer");
+                                  return;
+                                }
+                              } catch (err: any) {
+                                showToast(err.response?.data?.message || "Failed to download candidate resume");
+                                return;
+                              }
+                            }
+                            if (app.resumeUrl) {
+                              window.open(app.resumeUrl, "_blank", "noopener,noreferrer");
+                            } else {
+                              showToast("No resume on file for this candidate.");
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#F1F4F9] text-[#1E5BE0] hover:bg-[#E3EEFF] rounded-[8px] text-xs font-semibold transition cursor-pointer"
+                          title="Download Candidate CV (Cloudflare R2)"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">CV</span>
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => openScheduleModal(app)}

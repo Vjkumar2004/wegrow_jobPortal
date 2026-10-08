@@ -1,16 +1,38 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { studentService } from "@/services/student.service";
 import { JobCard } from "@/components/jobs/JobCard";
 import { Bookmark, ChevronRight, Briefcase } from "lucide-react";
+import { Job } from "@/types";
 
-export const metadata = {
-  title: "Saved Jobs | WeGrow Student",
-  description: "View and apply to bookmarked positions before applications close.",
-};
+export default function StudentSavedJobsPage() {
+  const [savedJobs, setSavedJobs] = useState<Job[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-export default async function StudentSavedJobsPage() {
-  const savedJobs = await studentService.getSavedJobs();
+  useEffect(() => {
+    let isMounted = true;
+    studentService
+      .getSavedJobs()
+      .then((data) => {
+        if (isMounted) {
+          setSavedJobs(data);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load saved jobs client-side:", err);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <div className="p-4 sm:p-6 lg:p-7 space-y-6 max-w-7xl mx-auto w-full">
@@ -34,11 +56,30 @@ export default async function StudentSavedJobsPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {savedJobs.map((job) => (
-          <JobCard key={job.id} job={job} isSaved={true} />
-        ))}
-      </div>
+      {savedJobs.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-[#D2DAE8] p-12 text-center max-w-xl mx-auto my-8">
+          <div className="w-16 h-16 rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center mx-auto mb-4">
+            <Bookmark className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold text-[#0B1F4B] mb-2">No Saved Jobs Yet</h3>
+          <p className="text-sm text-[#6B7694] mb-6">
+            You have not bookmarked any jobs yet. Explore available jobs and save roles to review or apply later.
+          </p>
+          <Link
+            href="/student/jobs"
+            className="inline-flex items-center gap-2 bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-sm font-semibold px-5 py-2.5 rounded-[10px] transition shadow-sm"
+          >
+            <Briefcase className="w-4 h-4" />
+            <span>Discover Open Positions</span>
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {savedJobs.map((job) => (
+            <JobCard key={job.id} job={job} isSaved={true} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

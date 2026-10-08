@@ -4,7 +4,7 @@ export type JobType = 'Full Time' | 'Part Time' | 'Internship' | 'Contract' | 'R
 export type WorkMode = 'On-site' | 'Remote' | 'Hybrid';
 export type ApplicationStatus = 'Applied' | 'Under Review' | 'Shortlisted' | 'Interview' | 'Selected' | 'Rejected';
 export type InterviewType = 'Technical' | 'HR Discussion' | 'Managerial' | 'Screening';
-export type CompanyApprovalStatus = 'Pending' | 'Approved' | 'Suspended';
+export type CompanyApprovalStatus = 'Pending' | 'Approved' | 'Rejected' | 'Suspended';
 
 export interface User {
   id: string;
@@ -47,6 +47,8 @@ export interface Job {
   openings?: number;
   status: 'Published' | 'Draft' | 'Paused' | 'Closed';
   applicantsCount?: number;
+  hasApplied?: boolean;
+  applicationId?: string;
 }
 
 export interface Application {
@@ -62,8 +64,11 @@ export interface Application {
   applicantCollege?: string;
   applicantGradYear?: string;
   applicantExperience?: string;
+  applicantAvatar?: string;
   appliedDate: string;
+  appliedAt?: string;
   status: ApplicationStatus;
+  resumeId?: string;
   resumeUrl?: string;
   notes?: string;
 }
@@ -73,6 +78,8 @@ export interface Interview {
   applicationId: string;
   jobTitle: string;
   companyName: string;
+  companyLogo?: string;
+  companyId?: string;
   candidateName: string;
   candidateEmail: string;
   date: string;
@@ -95,6 +102,8 @@ export interface StudentProfile {
   gender?: string;
   degreeName?: string;
   experienceLevel?: string;
+  avatarUrl?: string;
+  avatar?: string;
   photoUrl?: string;
   completionPercentage: number;
   checklist?: Array<{ label: string; done: boolean; countText?: string }>;
@@ -114,6 +123,7 @@ export interface StudentProfile {
     subtitle?: string;
     description: string;
     link?: string;
+    repoUrl?: string;
     dateText?: string;
     thumbnailUrl?: string;
     technologies: string[];
@@ -134,6 +144,7 @@ export interface StudentProfile {
     issueDate: string;
     credentialUrl?: string;
   }>;
+  resumeId?: string;
   resumeName?: string;
   resumeUrl?: string;
   resumeUploadDate?: string;
@@ -170,6 +181,7 @@ export interface Company {
   hrPhone?: string;
   recruiterName?: string;
   recruiterAvatar?: string;
+  rejectionReason?: string;
 }
 
 export interface StudentDashboardStats {
@@ -238,8 +250,13 @@ export interface StudentNotificationItem {
   id: string;
   title: string;
   subtitle: string;
+  message?: string;
   timeAgo: string;
   type: 'green' | 'blue' | 'orange' | 'purple';
+  companyName?: string;
+  companyLogo?: string;
+  companyId?: string;
+  read?: boolean;
 }
 
 export interface StudentDashboardData {
@@ -284,6 +301,8 @@ export interface StudentBrowseJobItem {
   overflowSkillsCount?: number;
   postedAgo: string;
   isBookmarked?: boolean;
+  hasApplied?: boolean;
+  applicationId?: string;
 }
 
 export interface TopCompanyHiring {
@@ -325,6 +344,7 @@ export interface StudentApplicationProgressStep {
 export interface StudentApplicationTrackerItem {
   id: string;
   jobId: string;
+  companyId?: string;
   title: string;
   companyName: string;
   companyLogo?: string;

@@ -1,5 +1,4 @@
 import React from "react";
-import { studentService } from "@/services/student.service";
 import StudentReportsClient from "./StudentReportsClient";
 
 export const metadata = {
@@ -7,8 +6,6 @@ export const metadata = {
   description: "Performance metrics, application conversion velocity, and interview outcomes.",
 };
 
-export default async function StudentReportsPage() {
-  const reportsData = await studentService.getReports();
-
-  return <StudentReportsClient initialData={reportsData} />;
+export default function StudentReportsPage() {
+  return <StudentReportsClient />;
 }

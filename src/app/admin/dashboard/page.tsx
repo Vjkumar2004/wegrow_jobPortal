@@ -1,6 +1,5 @@
 import React from "react";
 import { AdminLayout } from "@/layouts/AdminLayout";
-import { adminService } from "@/services/admin.service";
 import AdminDashboardClient from "./AdminDashboardClient";
 
 export const metadata = {
@@ -8,22 +7,10 @@ export const metadata = {
   description: "Enterprise command center for campus moderation, company approvals, audit logs, and analytics.",
 };
 
-export default async function AdminDashboardPage() {
-  const [reports, auditLogs, companies, students] = await Promise.all([
-    adminService.getReports(),
-    adminService.getAuditLogs(),
-    adminService.getCompanies(),
-    adminService.getStudents(),
-  ]);
-
+export default function AdminDashboardPage() {
   return (
     <AdminLayout>
-      <AdminDashboardClient
-        reports={reports}
-        auditLogs={auditLogs}
-        companies={companies}
-        students={students}
-      />
+      <AdminDashboardClient />
     </AdminLayout>
   );
 }

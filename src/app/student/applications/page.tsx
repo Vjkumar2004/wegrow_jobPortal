@@ -1,5 +1,4 @@
 import React from "react";
-import { applicationsService } from "@/services/applications.service";
 import StudentApplicationsClient from "./StudentApplicationsClient";
 
 export const metadata = {
@@ -7,9 +6,6 @@ export const metadata = {
   description: "Track and manage your applied campus job applications, interview timelines, and hiring progress in one place.",
 };
 
-export default async function StudentApplicationsPage() {
-  const initialData = await applicationsService.getStudentApplicationsPageData();
-
-  return <StudentApplicationsClient initialData={initialData} />;
+export default function StudentApplicationsPage() {
+  return <StudentApplicationsClient />;
 }
-

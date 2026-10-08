@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { hrService } from "@/services/hr.service";
 import Link from "next/link";
 import { Job } from "@/types";
 import { formatDate, formatSalary } from "@/lib/utils";
@@ -28,6 +29,16 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(initialJobs.length === 0);
+
+  useEffect(() => {
+    hrService.getMyJobs()
+      .then((data) => {
+        if (data && data.length > 0) setJobs(data);
+      })
+      .catch((err) => console.error("Failed to fetch HR jobs:", err))
+      .finally(() => setIsLoading(false));
+  }, []);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -35,17 +46,23 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
     setTimeout(() => setToastMessage(null), 3200);
   };
 
-  const toggleStatus = (id: string) => {
-    setJobs((prev) =>
-      prev.map((j) => {
-        if (j.id === id) {
-          const nextStatus = j.status === "Published" ? "Paused" : "Published";
-          showToast(`Job "${j.title}" is now ${nextStatus}!`);
-          return { ...j, status: nextStatus };
-        }
-        return j;
-      })
-    );
+  const toggleStatus = async (id: string) => {
+    const target = jobs.find((j) => j.id === id);
+    if (!target) return;
+    const isPublished = target.status === "Published";
+    try {
+      if (isPublished) {
+        await hrService.pauseJob(id);
+      } else {
+        await hrService.publishJob(id);
+      }
+      setJobs((prev) =>
+        prev.map((j) => (j.id === id ? { ...j, status: isPublished ? "Paused" : "Published" } : j))
+      );
+      showToast(`Job "${target.title}" is now ${isPublished ? "Paused" : "Published"}!`);
+    } catch {
+      showToast(`Failed to update status for "${target.title}".`);
+    }
   };
 
   const deleteJob = (id: string, jobTitle: string) => {

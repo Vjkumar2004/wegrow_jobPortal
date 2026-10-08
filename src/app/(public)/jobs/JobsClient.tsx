@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Job } from "@/types";
 import { Button } from "@/components/common/Button";
-import { formatSalary, formatDate } from "@/lib/utils";
+import { formatSalary, formatDate, getCompanyLogoUrl, getCompanyLogoProxyUrl } from "@/lib/utils";
 import {
   Search,
   MapPin,
@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 
 import { authService } from "@/services/auth.service";
+import { jobsService } from "@/services/jobs.service";
 
 interface FilterParams {
   search?: string;
@@ -58,6 +59,35 @@ export default function JobsClient({
     initialParams.sortBy || "newest"
   );
   const [savedJobs, setSavedJobs] = useState<Record<string, boolean>>({});
+  const [jobsList, setJobsList] = useState<Job[]>(initialJobs);
+
+  useEffect(() => {
+    setJobsList(initialJobs);
+  }, [initialJobs]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const currentUser = authService.getCurrentUser();
+    if (currentUser?.role === "STUDENT") {
+      jobsService
+        .getJobs({
+          search: initialParams.search,
+          location: initialParams.location,
+          jobType: initialParams.jobType,
+          workMode: initialParams.workMode,
+          sortBy: initialParams.sortBy,
+        })
+        .then((freshJobs) => {
+          if (isMounted && freshJobs && freshJobs.length > 0) {
+            setJobsList(freshJobs);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [initialParams]);
 
   const toggleSave = (jobId: string) => {
     setSavedJobs((prev) => ({ ...prev, [jobId]: !prev[jobId] }));
@@ -321,9 +351,9 @@ export default function JobsClient({
         </div>
 
         {/* Jobs Grid */}
-        {initialJobs.length > 0 ? (
+        {jobsList.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {initialJobs.map((job) => {
+            {jobsList.map((job) => {
               const isSaved = !!savedJobs[job.id];
               return (
                 <div
@@ -335,12 +365,24 @@ export default function JobsClient({
                     <div className="flex items-start justify-between gap-3 mb-4">
                       <div className="flex items-center gap-3.5">
                         <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200/80 p-1 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
-                          {job.company.logo ? (
+                          {(job.company.logo || job.company.id) ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                              src={job.company.logo}
+                              src={getCompanyLogoUrl(job.company, job.company.id)}
                               alt={job.company.name}
                               className="w-full h-full object-contain rounded-lg"
+                              onError={(e) => {
+                                const target = e.currentTarget as HTMLImageElement;
+                                const proxyUrl = job.company.id ? getCompanyLogoProxyUrl(job.company.id) : "";
+                                if (proxyUrl && target.src !== proxyUrl) {
+                                  target.src = proxyUrl;
+                                  return;
+                                }
+                                target.style.display = "none";
+                                if (target.parentElement && !target.parentElement.querySelector("svg")) {
+                                  target.parentElement.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
+                                }
+                              }}
                             />
                           ) : (
                             <Building2 className="w-6 h-6 text-slate-400" />
@@ -354,6 +396,11 @@ export default function JobsClient({
                             <span title="Verified Employer" className="inline-flex">
                               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                             </span>
+                            {job.hasApplied && (
+                              <span className="inline-flex items-center gap-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
+                                Applied ✓
+                              </span>
+                            )}
                           </div>
                           <h3 className="font-bold text-slate-900 group-hover:text-[#014E9C] transition-colors text-base line-clamp-1 mt-0.5">
                             <Link href={`/jobs/${job.id}`}>{job.title}</Link>
@@ -426,13 +473,20 @@ export default function JobsClient({
                       <span>Posted {formatDate(job.postedDate)}</span>
                     </span>
 
-                    <Link
-                      href={`${basePath === "/student/jobs" ? "/student/jobs" : "/jobs"}/${job.id}`}
-                      className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-bold text-[#014E9C] bg-[#EAF2FC] hover:bg-[#014E9C] hover:text-white transition-all duration-200 group-hover:translate-x-0.5 shadow-sm"
-                    >
-                      <span>{basePath === "/student/jobs" ? "Apply in Portal" : "View & Apply"}</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </Link>
+                    {job.hasApplied ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Already Applied ✓</span>
+                      </span>
+                    ) : (
+                      <Link
+                        href={`${basePath === "/student/jobs" ? "/student/jobs" : "/jobs"}/${job.id}`}
+                        className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-bold text-[#014E9C] bg-[#EAF2FC] hover:bg-[#014E9C] hover:text-white transition-all duration-200 group-hover:translate-x-0.5 shadow-sm"
+                      >
+                        <span>{basePath === "/student/jobs" ? "Apply in Portal" : "View & Apply"}</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
                   </div>
                 </div>
               );
