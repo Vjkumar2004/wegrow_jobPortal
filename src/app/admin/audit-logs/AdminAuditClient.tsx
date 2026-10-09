@@ -37,20 +37,20 @@ export default function AdminAuditClient({ initialLogs }: AdminAuditClientProps)
   return (
     <div className="p-4 sm:p-6 lg:p-7 space-y-6">
       {/* Banner */}
-      <div className="relative overflow-hidden rounded-[14px] p-6 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5">
+      <div className="relative overflow-hidden rounded-[14px] p-4 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-[#0756A8] text-xs font-bold uppercase tracking-wider mb-2">
             <Lock className="w-3.5 h-3.5" /> Immutable Security Trails
           </div>
-          <h1 className="text-[22px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight">
+          <h1 className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight">
             Security & Moderation Audit Logs
           </h1>
-          <p className="text-[13px] text-[#6B7694] mt-1">
+          <p className="text-[12px] sm:text-[13px] text-[#6B7694] mt-1">
             Immutable chronological records of administrative decisions, company verifications, broadcast dispatches, and account statuses.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 bg-white rounded-xl p-3 border border-[#EEF1F7] shadow-sm shrink-0">
+        <div className="flex items-center justify-around sm:justify-start gap-3 bg-white rounded-xl p-3 border border-[#EEF1F7] shadow-sm w-full sm:w-auto shrink-0">
           <div className="text-center px-3">
             <div className="text-lg font-bold text-[#0B1F4B] leading-none">
               {logs.length}
@@ -99,9 +99,10 @@ export default function AdminAuditClient({ initialLogs }: AdminAuditClientProps)
         </span>
       </div>
 
-      {/* Formatted Table */}
+      {/* Formatted Table (Responsive: Desktop Table + Mobile Cards) */}
       <div className="bg-white rounded-[14px] border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#F5F7FB] text-[12px] font-semibold text-[#6B7694] h-[48px]">
@@ -150,6 +151,44 @@ export default function AdminAuditClient({ initialLogs }: AdminAuditClientProps)
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card List View (block md:hidden) */}
+        <div className="block md:hidden divide-y divide-[#EEF1F7]">
+          {filtered.length === 0 ? (
+            <div className="py-10 px-4 text-center text-[#6B7694] text-xs">
+              No audit logs match your search.
+            </div>
+          ) : (
+            filtered.map((log) => (
+              <div key={log.id} className="p-4 space-y-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#0756A8] flex items-center justify-center shrink-0">
+                      <Activity className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="font-bold text-[#0B1F4B] text-sm truncate">{log.action}</span>
+                  </div>
+                  <span className="font-mono text-[11px] text-[#1E5BE0] font-semibold shrink-0">#{log.id}</span>
+                </div>
+
+                <div className="p-2.5 bg-[#F8FAFC] rounded-xl text-xs text-slate-700 border border-[#EEF1F7]">
+                  <span className="text-[#6B7694] text-[10px] uppercase font-bold block mb-0.5">Target Entity</span>
+                  <span className="font-medium text-[#0B1F4B]">{log.target}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-[#6B7694] pt-1">
+                  <span className="inline-block bg-[#E8F0FF] text-[#1E5BE0] px-2 py-0.5 rounded-full font-semibold text-[10px]">
+                    By {log.admin}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-[#6B7694]" />
+                    {log.timestamp}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -38,6 +38,43 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showBottomNav, setShowBottomNav] = useState(true);
+  const lastScrollYRef = React.useRef(0);
+
+  // Auto-hide bottom navbar on scroll down, show on scroll up (native app pattern)
+  React.useEffect(() => {
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          const prevScrollY = lastScrollYRef.current;
+          const diff = currentScrollY - prevScrollY;
+
+          // Always visible at the top of the page
+          if (currentScrollY <= 20) {
+            setShowBottomNav(true);
+          } else if (diff > 8) {
+            setShowBottomNav(false);
+          } else if (diff < -8) {
+            setShowBottomNav(true);
+          }
+
+          lastScrollYRef.current = Math.max(0, currentScrollY);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  React.useEffect(() => {
+    setShowBottomNav(true);
+  }, [pathname]);
 
   const menuItems: SidebarItem[] = [
     { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -315,7 +352,62 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
 
         {/* Dynamic Content Area */}
         <div className="flex-1 flex flex-col min-w-0 min-h-[calc(100vh-66px)] overflow-x-hidden">
-          <main className="flex-1 min-w-0 w-full">{children}</main>
+          <main className="flex-1 min-w-0 w-full pb-20 lg:pb-0">{children}</main>
+        </div>
+
+        {/* ============================================================== */}
+        {/* 3. NATIVE MOBILE APP BOTTOM NAVIGATION BAR                     */}
+        {/* ============================================================== */}
+        <div
+          className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#EEF1F7] px-3 py-1.5 flex items-center justify-around shadow-[0_-4px_20px_rgba(11,31,75,0.08)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            showBottomNav ? "translate-y-0" : "translate-y-full"
+          }`}
+        >
+          {[
+            { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+            { label: "Companies", href: "/admin/hr-management", icon: Building2 },
+            { label: "Students", href: "/admin/students", icon: GraduationCap },
+            { label: "Jobs", href: "/admin/jobs", icon: Briefcase },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive =
+              tab.href === "/admin/dashboard"
+                ? pathname === "/admin/dashboard"
+                : pathname.startsWith(tab.href);
+
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all ${
+                  isActive ? "text-[#1E5BE0]" : "text-[#6B7694] hover:text-[#0B1F4B]"
+                }`}
+              >
+                <div
+                  className={`p-1 rounded-xl transition-all ${
+                    isActive ? "bg-[#E3EEFF]" : "bg-transparent"
+                  }`}
+                >
+                  <Icon className="w-5 h-5" strokeWidth={isActive ? 2.25 : 1.75} />
+                </div>
+                <span className={`text-[10px] mt-0.5 font-medium ${isActive ? "font-bold text-[#1E5BE0]" : ""}`}>
+                  {tab.label}
+                </span>
+              </Link>
+            );
+          })}
+
+          {/* More / Menu Button to open drawer */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex flex-col items-center justify-center py-1 px-2 rounded-xl text-[#6B7694] hover:text-[#0B1F4B] transition-all cursor-pointer"
+          >
+            <div className="p-1 rounded-xl bg-transparent">
+              <Menu className="w-5 h-5" strokeWidth={1.75} />
+            </div>
+            <span className="text-[10px] mt-0.5 font-medium">Menu</span>
+          </button>
         </div>
       </div>
     </div>

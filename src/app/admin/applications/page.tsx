@@ -44,20 +44,20 @@ export default function AdminApplicationsPage() {
     <AdminLayout>
       <div className="p-4 sm:p-6 lg:p-7 space-y-6">
         {/* Banner */}
-        <div className="relative overflow-hidden rounded-[14px] p-6 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5">
+        <div className="relative overflow-hidden rounded-[14px] p-4 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-[#0756A8] text-xs font-bold uppercase tracking-wider mb-2">
               <FileCheck className="w-3.5 h-3.5" /> Platform Application Tracker
             </div>
-            <h1 className="text-[22px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight">
+            <h1 className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight">
               Applications & Campus Submissions
             </h1>
-            <p className="text-[13px] text-[#6B7694] mt-1">
+            <p className="text-[12px] sm:text-[13px] text-[#6B7694] mt-1">
               Global log of all candidate submissions, recruiter review stages, shortlisted profiles, and hiring rounds.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-white rounded-xl p-3 border border-[#EEF1F7] shadow-sm shrink-0">
+          <div className="flex items-center justify-around sm:justify-start gap-3 bg-white rounded-xl p-3 border border-[#EEF1F7] shadow-sm w-full sm:w-auto shrink-0">
             <div className="text-center px-3">
               <div className="text-lg font-bold text-[#0B1F4B] leading-none">
                 {applications.length}
@@ -106,9 +106,10 @@ export default function AdminApplicationsPage() {
           </span>
         </div>
 
-        {/* Formatted Table */}
+        {/* Formatted Table (Responsive: Desktop Table + Mobile Cards) */}
         <div className="bg-white rounded-[14px] border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#F5F7FB] text-[12px] font-semibold text-[#6B7694] h-[48px]">
@@ -203,6 +204,83 @@ export default function AdminApplicationsPage() {
                 }))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card List View (block md:hidden) */}
+          <div className="block md:hidden divide-y divide-[#EEF1F7]">
+            {isLoading ? (
+              <div className="py-10 px-4 text-center text-[#6B7694] text-xs">
+                Loading submitted applications...
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="py-10 px-4 text-center text-[#6B7694] text-xs">
+                No campus applications found.
+              </div>
+            ) : (
+              filtered.map((app) => {
+                const initials = app.applicantName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .substring(0, 2);
+
+                const isShortlisted = app.status === "Shortlisted";
+                const isInterview = app.status === "Interview";
+                const isRejected = app.status === "Rejected";
+
+                return (
+                  <div key={app.id} className="p-4 space-y-3">
+                    {/* Header: Candidate Avatar + Name + Status */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-[#0B1F4B] text-[15px] leading-snug truncate">
+                            {app.applicantName}
+                          </h4>
+                          <p className="text-[11px] text-[#6B7694] truncate">{app.applicantEmail}</p>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 ${
+                          isShortlisted
+                            ? "bg-[#D8F3E5] text-[#22B573]"
+                            : isInterview
+                            ? "bg-[#FFE9D6] text-[#E8650A]"
+                            : isRejected
+                            ? "bg-[#FFE0E0] text-[#D93636]"
+                            : "bg-[#DCEBFF] text-[#1E5BE0]"
+                        }`}
+                      >
+                        {app.status}
+                      </span>
+                    </div>
+
+                    {/* Role & Company */}
+                    <div className="p-2.5 bg-[#F8FAFC] rounded-xl border border-[#EEF1F7] space-y-1">
+                      <div className="font-semibold text-sm text-[#0B1F4B]">
+                        {app.jobTitle}
+                      </div>
+                      <div className="flex items-center gap-2 text-[12px] text-slate-600">
+                        <Building2 className="w-3.5 h-3.5 text-[#6B7694]" />
+                        <span>{app.companyName}</span>
+                      </div>
+                    </div>
+
+                    {/* Submission Date */}
+                    <div className="flex items-center justify-between text-[11px] text-[#6B7694] pt-1">
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-[#6B7694]" />
+                        <span>Submitted on {formatDate(app.appliedDate)}</span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

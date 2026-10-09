@@ -10,9 +10,7 @@ import {
   Check,
   Search,
   School,
-  Mail,
-  UserCheck,
-  TrendingUp,
+  Trash2,
 } from "lucide-react";
 
 export default function AdminStudentsPage() {
@@ -43,9 +41,20 @@ export default function AdminStudentsPage() {
       setStudents((prev) =>
         prev.map((s) => (s.id === stu.id ? { ...s, status: newStatus } : s))
       );
-      showToast(`Student ${stu.name} has been successfully ${newStatus === "Suspended" ? "suspended" : "activated"}.`);
+      showToast(`${stu.name} has been ${newStatus === "Suspended" ? "suspended" : "reactivated"}.`);
     } catch (err: any) {
       showToast(err.response?.data?.message || `Failed to update status for ${stu.name}.`, "error");
+    }
+  };
+
+  const deleteStudent = async (stu: StudentAdmin) => {
+    if (!confirm(`Remove "${stu.name}" from the platform? This will suspend their account.`)) return;
+    try {
+      await adminService.updateStudentStatus(stu.id, "Suspended");
+      setStudents((prev) => prev.filter((s) => s.id !== stu.id));
+      showToast(`${stu.name} has been removed.`);
+    } catch (err: any) {
+      showToast(err.response?.data?.message || `Failed to remove ${stu.name}.`, "error");
     }
   };
 
@@ -82,20 +91,20 @@ export default function AdminStudentsPage() {
         )}
 
         {/* Banner */}
-        <div className="relative overflow-hidden rounded-[14px] p-6 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5">
+        <div className="relative overflow-hidden rounded-[14px] p-4 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-[#0756A8] text-xs font-bold uppercase tracking-wider mb-2">
               <GraduationCap className="w-3.5 h-3.5" /> Candidate Registry & KYC
             </div>
-            <h1 className="text-[22px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight">
+            <h1 className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight">
               Student Directory & Moderation
             </h1>
-            <p className="text-[13px] text-[#6B7694] mt-1">
+            <p className="text-[12px] sm:text-[13px] text-[#6B7694] mt-1">
               Verify campus candidate profiles, inspect academic verification levels, track application rates, and moderate access.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-white rounded-xl p-3 border border-[#EEF1F7] shadow-sm shrink-0">
+          <div className="flex items-center justify-around sm:justify-start gap-3 bg-white rounded-xl p-3 border border-[#EEF1F7] shadow-sm w-full sm:w-auto shrink-0">
             <div className="text-center px-3">
               <div className="text-lg font-bold text-[#0B1F4B] leading-none">
                 {students.length}
@@ -144,9 +153,10 @@ export default function AdminStudentsPage() {
           </span>
         </div>
 
-        {/* Formatted Table */}
+        {/* Formatted Table (Desktop Table + Mobile Cards) */}
         <div className="bg-white rounded-[14px] border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#F5F7FB] text-[12px] font-semibold text-[#6B7694] h-[48px]">
@@ -185,14 +195,30 @@ export default function AdminStudentsPage() {
                         {/* Name & Email */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3.5">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
-                              {initials}
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs overflow-hidden">
+                              {stu.avatarUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={stu.avatarUrl}
+                                  alt={stu.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                                    e.currentTarget.parentElement!.innerText = initials;
+                                  }}
+                                />
+                              ) : (
+                                initials
+                              )}
                             </div>
                             <div>
                               <p className="font-semibold text-[#0B1F4B] text-sm leading-snug">
                                 {stu.name}
                               </p>
                               <p className="text-[11px] text-[#6B7694] mt-0.5">{stu.email}</p>
+                              {stu.degree && (
+                                <p className="text-[10px] text-[#6B7694] mt-0.5">{stu.degree}{stu.cgpa ? ` · CGPA ${stu.cgpa}` : ""}</p>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -246,17 +272,27 @@ export default function AdminStudentsPage() {
 
                         {/* Action */}
                         <td className="px-5 py-4 text-right">
-                          <button
-                            type="button"
-                            onClick={() => toggleStudentStatus(stu)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                              stu.status === "Active"
-                                ? "border border-rose-200 text-rose-600 hover:bg-rose-50"
-                                : "bg-[#22B573] text-white hover:bg-emerald-600 shadow-xs"
-                            }`}
-                          >
-                            {stu.status === "Active" ? "Suspend" : "Re-activate"}
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleStudentStatus(stu)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                                stu.status === "Active"
+                                    ? "border border-rose-200 text-rose-600 hover:bg-rose-50"
+                                    : "bg-[#22B573] text-white hover:bg-emerald-600 shadow-xs"
+                              }`}
+                            >
+                              {stu.status === "Active" ? "Suspend" : "Re-activate"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteStudent(stu)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                              title="Remove student"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -264,6 +300,122 @@ export default function AdminStudentsPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card List View (block md:hidden) */}
+          <div className="block md:hidden divide-y divide-[#EEF1F7]">
+            {isLoading ? (
+              <div className="py-10 px-4 text-center text-[#6B7694] text-xs">
+                Loading student directory...
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="py-10 px-4 text-center text-[#6B7694] text-xs">
+                No student records found.
+              </div>
+            ) : (
+              filtered.map((stu) => {
+                const initials = stu.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .substring(0, 2);
+
+                return (
+                  <div key={stu.id} className="p-4 space-y-3">
+                    {/* Header: Avatar, Name, Email, Status */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs overflow-hidden">
+                          {stu.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={stu.avatarUrl}
+                              alt={stu.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).style.display = "none";
+                                e.currentTarget.parentElement!.innerText = initials;
+                              }}
+                            />
+                          ) : (
+                            initials
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-[#0B1F4B] text-[15px] leading-snug truncate">
+                            {stu.name}
+                          </h4>
+                          <p className="text-[11px] text-[#6B7694] truncate">{stu.email}</p>
+                          {stu.degree && (
+                            <p className="text-[10px] text-[#6B7694] truncate">{stu.degree}{stu.cgpa ? ` · CGPA ${stu.cgpa}` : ""}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <span
+                        className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 ${
+                          stu.status === "Active"
+                            ? "bg-[#D8F3E5] text-[#22B573]"
+                            : "bg-[#FFE0E0] text-[#D93636]"
+                        }`}
+                      >
+                        {stu.status}
+                      </span>
+                    </div>
+
+                    {/* Metadata: College & Batch */}
+                    <div className="flex items-center justify-between text-[11px] text-[#6B7694] bg-[#F8FAFC] rounded-lg p-2">
+                      <span className="flex items-center gap-1.5 truncate max-w-[70%]">
+                        <School className="w-3.5 h-3.5 text-[#6B7694] shrink-0" />
+                        <span className="truncate">{stu.college}</span>
+                      </span>
+                      <span className="font-semibold text-slate-700">Class of {stu.gradYear}</span>
+                    </div>
+
+                    {/* Progress Bar & Applications Count */}
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-[#6B7694]">Profile Completion</span>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-[#0756A8]">{stu.applicationsCount} Apps</span>
+                          <span className="font-bold text-[#0B1F4B]">{stu.completionPercentage}%</span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-[#F1F4F9] rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-[#1E5BE0] h-full rounded-full transition-all duration-500"
+                          style={{ width: `${stu.completionPercentage}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Actions row */}
+                    <div className="pt-2 border-t border-[#EEF1F7] flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleStudentStatus(stu)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                          stu.status === "Active"
+                            ? "border border-rose-200 text-rose-600 hover:bg-rose-50"
+                            : "bg-[#22B573] text-white hover:bg-emerald-600 shadow-xs"
+                        }`}
+                      >
+                        {stu.status === "Active" ? "Suspend Account" : "Re-activate"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => deleteStudent(stu)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                        title="Remove student"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

@@ -119,7 +119,7 @@ export default function AdminDashboardClient() {
       {/* ================= ZONE 2: CENTER CONTENT (flexible, matching Student Dashboard) ================= */}
       <div className="flex-1 min-w-0 space-y-5">
         {/* 1. Welcome Banner: Soft peach-to-blue gradient card */}
-        <div className="relative overflow-hidden rounded-[14px] p-6 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <div className="relative overflow-hidden rounded-[14px] p-4 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-[#0756A8] text-xs font-bold uppercase tracking-wider mb-2">
               <Sparkles className="w-3.5 h-3.5 text-[#0756A8]" /> Super Admin Command Center
@@ -161,66 +161,66 @@ export default function AdminDashboardClient() {
         </div>
 
         {/* 2. Four Stat Cards in a row (Matching Student Dashboard aesthetic) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
           {/* Card 1: Total Students (Blue) */}
-          <div className="bg-white rounded-[14px] p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-4 bg-gradient-to-br from-blue-50/40 to-white">
-            <div className="w-[56px] h-[56px] rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
-              <Users className="w-6 h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-[14px] p-3.5 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-blue-50/40 to-white">
+            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
+              <Users className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
-            <div>
-              <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">
+            <div className="min-w-0">
+              <div className="text-xl sm:text-[26px] font-bold text-[#0B1F4B] leading-none truncate">
                 {(students.length || reports.totalStudents).toLocaleString()}
               </div>
-              <div className="text-[14px] text-[#6B7694] mt-1">Total Students</div>
-              <div className="text-[12px] font-semibold text-[#1E5BE0] flex items-center gap-1 mt-1">
-                <span>Registered Learners</span>
+              <div className="text-xs sm:text-[14px] text-[#6B7694] mt-1 truncate">Total Students</div>
+              <div className="text-[11px] sm:text-[12px] font-semibold text-[#1E5BE0] flex items-center gap-1 mt-0.5 sm:mt-1 truncate">
+                <span>Registered</span>
               </div>
             </div>
           </div>
 
           {/* Card 2: Partner Companies (Orange) */}
-          <div className="bg-white rounded-[14px] p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-4 bg-gradient-to-br from-orange-50/40 to-white">
-            <div className="w-[56px] h-[56px] rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
-              <Building2 className="w-6 h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-[14px] p-3.5 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-orange-50/40 to-white">
+            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
+              <Building2 className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
-            <div>
-              <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">
+            <div className="min-w-0">
+              <div className="text-xl sm:text-[26px] font-bold text-[#0B1F4B] leading-none truncate">
                 {(companies.length || reports.totalCompanies).toLocaleString()}
               </div>
-              <div className="text-[14px] text-[#6B7694] mt-1">Partner Companies</div>
-              <div className="text-[12px] font-semibold text-[#FF6B00] flex items-center gap-1 mt-1">
-                <span>{approvedCompanies.length} Verified Active</span>
+              <div className="text-xs sm:text-[14px] text-[#6B7694] mt-1 truncate">Partners</div>
+              <div className="text-[11px] sm:text-[12px] font-semibold text-[#FF6B00] flex items-center gap-1 mt-0.5 sm:mt-1 truncate">
+                <span>{approvedCompanies.length} Verified</span>
               </div>
             </div>
           </div>
 
           {/* Card 3: Active Jobs (Emerald) */}
-          <div className="bg-white rounded-[14px] p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
-            <div className="w-[56px] h-[56px] rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
-              <Briefcase className="w-6 h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-[14px] p-3.5 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
+            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
+              <Briefcase className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
-            <div>
-              <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">
+            <div className="min-w-0">
+              <div className="text-xl sm:text-[26px] font-bold text-[#0B1F4B] leading-none truncate">
                 {reports.totalJobs.toLocaleString()}
               </div>
-              <div className="text-[14px] text-[#6B7694] mt-1">Live Openings</div>
-              <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
+              <div className="text-xs sm:text-[14px] text-[#6B7694] mt-1 truncate">Live Jobs</div>
+              <div className="text-[11px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 sm:mt-1 truncate">
                 <span>Active Listings</span>
               </div>
             </div>
           </div>
 
           {/* Card 4: Placements Rolled (Purple) */}
-          <div className="bg-white rounded-[14px] p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-4 bg-gradient-to-br from-purple-50/40 to-white">
-            <div className="w-[56px] h-[56px] rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
-              <Award className="w-6 h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-[14px] p-3.5 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-purple-50/40 to-white">
+            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
+              <Award className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
-            <div>
-              <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">
+            <div className="min-w-0">
+              <div className="text-xl sm:text-[26px] font-bold text-[#0B1F4B] leading-none truncate">
                 {reports.totalPlacements.toLocaleString()}
               </div>
-              <div className="text-[14px] text-[#6B7694] mt-1">Campus Placements</div>
-              <div className="text-[12px] font-semibold text-[#8B5CF6] flex items-center gap-1 mt-1">
+              <div className="text-xs sm:text-[14px] text-[#6B7694] mt-1 truncate">Placements</div>
+              <div className="text-[11px] sm:text-[12px] font-semibold text-[#8B5CF6] flex items-center gap-1 mt-0.5 sm:mt-1 truncate">
                 <span>Offers Confirmed</span>
               </div>
             </div>
@@ -366,22 +366,23 @@ export default function AdminDashboardClient() {
           </div>
         </div>
 
-        {/* 4. Partner Companies Queue Card with Table */}
-        <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)]">
-          <div className="flex items-center justify-between mb-4">
+        {/* 4. Partner Companies Queue Card with Responsive Table + Mobile Cards */}
+        <div className="bg-white rounded-[14px] p-4 sm:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
             <div>
-              <h3 className="text-[16px] font-bold text-[#0B1F4B]">Employer Partner Verification Queue</h3>
-              <p className="text-[12px] text-[#6B7694] mt-0.5">Real-time onboarding moderation</p>
+              <h3 className="text-[15px] sm:text-[16px] font-bold text-[#0B1F4B]">Employer Partner Verification Queue</h3>
+              <p className="text-[11px] sm:text-[12px] text-[#6B7694] mt-0.5">Real-time onboarding moderation</p>
             </div>
             <Link
               href="/admin/hr-management"
-              className="text-[13px] font-semibold text-[#1E5BE0] hover:underline"
+              className="text-[12px] sm:text-[13px] font-semibold text-[#1E5BE0] hover:underline"
             >
               Manage All Employers →
             </Link>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#F5F7FB] text-[12px] font-semibold text-[#6B7694] h-[44px]">
@@ -464,6 +465,73 @@ export default function AdminDashboardClient() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card List View (block md:hidden) */}
+          <div className="block md:hidden divide-y divide-[#EEF1F7]">
+            {companies.length === 0 ? (
+              <div className="py-6 text-center text-[#6B7694] text-xs">
+                No corporate partners registered yet.
+              </div>
+            ) : (
+              companies.slice(0, 5).map((comp) => {
+                const isPending = comp.status === "Pending";
+                const isApproved = comp.status === "Approved";
+
+                return (
+                  <div key={comp.id} className="py-3.5 first:pt-0 last:pb-0 space-y-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0756A8] font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100 overflow-hidden">
+                          {comp.id || comp.logo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={comp.id ? getCompanyLogoProxyUrl(comp.id) : comp.logo}
+                              alt={comp.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.currentTarget as HTMLImageElement;
+                                target.style.display = "none";
+                                if (target.parentElement) {
+                                  target.parentElement.innerText = comp.name.substring(0, 2).toUpperCase();
+                                }
+                              }}
+                            />
+                          ) : (
+                            comp.name.substring(0, 2).toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-semibold text-sm text-[#0B1F4B] truncate">{comp.name}</h4>
+                          <p className="text-[11px] text-[#6B7694] truncate">{comp.website || "Corporate Recruiter"}</p>
+                        </div>
+                      </div>
+                      <span
+                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                          isApproved
+                            ? "bg-[#D8F3E5] text-[#22B573]"
+                            : isPending
+                            ? "bg-[#FFE9D6] text-[#E8650A]"
+                            : "bg-[#FFE0E0] text-[#D93636]"
+                        }`}
+                      >
+                        {comp.status}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-[#6B7694] pt-1 border-t border-[#EEF1F7]/60">
+                      <span>{comp.industry || "Technology"} • {comp.location || "Pan-India"}</span>
+                      <Link
+                        href="/admin/hr-management"
+                        className="text-[#1E5BE0] font-bold hover:underline"
+                      >
+                        Manage →
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

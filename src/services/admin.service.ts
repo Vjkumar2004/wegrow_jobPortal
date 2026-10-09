@@ -1,7 +1,7 @@
 import apiClient from "./api";
 import { Company, Job, Application, StudentAdmin } from "@/types";
 import { mapBackendJobToFrontend } from "./jobs.service";
-import { getCompanyLogoProxyUrl } from "@/lib/utils";
+import { getCompanyLogoProxyUrl, getAvatarUrl } from "@/lib/utils";
 
 export interface AuditLog {
   id: string;
@@ -97,7 +97,32 @@ export const adminService = {
       const response = await apiClient.get("/admin/students");
       const data = response.data?.data?.items || response.data?.data;
       if (Array.isArray(data)) {
-        return data;
+        return data.map((s: any) => {
+          // Compute a rough completion % from available fields
+          const checks = [
+            Boolean(s.name || s.fullName),
+            Boolean(s.college || s.currentCollege),
+            Boolean(s.degree),
+            Boolean(s.graduationYear || s.gradYear),
+            Boolean(s.cgpa),
+          ];
+          const computedPct = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+
+          return {
+            id: s.id,
+            name: s.name || s.fullName || "Unknown",
+            email: s.email || "",
+            college: s.college || s.currentCollege || "WeGrow Skill Campus",
+            gradYear: String(s.graduationYear || s.gradYear || "—"),
+            completionPercentage: s.completionPercentage ?? computedPct,
+            applicationsCount: s.applicationsCount ?? s.appliedJobsCount ?? 0,
+            status: s.status || "Active",
+            avatarUrl: s.avatarUrl || s.profilePhotoUrl || s.photoUrl || getAvatarUrl(s.id),
+            degree: s.degree || undefined,
+            cgpa: s.cgpa ? Number(s.cgpa) : undefined,
+            joinedDate: s.joinedDate || undefined,
+          };
+        });
       }
       return [];
     } catch {
@@ -143,12 +168,8 @@ export const adminService = {
   },
 
   async sendEmail(payload: { to: string; cc?: string; bcc?: string; subject: string; message: string }) {
-    try {
-      const response = await apiClient.post("/admin/email/send", payload);
-      return response.data;
-    } catch {
-      return { success: true, message: "Email queued for delivery successfully!" };
-    }
+    const response = await apiClient.post("/admin/email/send", payload);
+    return response.data;
   },
 
   async getReports(): Promise<AdminReportData> {

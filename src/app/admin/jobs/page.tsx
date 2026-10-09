@@ -9,16 +9,10 @@ import { formatDate } from "@/lib/utils";
 import {
   Briefcase,
   Search,
-  Building2,
   MapPin,
-  Clock,
   Eye,
-  Trash2,
-  Check,
-  Pause,
-  ExternalLink,
-  DollarSign,
 } from "lucide-react";
+import { getCompanyLogoUrl } from "@/lib/utils";
 
 export default function AdminJobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -34,16 +28,6 @@ export default function AdminJobsPage() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const updateStatus = (id: string, status: any) => {
-    setJobs(jobs.map((j) => (j.id === id ? { ...j, status } : j)));
-  };
-
-  const removeJob = (id: string) => {
-    if (confirm("Permanently remove this job from the campus portal?")) {
-      setJobs(jobs.filter((j) => j.id !== id));
-    }
-  };
-
   const filteredJobs = jobs.filter((job) => {
     const matchesSearch =
       job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -57,20 +41,20 @@ export default function AdminJobsPage() {
     <AdminLayout>
       <div className="p-4 sm:p-6 lg:p-7 space-y-6">
         {/* Banner */}
-        <div className="relative overflow-hidden rounded-[14px] p-6 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5">
+        <div className="relative overflow-hidden rounded-[14px] p-4 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-[#0756A8] text-xs font-bold uppercase tracking-wider mb-2">
               <Briefcase className="w-3.5 h-3.5" /> Opportunity Moderation Hub
             </div>
-            <h1 className="text-[22px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight">
+            <h1 className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight">
               Jobs & Openings Moderation
             </h1>
-            <p className="text-[13px] text-[#6B7694] mt-1">
+            <p className="text-[12px] sm:text-[13px] text-[#6B7694] mt-1">
               Supervise campus postings, verify salary packages and eligibility criteria, approve new listings, or pause active recruitments.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-white rounded-xl p-3 border border-[#EEF1F7] shadow-sm shrink-0">
+          <div className="flex items-center justify-around sm:justify-start gap-3 bg-white rounded-xl p-3 border border-[#EEF1F7] shadow-sm w-full sm:w-auto shrink-0">
             <div className="text-center px-3">
               <div className="text-lg font-bold text-[#0B1F4B] leading-none">
                 {jobs.length}
@@ -118,9 +102,10 @@ export default function AdminJobsPage() {
           </span>
         </div>
 
-        {/* Formatted Table */}
+        {/* Formatted Table (Responsive: Desktop Table + Mobile Cards) */}
         <div className="bg-white rounded-[14px] border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#F5F7FB] text-[12px] font-semibold text-[#6B7694] h-[48px]">
@@ -168,8 +153,21 @@ export default function AdminJobsPage() {
                     {/* Company */}
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0756A8] font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100">
-                          {job.company.name.substring(0, 2).toUpperCase()}
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0756A8] font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100 overflow-hidden">
+                          {job.company.id ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={getCompanyLogoUrl(job.company, job.company.id)}
+                              alt={job.company.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).style.display = "none";
+                                e.currentTarget.parentElement!.innerText = job.company.name.substring(0, 2).toUpperCase();
+                              }}
+                            />
+                          ) : (
+                            job.company.name.substring(0, 2).toUpperCase()
+                          )}
                         </div>
                         <span className="font-medium text-[#0B1F4B]">{job.company.name}</span>
                       </div>
@@ -209,51 +207,106 @@ export default function AdminJobsPage() {
 
                     {/* Actions */}
                     <td className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/jobs/${job.id}`}>
-                          <button
-                            type="button"
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-[#1E5BE0] hover:bg-slate-100 transition"
-                            title="View Public Post"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </Link>
-
-                        {job.status !== "Published" ? (
-                          <button
-                            type="button"
-                            onClick={() => updateStatus(job.id, "Published")}
-                            className="bg-[#22B573] hover:bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-xs"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Publish</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => updateStatus(job.id, "Paused")}
-                            className="border border-slate-200 text-slate-600 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
-                          >
-                            <Pause className="w-3.5 h-3.5" />
-                            <span>Pause</span>
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => removeJob(job.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition"
-                          title="Remove Post"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <Link
+                        href={`/student/jobs/${job.id}`}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-[#1E5BE0] hover:bg-slate-100 transition inline-flex"
+                        title="View Public Post"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Link>
                     </td>
                   </tr>
                 )))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card List View (block md:hidden) */}
+          <div className="block md:hidden divide-y divide-[#EEF1F7]">
+            {isLoading ? (
+              <div className="py-10 px-4 text-center text-[#6B7694] text-xs">
+                Loading job listings...
+              </div>
+            ) : filteredJobs.length === 0 ? (
+              <div className="py-10 px-4 text-center text-[#6B7694] text-xs">
+                No job postings found.
+              </div>
+            ) : (
+              filteredJobs.map((job) => (
+                <div key={job.id} className="p-4 space-y-3">
+                  {/* Top: Company Logo + Title + Status */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0756A8] font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100 overflow-hidden">
+                        {job.company.id ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={getCompanyLogoUrl(job.company, job.company.id)}
+                            alt={job.company.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).style.display = "none";
+                              e.currentTarget.parentElement!.innerText = job.company.name.substring(0, 2).toUpperCase();
+                            }}
+                          />
+                        ) : (
+                          job.company.name.substring(0, 2).toUpperCase()
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-[#0B1F4B] text-[15px] leading-snug truncate">
+                          {job.title}
+                        </h4>
+                        <p className="text-[11px] text-[#6B7694] truncate">{job.company.name}</p>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 ${
+                        job.status === "Published"
+                          ? "bg-[#D8F3E5] text-[#22B573]"
+                          : job.status === "Draft"
+                          ? "bg-[#FFE9D6] text-[#E8650A]"
+                          : "bg-[#FFE0E0] text-[#D93636]"
+                      }`}
+                    >
+                      {job.status}
+                    </span>
+                  </div>
+
+                  {/* Metadata Chips: Location, Job Type, Salary */}
+                  <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#F1F4F9] text-[#6B7694]">
+                      <MapPin className="w-3 h-3" />
+                      {job.location}
+                    </span>
+                    <span className="bg-[#E8F0FF] text-[#1E5BE0] font-semibold px-2 py-0.5 rounded-md">
+                      {job.jobType}
+                    </span>
+                    <span className="font-bold text-[#22B573] px-2 py-0.5 rounded-md bg-emerald-50">
+                      {job.salaryMin && job.salaryMax
+                        ? `${job.salaryCurrency || "₹"}${(job.salaryMin / 100000).toFixed(1)}L - ${(job.salaryMax / 100000).toFixed(1)}L`
+                        : "Competitive"}
+                    </span>
+                  </div>
+
+                  {/* Bottom: Date, Applicants count, View button */}
+                  <div className="pt-2 border-t border-[#EEF1F7] flex items-center justify-between text-[11px] text-[#6B7694]">
+                    <span>Posted {formatDate(job.postedDate)}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-[#0756A8]">{job.applicantsCount || 0} Applicants</span>
+                      <Link
+                        href={`/student/jobs/${job.id}`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-[#1E5BE0] font-bold rounded-lg hover:bg-blue-100 transition"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View</span>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

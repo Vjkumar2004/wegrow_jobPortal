@@ -81,9 +81,24 @@ export default function AdminHRClient({ initialCompanies }: { initialCompanies: 
     }
   };
 
-  const removeCompany = (id: string) => {
-    if (confirm("Are you sure you want to remove this employer account?")) {
-      setCompanies(companies.filter((c) => c.id !== id));
+  const removeCompany = async (comp: Company) => {
+    const isPending = comp.status === "Pending";
+    const msg = isPending
+      ? `Reject and remove "${comp.name}" from pending review?`
+      : `Suspend "${comp.name}"? They will be moved to the Suspended tab.`;
+    if (!confirm(msg)) return;
+
+    setActionError("");
+    try {
+      if (isPending) {
+        await adminService.rejectCompany(comp.id, "Removed by admin");
+      } else {
+        await adminService.updateCompanyStatus(comp.id, "Suspended");
+      }
+      await refreshCompanies();
+      if (selectedCompany?.id === comp.id) setSelectedCompany(null);
+    } catch (err: any) {
+      setActionError(err?.response?.data?.message || "Failed to remove company.");
     }
   };
 
@@ -104,21 +119,21 @@ export default function AdminHRClient({ initialCompanies }: { initialCompanies: 
   return (
     <div className="p-4 sm:p-6 lg:p-7 space-y-6">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-[14px] p-6 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5">
+      <div className="relative overflow-hidden rounded-[14px] p-4 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-[#0756A8] text-xs font-bold uppercase tracking-wider mb-2">
             <Building2 className="w-3.5 h-3.5" /> Corporate Partners Moderation
           </div>
-          <h1 className="text-[22px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight">
+          <h1 className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight">
             HR & Company Management
           </h1>
-          <p className="text-[13px] text-[#6B7694] mt-1">
+          <p className="text-[12px] sm:text-[13px] text-[#6B7694] mt-1">
             Review partner registrations, verify official hiring credentials, approve corporate postings, and suspend accounts.
           </p>
         </div>
 
-        {/* Counter Pill */}
-        <div className="flex items-center gap-3 bg-white rounded-xl p-2.5 border border-[#EEF1F7] shadow-sm shrink-0">
+        {/* Responsive Counter Pills */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto p-2 bg-white rounded-xl border border-[#EEF1F7] shadow-sm shrink-0">
           <div className="px-3 py-1.5 rounded-lg bg-emerald-50 text-[#22B573] text-center">
             <div className="text-base font-bold leading-none">{approvedCount}</div>
             <div className="text-[10px] font-semibold mt-0.5">Approved</div>
@@ -216,9 +231,10 @@ export default function AdminHRClient({ initialCompanies }: { initialCompanies: 
         </div>
       </div>
 
-      {/* Styled Table Container */}
+      {/* Styled Table Container (Responsive: Desktop Table + Mobile Cards) */}
       <div className="bg-white rounded-[14px] border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#F5F7FB] text-[12px] font-semibold text-[#6B7694] h-[48px]">
@@ -367,20 +383,22 @@ export default function AdminHRClient({ initialCompanies }: { initialCompanies: 
                         <button
                           type="button"
                           onClick={() => setSelectedCompany(comp)}
-                          className="p-1.5 text-slate-500 hover:text-[#1E5BE0] rounded-lg hover:bg-blue-50 transition"
+                          className="p-1.5 text-slate-500 hover:text-[#1E5BE0] rounded-lg hover:bg-blue-50 transition cursor-pointer"
                           title="View Full Profile Details"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => removeCompany(comp.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition"
-                          title="Remove Partner"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {(comp.status === "Pending" || comp.status === "Approved") && (
+                          <button
+                            type="button"
+                            onClick={() => removeCompany(comp)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                            title={comp.status === "Pending" ? "Reject & Remove" : "Suspend Account"}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -388,6 +406,166 @@ export default function AdminHRClient({ initialCompanies }: { initialCompanies: 
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card List View (block md:hidden) */}
+        <div className="block md:hidden divide-y divide-[#EEF1F7]">
+          {displayed.length === 0 ? (
+            <div className="py-10 px-4 text-center text-[#6B7694]">
+              <Building2 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-xs">No companies match your search or filter.</p>
+            </div>
+          ) : (
+            displayed.map((comp) => (
+              <div key={comp.id} className="p-4 space-y-3">
+                {/* Header: Logo, Name, Website, Status badge */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-xl bg-blue-50 text-[#0756A8] font-bold text-sm flex items-center justify-center shrink-0 border border-blue-100 shadow-2xs overflow-hidden">
+                      {comp.id || comp.logo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={comp.id ? getCompanyLogoProxyUrl(comp.id) : comp.logo}
+                          alt={comp.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.currentTarget as HTMLImageElement;
+                            target.style.display = "none";
+                            if (target.parentElement) {
+                              target.parentElement.innerText = comp.name.substring(0, 2).toUpperCase();
+                            }
+                          }}
+                        />
+                      ) : (
+                        comp.name.substring(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-[#0B1F4B] text-[15px] leading-snug truncate">
+                        {comp.name}
+                      </h4>
+                      {comp.website && (
+                        <a
+                          href={comp.website}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] text-[#1E5BE0] hover:underline flex items-center gap-1 mt-0.5 truncate"
+                        >
+                          <span className="truncate">{comp.website.replace("https://", "")}</span>
+                          <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  <span
+                    className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 ${
+                      comp.status === "Approved"
+                        ? "bg-[#D8F3E5] text-[#22B573]"
+                        : comp.status === "Pending"
+                        ? "bg-[#FFE9D6] text-[#E8650A]"
+                        : "bg-[#FFE0E0] text-[#D93636]"
+                    }`}
+                  >
+                    {comp.status}
+                  </span>
+                </div>
+
+                {/* Metadata Pills */}
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#6B7694]">
+                  <span className="px-2 py-0.5 rounded-md bg-[#F1F4F9] text-[#0B1F4B] font-medium">
+                    {comp.industry || "Information Technology"}
+                  </span>
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#F1F4F9]">
+                    <MapPin className="w-3 h-3 text-[#6B7694]" />
+                    {comp.location || "Pan-India"}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-blue-50 text-[#1E5BE0] font-semibold">
+                    {comp.activeJobsCount ?? 0} Live Jobs
+                  </span>
+                </div>
+
+                {/* Rejection Reason if any */}
+                {comp.status === "Rejected" && comp.rejectionReason && (
+                  <div className="p-2.5 bg-rose-50 rounded-lg text-[11px] text-rose-700 leading-snug border border-rose-100">
+                    <span className="font-bold">Reason:</span> {comp.rejectionReason}
+                  </div>
+                )}
+
+                {/* Actions row */}
+                <div className="pt-2 border-t border-[#EEF1F7] flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {comp.status === "Pending" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => updateStatus(comp.id, "Approved")}
+                          className="bg-[#22B573] hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-xs"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Approve</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRejectingCompanyId(comp.id);
+                            setRejectionReason("");
+                            setActionError("");
+                          }}
+                          className="border border-rose-200 text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Reject</span>
+                        </button>
+                      </>
+                    )}
+
+                    {comp.status === "Approved" && (
+                      <button
+                        type="button"
+                        onClick={() => updateStatus(comp.id, "Suspended")}
+                        className="border border-rose-200 text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+                      >
+                        <ShieldAlert className="w-3.5 h-3.5" />
+                        <span>Suspend</span>
+                      </button>
+                    )}
+
+                    {comp.status === "Suspended" && (
+                      <button
+                        type="button"
+                        onClick={() => updateStatus(comp.id, "Approved")}
+                        className="bg-[#1E5BE0] hover:bg-[#1548b8] text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+                      >
+                        <span>Re-activate</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1 ml-auto">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCompany(comp)}
+                      className="p-1.5 text-slate-500 hover:text-[#1E5BE0] rounded-lg hover:bg-blue-50 transition cursor-pointer"
+                      title="View Full Profile Details"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    {(comp.status === "Pending" || comp.status === "Approved") && (
+                      <button
+                        type="button"
+                        onClick={() => removeCompany(comp)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                        title={comp.status === "Pending" ? "Reject & Remove" : "Suspend Account"}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

@@ -403,4 +403,8 @@ export interface StudentAdmin {
   completionPercentage: number;
   applicationsCount: number;
   status: string;
+  avatarUrl?: string;
+  degree?: string;
+  cgpa?: number;
+  joinedDate?: string;
 }
