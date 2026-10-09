@@ -2,18 +2,24 @@
 
 import React from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studentService } from "@/services/student.service";
 import { JobCard } from "@/components/jobs/JobCard";
 import { Bookmark, Briefcase } from "lucide-react";
 import { Job } from "@/types";
 
 export default function StudentSavedJobsPage() {
+  const queryClient = useQueryClient();
   const { data: savedJobs = [] } = useQuery<Job[]>({
     queryKey: ["student-saved-jobs"],
     queryFn: () => studentService.getSavedJobs(),
-    staleTime: 30_000,
+    staleTime: 10_000,
   });
+
+  const handleToggleSave = async (jobId: string) => {
+    await studentService.removeSavedJob(jobId);
+    queryClient.invalidateQueries({ queryKey: ["student-saved-jobs"] });
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-7 space-y-6 max-w-7xl mx-auto w-full">
@@ -57,7 +63,7 @@ export default function StudentSavedJobsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {savedJobs.map((job) => (
-            <JobCard key={job.id} job={job} isSaved={true} />
+            <JobCard key={job.id} job={job} isSaved={true} onSave={handleToggleSave} />
           ))}
         </div>
       )}

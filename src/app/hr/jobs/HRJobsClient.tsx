@@ -24,12 +24,14 @@ import {
   DollarSign,
 } from "lucide-react";
 import PostJobModal from "@/components/hr/PostJobModal";
+import HRJobDetailsModal from "@/components/hr/HRJobDetailsModal";
 
 export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [selectedJobForView, setSelectedJobForView] = useState<Job | null>(null);
 
   const { data: jobs = initialJobs } = useQuery({
     queryKey: ["hr-jobs"],
@@ -38,6 +40,20 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
     staleTime: 30_000,
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Sync selected job if redirected from dashboard with ?jobId=...
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && jobs.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const queryJobId = params.get("jobId") || params.get("viewId");
+      if (queryJobId) {
+        const found = jobs.find((j) => j.id === queryJobId);
+        if (found) {
+          setSelectedJobForView(found);
+        }
+      }
+    }
+  }, [jobs]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -58,6 +74,9 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
       queryClient.setQueryData<Job[]>(["hr-jobs"], (prev) =>
         (prev ?? []).map((j) => (j.id === id ? { ...j, status: isPublished ? "Paused" : "Published" } as Job : j))
       );
+      setSelectedJobForView((prev) =>
+        prev && prev.id === id ? ({ ...prev, status: isPublished ? "Paused" : "Published" } as Job) : prev
+      );
       showToast(`Job "${target.title}" is now ${isPublished ? "Paused" : "Published"}!`);
     } catch {
       showToast(`Failed to update status for "${target.title}".`);
@@ -75,6 +94,7 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
         queryClient.setQueryData<Job[]>(["hr-jobs"], (prev) =>
           (prev ?? []).filter((j) => j.id !== id)
         );
+        setSelectedJobForView((prev) => (prev?.id === id ? null : prev));
         showToast(`Job opening "${jobTitle}" has been closed.`);
       } else {
         showToast(`Failed to close "${jobTitle}". Please try again.`);
@@ -205,9 +225,10 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
         </div>
       </div>
 
-      {/* 4. Pixel-Perfect Jobs Table */}
+      {/* 4. Desktop Jobs Table & Mobile Native Cards */}
       <div className="bg-white rounded-[16px] border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-[#F7F9FD] text-[#6B7694] font-semibold uppercase text-[11px] border-b border-[#EEF1F7]">
               <tr>
@@ -237,9 +258,13 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
                           <Briefcase className="w-5 h-5" />
                         </div>
                         <div>
-                          <p className="font-bold text-[#0B1F4B] text-[13px] hover:text-[#1E5BE0] transition cursor-pointer">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedJobForView(job)}
+                            className="text-left font-bold text-[#0B1F4B] text-[13px] hover:text-[#1E5BE0] transition cursor-pointer block"
+                          >
                             {job.title}
-                          </p>
+                          </button>
                           <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#6B7694] mt-1">
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3 h-3 text-[#1E5BE0]" /> {job.location}
@@ -298,15 +323,14 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
                     {/* Actions Group */}
                     <td className="py-4 px-5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Link href={`/jobs/${job.id}`}>
-                          <button
-                            type="button"
-                            className="p-2 rounded-[8px] text-[#6B7694] hover:text-[#1E5BE0] hover:bg-[#E8F0FF] transition cursor-pointer"
-                            title="View Public Job Posting"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedJobForView(job)}
+                          className="p-2 rounded-[8px] text-[#6B7694] hover:text-[#1E5BE0] hover:bg-[#E8F0FF] transition cursor-pointer"
+                          title="View Job Details in HR Portal"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
 
                         <button
                           type="button"
@@ -342,7 +366,140 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Native APK Card List */}
+        <div className="md:hidden divide-y divide-[#EEF1F7] p-3 space-y-3">
+          {filteredJobs.length === 0 ? (
+            <div className="py-10 text-center text-xs text-[#6B7694]">
+              No job postings found matching your search criteria.
+            </div>
+          ) : (
+            filteredJobs.map((job) => (
+              <div
+                key={job.id}
+                className="bg-[#F8FAFC] border border-[#E9EFF6] rounded-2xl p-4 space-y-3 shadow-2xs"
+              >
+                {/* Header: Title + Status */}
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
+                      <Briefcase className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedJobForView(job)}
+                        className="text-left font-bold text-[#0B1F4B] text-sm hover:text-[#1E5BE0] transition truncate block"
+                      >
+                        {job.title}
+                      </button>
+                      <div className="flex items-center gap-1.5 text-[11px] text-[#6B7694] mt-0.5">
+                        <MapPin className="w-3 h-3 text-[#1E5BE0]" />
+                        <span className="truncate">{job.location}</span>
+                        <span>•</span>
+                        <span>{job.workMode}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 ${
+                      job.status === "Published"
+                        ? "bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8]"
+                        : "bg-[#FFF0E6] text-[#FF6B00] border border-[#FFE0CC]"
+                    }`}
+                  >
+                    {job.status}
+                  </span>
+                </div>
+
+                {/* Details pill row */}
+                <div className="grid grid-cols-2 gap-2 bg-white rounded-xl p-2.5 border border-[#EEF1F7] text-xs">
+                  <div>
+                    <span className="text-[#6B7694] text-[10px] uppercase font-semibold block">Package</span>
+                    <span className="font-bold text-[#0B1F4B] text-[12px]">
+                      {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[#6B7694] text-[10px] uppercase font-semibold block">Experience</span>
+                    <span className="font-medium text-[#0B1F4B] text-[12px]">{job.experience}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#6B7694] text-[10px] uppercase font-semibold block">Applicants</span>
+                    <Link
+                      href="/hr/applicants"
+                      className="inline-flex items-center gap-1 font-bold text-[#1E5BE0] text-[12px] hover:underline"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>{job.applicantsCount || 0} applied</span>
+                    </Link>
+                  </div>
+                  <div>
+                    <span className="text-[#6B7694] text-[10px] uppercase font-semibold block">Posted</span>
+                    <span className="text-[#6B7694] text-[11px]">{formatDate(job.postedDate)}</span>
+                  </div>
+                </div>
+
+                {/* Actions row */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedJobForView(job)}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 bg-[#E8F0FF] text-[#1E5BE0] active:bg-[#d8e6ff] rounded-xl text-xs font-bold"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View Details</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleStatus(job.id)}
+                    className={`inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                      job.status === "Published"
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    }`}
+                    title={job.status === "Published" ? "Pause Job" : "Publish Job"}
+                  >
+                    {job.status === "Published" ? (
+                      <>
+                        <Pause className="w-3.5 h-3.5" />
+                        <span>Pause</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-3.5 h-3.5" />
+                        <span>Publish</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => deleteJob(job.id, job.title)}
+                    disabled={deletingId === job.id}
+                    className="inline-flex items-center justify-center p-2 text-rose-600 bg-rose-50 border border-rose-200 rounded-xl active:bg-rose-100 disabled:opacity-40"
+                    title="Close Job"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
+
+      {/* Embedded Job Details Modal (Opens within HR portal without redirecting) */}
+      <HRJobDetailsModal
+        job={selectedJobForView}
+        isOpen={Boolean(selectedJobForView)}
+        onClose={() => setSelectedJobForView(null)}
+        onToggleStatus={toggleStatus}
+        onDeleteJob={deleteJob}
+        isDeleting={deletingId === selectedJobForView?.id}
+      />
     </div>
   );
 }

@@ -47,6 +47,7 @@ function StudentLoginContent() {
       const res = await authService.login({
         email: email.trim(),
         password,
+        role: "STUDENT",
       });
 
       const userRole = res.data?.user?.role;
@@ -69,6 +70,14 @@ function StudentLoginContent() {
       const message = errorObj?.response?.data?.message;
 
       if (
+        status === 403 &&
+        (code === "ROLE_MISMATCH" || message?.includes("Recruiter") || message?.includes("Student"))
+      ) {
+        authService.logout();
+        setError(
+          message || "This account is registered as a Recruiter/HR. Please use the Recruiter login portal."
+        );
+      } else if (
         status === 403 &&
         (code === "APPLICATION_REJECTED" ||
           code === "REJECTED" ||

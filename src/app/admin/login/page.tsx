@@ -44,6 +44,7 @@ function AdminLoginContent() {
       const res = await authService.login({
         email: email.trim(),
         password,
+        role: "ADMIN",
       });
 
       const userRole = res.data?.user?.role;
@@ -62,7 +63,10 @@ function AdminLoginContent() {
       const code = errorObj?.response?.data?.error?.code;
       const message = errorObj?.response?.data?.message;
 
-      if (status === 403 && (code === "ACCOUNT_SUSPENDED" || message?.toLowerCase().includes("suspended"))) {
+      if (status === 403 && code === "ROLE_MISMATCH") {
+        authService.logout();
+        setError(message || "Access denied. Only administrators can log in here.");
+      } else if (status === 403 && (code === "ACCOUNT_SUSPENDED" || message?.toLowerCase().includes("suspended"))) {
         authService.logout();
         setError("Your account has been suspended. Please contact platform support.");
       } else if (status === 401 || code === "INVALID_CREDENTIALS") {

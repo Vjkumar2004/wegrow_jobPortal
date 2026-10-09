@@ -45,21 +45,17 @@ const DEFAULT_APPLICATIONS_DATA: StudentApplicationsPageData = {
   profileCompletion: { percentage: 0, checklist: [] },
 };
 
-interface StudentApplicationsClientProps {
-  initialData?: StudentApplicationsPageData;
-}
-
-export default function StudentApplicationsClient({ initialData = DEFAULT_APPLICATIONS_DATA }: StudentApplicationsClientProps) {
+export default function StudentApplicationsClient() {
   const queryClient = useQueryClient();
 
-  const { data = initialData, isPending } = useQuery({
+  const { data = DEFAULT_APPLICATIONS_DATA, isPending } = useQuery({
     queryKey: ["student-applications"],
     queryFn: () => {
       const cachedProfile = queryClient.getQueryData<StudentProfile>(["student-profile"]);
       return applicationsService.getStudentApplicationsPageData(cachedProfile ?? undefined);
     },
-    initialData,
-    staleTime: 60_000,
+    placeholderData: DEFAULT_APPLICATIONS_DATA,
+    staleTime: 30_000,
   });
 
   const [activeTab, setActiveTab] = useState<string>("All");
@@ -160,91 +156,91 @@ export default function StudentApplicationsClient({ initialData = DEFAULT_APPLIC
           </Link>
         </div>
 
-        {/* 2. Five Stat Cards in a row */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+        {/* 2. Five Stat Cards in a row (Mobile optimized) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
           {/* Card 1: Blue Tint - Total Applied */}
-          <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-br from-blue-50/50 to-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3.5">
-            <div className="w-[56px] h-[56px] rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
-              <FileText className="w-6 h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs bg-gradient-to-br from-blue-50/50 to-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-3.5">
+            <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
+              <FileText className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
-            <div>
-              <div className="text-[26px] font-[700] text-[#0B1F4B] leading-none">
+            <div className="min-w-0">
+              <div className="text-[20px] sm:text-[26px] font-[700] text-[#0B1F4B] leading-none">
                 {data.stats.totalApplied}
               </div>
-              <div className="text-[14px] text-[#6B7694] mt-1">Total Applied</div>
-              <div className="text-[12px] text-[#6B7694] flex items-center gap-1 mt-1 font-medium">
-                <TrendingUp className="w-3.5 h-3.5 text-[#1E5BE0]" /> +3 this month
+              <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 truncate font-medium">Total Applied</div>
+              <div className="text-[10px] sm:text-[12px] text-[#6B7694] flex items-center gap-1 mt-0.5 font-medium truncate">
+                <TrendingUp className="w-3 h-3 text-[#1E5BE0]" /> +3 this month
               </div>
             </div>
           </div>
 
           {/* Card 2: Orange Tint - Under Review */}
-          <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-br from-orange-50/50 to-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3.5">
-            <div className="w-[56px] h-[56px] rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
-              <Clock className="w-6 h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs bg-gradient-to-br from-orange-50/50 to-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-3.5">
+            <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
-            <div>
-              <div className="text-[26px] font-[700] text-[#0B1F4B] leading-none">
+            <div className="min-w-0">
+              <div className="text-[20px] sm:text-[26px] font-[700] text-[#0B1F4B] leading-none">
                 {data.stats.underReview}
               </div>
-              <div className="text-[14px] text-[#6B7694] mt-1">Under Review</div>
-              <div className="text-[12px] text-[#6B7694] flex items-center gap-1 mt-1 font-medium">
-                <TrendingUp className="w-3.5 h-3.5 text-[#1E5BE0]" /> +2 this month
+              <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 truncate font-medium">Under Review</div>
+              <div className="text-[10px] sm:text-[12px] text-[#6B7694] flex items-center gap-1 mt-0.5 font-medium truncate">
+                <TrendingUp className="w-3 h-3 text-[#1E5BE0]" /> +2 this month
               </div>
             </div>
           </div>
 
           {/* Card 3: Green Tint - Shortlisted */}
-          <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-br from-emerald-50/50 to-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3.5">
-            <div className="w-[56px] h-[56px] rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
-              <Users className="w-6 h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs bg-gradient-to-br from-emerald-50/50 to-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-3.5">
+            <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
+              <Users className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
-            <div>
-              <div className="text-[26px] font-[700] text-[#0B1F4B] leading-none">
+            <div className="min-w-0">
+              <div className="text-[20px] sm:text-[26px] font-[700] text-[#0B1F4B] leading-none">
                 {data.stats.shortlisted}
               </div>
-              <div className="text-[14px] text-[#6B7694] mt-1">Shortlisted</div>
-              <div className="text-[12px] text-[#6B7694] flex items-center gap-1 mt-1 font-medium">
-                <TrendingUp className="w-3.5 h-3.5 text-[#1E5BE0]" /> +1 this month
+              <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 truncate font-medium">Shortlisted</div>
+              <div className="text-[10px] sm:text-[12px] text-[#6B7694] flex items-center gap-1 mt-0.5 font-medium truncate">
+                <TrendingUp className="w-3 h-3 text-[#1E5BE0]" /> +1 this month
               </div>
             </div>
           </div>
 
           {/* Card 4: Purple Tint - Interviews */}
-          <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-br from-purple-50/50 to-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3.5">
-            <div className="w-[56px] h-[56px] rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
-              <Calendar className="w-6 h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs bg-gradient-to-br from-purple-50/50 to-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-3.5">
+            <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
+              <Calendar className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
-            <div>
-              <div className="text-[26px] font-[700] text-[#0B1F4B] leading-none">
+            <div className="min-w-0">
+              <div className="text-[20px] sm:text-[26px] font-[700] text-[#0B1F4B] leading-none">
                 {data.stats.interviews}
               </div>
-              <div className="text-[14px] text-[#6B7694] mt-1">Interviews</div>
-              <div className="text-[12px] text-[#6B7694] flex items-center gap-1 mt-1 font-medium">
-                <TrendingUp className="w-3.5 h-3.5 text-[#1E5BE0]" /> +1 this month
+              <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 truncate font-medium">Interviews</div>
+              <div className="text-[10px] sm:text-[12px] text-[#6B7694] flex items-center gap-1 mt-0.5 font-medium truncate">
+                <TrendingUp className="w-3 h-3 text-[#1E5BE0]" /> +1 this month
               </div>
             </div>
           </div>
 
           {/* Card 5: Peach Tint - Selected / Offers */}
-          <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-br from-amber-50/50 to-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3.5 col-span-2 sm:col-span-1">
-            <div className="w-[56px] h-[56px] rounded-2xl bg-[#FFF6E5] text-[#D98A00] flex items-center justify-center shrink-0">
-              <Star className="w-6 h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs bg-gradient-to-br from-amber-50/50 to-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-3.5 col-span-2 sm:col-span-1">
+            <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#FFF6E5] text-[#D98A00] flex items-center justify-center shrink-0">
+              <Star className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
-            <div>
-              <div className="text-[26px] font-[700] text-[#0B1F4B] leading-none">
+            <div className="min-w-0">
+              <div className="text-[20px] sm:text-[26px] font-[700] text-[#0B1F4B] leading-none">
                 {data.stats.selected}
               </div>
-              <div className="text-[14px] text-[#6B7694] mt-1">Selected / Offers</div>
-              <div className="text-[12px] text-[#6B7694] flex items-center gap-1 mt-1 font-medium">
-                <TrendingUp className="w-3.5 h-3.5 text-[#1E5BE0]" /> +1 this month
+              <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 truncate font-medium">Selected / Offers</div>
+              <div className="text-[10px] sm:text-[12px] text-[#6B7694] flex items-center gap-1 mt-0.5 font-medium truncate">
+                <TrendingUp className="w-3 h-3 text-[#1E5BE0]" /> +1 this month
               </div>
             </div>
           </div>
         </div>
 
-        {/* 3. Status Tabs Row (fully rounded, 40px height, Poppins 500, 14px) */}
-        <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+        {/* 3. Status Tabs Row (horizontal scrollable swipe pills) */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ scrollbarWidth: "none" }}>
           {tabs.map((tab) => {
             const isActive = activeTab === tab.label;
             return (
@@ -252,7 +248,7 @@ export default function StudentApplicationsClient({ initialData = DEFAULT_APPLIC
                 key={tab.label}
                 type="button"
                 onClick={() => setActiveTab(tab.label)}
-                className={`h-[40px] px-5 rounded-full text-[14px] font-[500] transition-all shrink-0 cursor-pointer ${
+                className={`h-[38px] sm:h-[40px] px-3.5 sm:px-5 rounded-full text-[13px] sm:text-[14px] font-[500] transition-all shrink-0 cursor-pointer active:scale-95 ${
                   isActive
                     ? "bg-[#1E5BE0] text-white shadow-xs"
                     : "bg-white text-[#0B1F4B] border border-[#EEF1F7] hover:border-[#1E5BE0]"

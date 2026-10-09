@@ -436,33 +436,33 @@ export default function HRDashboardClient({
       {/* ============================================================== */}
       {/* 1. WELCOME BANNER (Identical sleek structure to Student view)  */}
       {/* ============================================================== */}
-      <div className="relative overflow-hidden rounded-[16px] bg-gradient-to-r from-[#0B1F4B] via-[#0E2963] to-[#1E5BE0] text-white p-6 sm:p-8 shadow-lg shadow-[#0B1F4B]/10">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0B1F4B] via-[#0E2963] to-[#1E5BE0] text-white p-5 sm:p-8 shadow-lg shadow-[#0B1F4B]/10">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6">
+          <div className="space-y-1.5 sm:space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[#FFB020] text-xs font-semibold uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5 text-[#FFB020]" />
               Campus Recruitment Drive 2025 - 2026
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white">
               Welcome back{hrUserName ? `, ${hrUserName}` : ""}! 👋
             </h1>
-            <p className="text-sm text-slate-200/90 leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-200/90 leading-relaxed">
               You have <strong className="text-white font-semibold">{applicants.length} candidate submission{applicants.length === 1 ? "" : "s"}</strong> across your {activeJobs.length} active campus opening{activeJobs.length === 1 ? "" : "s"}.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
             <button
               type="button"
               onClick={() => setIsPostJobModalOpen(true)}
-              className="inline-flex items-center gap-2 bg-[#FF6B00] hover:bg-[#e05e00] text-white font-bold text-xs sm:text-sm px-5 py-3 rounded-[10px] transition-all shadow-md shadow-[#FF6B00]/25 cursor-pointer"
+              className="inline-flex items-center gap-2 bg-[#FF6B00] hover:bg-[#e05e00] text-white font-bold text-xs sm:text-sm px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl transition-all shadow-md shadow-[#FF6B00]/25 cursor-pointer active:scale-95"
             >
               <PlusCircle className="w-4 h-4" />
               <span>Post New Job Opening</span>
             </button>
             <Link
               href="/hr/applicants"
-              className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold text-xs sm:text-sm px-4 py-3 rounded-[10px] transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold text-xs sm:text-sm px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl transition-colors cursor-pointer active:scale-95"
             >
               <span>Review Candidates</span>
               <ArrowRight className="w-4 h-4" />
@@ -475,16 +475,65 @@ export default function HRDashboardClient({
         <div className="absolute right-1/3 -top-12 w-48 h-48 rounded-full bg-orange-400/10 pointer-events-none blur-xl" />
       </div>
 
+      {/* 1.5. NATIVE RECRUITER APK QUICK ACTION HUB (4 Fast Touch Action Tiles) */}
+      <div className="grid grid-cols-4 gap-2 sm:gap-3">
+        <button
+          type="button"
+          onClick={() => setIsPostJobModalOpen(true)}
+          className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#FF6B00]/40 hover:shadow-xs active:scale-95 transition-all text-center group cursor-pointer"
+        >
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+            <PlusCircle className="w-5 h-5" strokeWidth={2} />
+          </div>
+          <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+            + Post Job
+          </span>
+        </button>
+        <Link
+          href="/hr/applicants"
+          className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#1E5BE0]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+        >
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+            <Users className="w-5 h-5" strokeWidth={2} />
+          </div>
+          <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+            Applicants
+          </span>
+        </Link>
+        <Link
+          href="/hr/interviews"
+          className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#22B573]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+        >
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+            <Calendar className="w-5 h-5" strokeWidth={2} />
+          </div>
+          <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+            Interviews
+          </span>
+        </Link>
+        <Link
+          href="/hr/jobs"
+          className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#8B5CF6]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+        >
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+            <Briefcase className="w-5 h-5" strokeWidth={2} />
+          </div>
+          <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+            My Jobs
+          </span>
+        </Link>
+      </div>
+
       {/* ============================================================== */}
       {/* 2. DASHBOARD SUB-SECTION NAVIGATION TABS                       */}
       {/* ============================================================== */}
-      <div className="bg-white rounded-[14px] border border-[#EEF1F7] p-1.5 shadow-[0_4px_14px_rgba(11,31,75,0.05)] flex items-center gap-2">
+      <div className="bg-white rounded-2xl border border-[#EEF1F7] p-1.5 shadow-2xs flex items-center gap-2">
         <button
           type="button"
           onClick={() => setActiveDashboardTab("overview")}
-          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-[10px] text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 sm:flex-initial px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
             activeDashboardTab === "overview"
-              ? "bg-[#1E5BE0] text-white shadow-sm"
+              ? "bg-[#1E5BE0] text-white shadow-xs"
               : "text-[#6B7694] hover:bg-[#F7F9FD] hover:text-[#0B1F4B]"
           }`}
         >
@@ -495,9 +544,9 @@ export default function HRDashboardClient({
         <button
           type="button"
           onClick={() => setActiveDashboardTab("company-profile")}
-          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-[10px] text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 sm:flex-initial px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
             activeDashboardTab === "company-profile"
-              ? "bg-[#1E5BE0] text-white shadow-sm"
+              ? "bg-[#1E5BE0] text-white shadow-xs"
               : "text-[#6B7694] hover:bg-[#F7F9FD] hover:text-[#0B1F4B]"
           }`}
         >
@@ -515,45 +564,45 @@ export default function HRDashboardClient({
       {/* ============================================================== */}
       {/* 2. STATS ROW (4 High Aesthetic Cards: Blue, Orange, Green, Purple) */}
       {/* ============================================================== */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Blue tint: Active Jobs */}
-        <div className="bg-white rounded-[14px] p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-4 bg-gradient-to-br from-blue-50/40 to-white">
-          <div className="w-[56px] h-[56px] rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
-            <Briefcase className="w-6 h-6" strokeWidth={1.75} />
+        <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-blue-50/40 to-white">
+          <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
+            <Briefcase className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
           </div>
-          <div>
-            <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{activeJobs.length}</div>
-            <div className="text-[14px] text-[#6B7694] mt-1">Active Jobs</div>
-            <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
-              <TrendingUp className="w-3.5 h-3.5" /> {activeJobs.length} live
+          <div className="min-w-0">
+            <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{activeJobs.length}</div>
+            <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Active Jobs</div>
+            <div className="text-[10px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
+              <TrendingUp className="w-3 h-3" /> {activeJobs.length} live
             </div>
           </div>
         </div>
 
         {/* Orange tint: Total Applicants */}
-        <div className="bg-white rounded-[14px] p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-4 bg-gradient-to-br from-orange-50/40 to-white">
-          <div className="w-[56px] h-[56px] rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
-            <Users className="w-6 h-6" strokeWidth={1.75} />
+        <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-orange-50/40 to-white">
+          <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
           </div>
-          <div>
-            <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{applicants.length}</div>
-            <div className="text-[14px] text-[#6B7694] mt-1">Total Applicants</div>
-            <div className="text-[12px] font-semibold text-[#FF6B00] flex items-center gap-1 mt-1">
-              <TrendingUp className="w-3.5 h-3.5" /> {applicants.length} total
+          <div className="min-w-0">
+            <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{applicants.length}</div>
+            <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Total Applicants</div>
+            <div className="text-[10px] sm:text-[12px] font-semibold text-[#FF6B00] flex items-center gap-1 mt-0.5 truncate">
+              <TrendingUp className="w-3 h-3" /> {applicants.length} total
             </div>
           </div>
         </div>
 
         {/* Green tint: Shortlisted */}
-        <div className="bg-white rounded-[14px] p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
-          <div className="w-[56px] h-[56px] rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-6 h-6" strokeWidth={1.75} />
+        <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
+          <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
           </div>
-          <div>
-            <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{shortlistedCount}</div>
-            <div className="text-[14px] text-[#6B7694] mt-1">Shortlisted</div>
-            <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
-              <TrendingUp className="w-3.5 h-3.5" /> {shortlistedCount} verified
+          <div className="min-w-0">
+            <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{shortlistedCount}</div>
+            <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Shortlisted</div>
+            <div className="text-[10px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
+              <TrendingUp className="w-3 h-3" /> {shortlistedCount} verified
             </div>
           </div>
         </div>
@@ -752,7 +801,8 @@ export default function HRDashboardClient({
             </Link>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-[#F7F9FD] text-[#6B7694] font-semibold uppercase text-[11px] border-b border-[#EEF1F7]">
                 <tr>
@@ -861,8 +911,115 @@ export default function HRDashboardClient({
                       </td>
                     </tr>
                   ))
-                )}</tbody>
+                )}
+              </tbody>
             </table>
+          </div>
+
+          {/* Mobile Native APK Candidate Cards View */}
+          <div className="md:hidden space-y-3">
+            {applicants.length === 0 ? (
+              <div className="py-8 text-center text-xs text-[#6B7694] bg-[#F7F9FD] rounded-xl border border-dashed border-[#EEF1F7]">
+                No candidate submissions received yet.
+              </div>
+            ) : (
+              applicants.slice(0, 5).map((app) => (
+                <div
+                  key={app.id}
+                  className="bg-[#F8FAFC] border border-[#E9EFF6] rounded-2xl p-3.5 space-y-3 shadow-2xs"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+                        {app.applicantAvatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={app.applicantAvatar}
+                            alt={app.applicantName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const fallbackUrl = app.applicantId
+                                ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${app.applicantId}`
+                                : "";
+                              if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
+                                e.currentTarget.src = fallbackUrl;
+                                return;
+                              }
+                              const el = e.currentTarget;
+                              el.style.display = "none";
+                              const parent = el.parentElement;
+                              if (parent && !parent.querySelector(".fb-init")) {
+                                const span = document.createElement("span");
+                                span.className = "fb-init font-bold text-xs text-white";
+                                span.textContent = getNameInitials(app.applicantName);
+                                parent.appendChild(span);
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span>{getNameInitials(app.applicantName)}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-[#0B1F4B] text-sm truncate">{app.applicantName}</p>
+                        <p className="text-[11px] text-[#6B7694] truncate">{app.applicantEmail}</p>
+                      </div>
+                    </div>
+
+                    <select
+                      value={app.status}
+                      onChange={(e) => handleStatusChange(app, e.target.value)}
+                      className="bg-white text-[#0B1F4B] text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-[#D8E2EE] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 shadow-2xs shrink-0"
+                    >
+                      <option value="Under Review">Under Review</option>
+                      <option value="Shortlisted">Shortlisted</option>
+                      <option value="Interview">Interview</option>
+                      <option value="Selected">Selected</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-2.5 border border-[#EEF1F7] text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#6B7694] text-[11px]">Role:</span>
+                      <span className="font-semibold text-[#0B1F4B] truncate text-right max-w-[200px]">{app.jobTitle}</span>
+                    </div>
+                    {app.applicantCollege && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#6B7694] text-[11px]">College:</span>
+                        <span className="text-[#3E4A62] text-[11px] font-medium truncate max-w-[180px]">
+                          {app.applicantCollege}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-0.5">
+                    {scheduledAppIds.has(app.id) ? (
+                      <span className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8] rounded-xl text-xs font-semibold select-none">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Scheduled</span>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openScheduleModal(app)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 bg-[#1E5BE0] active:scale-[0.98] text-white rounded-xl text-xs font-semibold shadow-xs"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Schedule</span>
+                      </button>
+                    )}
+                    <Link
+                      href="/hr/applicants"
+                      className="inline-flex items-center justify-center px-4 py-2 bg-white border border-[#D8E2EE] text-[#0B1F4B] active:bg-[#F1F4F9] rounded-xl text-xs font-semibold"
+                    >
+                      Review
+                    </Link>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -889,9 +1046,11 @@ export default function HRDashboardClient({
                   <div key={job.id} className="py-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h4 className="text-xs font-bold text-[#0B1F4B] hover:text-[#1E5BE0] transition cursor-pointer">
-                          {job.title}
-                        </h4>
+                        <Link href={`/hr/jobs?jobId=${job.id}`}>
+                          <h4 className="text-xs font-bold text-[#0B1F4B] hover:text-[#1E5BE0] transition cursor-pointer">
+                            {job.title}
+                          </h4>
+                        </Link>
                         <p className="text-[11px] text-[#6B7694]">
                           {job.location} • {job.jobType}
                         </p>
@@ -906,7 +1065,7 @@ export default function HRDashboardClient({
                         {job.applicantsCount || 0} Applicants
                       </span>
                       <Link
-                        href="/hr/jobs"
+                        href={`/hr/jobs?jobId=${job.id}`}
                         className="text-[#1E5BE0] font-semibold hover:underline flex items-center gap-0.5"
                       >
                         View Details <ChevronRight className="w-3 h-3" />

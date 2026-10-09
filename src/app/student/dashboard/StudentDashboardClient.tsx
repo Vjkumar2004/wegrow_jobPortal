@@ -152,8 +152,30 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
     return () => window.removeEventListener("avatarUpdated", handleAvatarUpdate);
   }, [queryClient]);
 
-  const toggleSave = (id: string) => {
-    setSavedJobs((prev) => ({ ...prev, [id]: !prev[id] }));
+  // Hydrate saved jobs from backend on mount
+  useEffect(() => {
+    studentService.getSavedJobs().then((savedList) => {
+      if (Array.isArray(savedList)) {
+        const map: { [id: string]: boolean } = {};
+        savedList.forEach((j) => { map[j.id] = true; });
+        setSavedJobs(map);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const toggleSave = async (id: string) => {
+    const isCurrentlySaved = !!savedJobs[id];
+    setSavedJobs((prev) => ({ ...prev, [id]: !isCurrentlySaved }));
+    try {
+      if (isCurrentlySaved) {
+        await studentService.removeSavedJob(id);
+      } else {
+        await studentService.saveJob(id);
+      }
+      queryClient.invalidateQueries({ queryKey: ["student-saved-jobs"] });
+    } catch {
+      setSavedJobs((prev) => ({ ...prev, [id]: isCurrentlySaved }));
+    }
   };
 
   const toggleLike = (id: string) => {
@@ -183,10 +205,10 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
       {/* ================= ZONE 2: CENTER CONTENT (flexible, gap 20px) ================= */}
           <main className="flex-1 min-w-0 space-y-5">
             {/* 1. Welcome Banner: Soft peach-to-blue gradient card */}
-            <div className="relative overflow-hidden rounded-[14px] p-6 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md">
-              <div className="flex items-center gap-4">
+            <div className="relative overflow-hidden rounded-2xl p-4 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex items-center gap-3.5 sm:gap-4">
                 <Link href="/student/profile" className="relative group shrink-0" title="View profile">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-white shadow-md overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] flex items-center justify-center">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-white shadow-md overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] flex items-center justify-center">
                     {student.avatarUrl && !avatarError ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -205,87 +227,135 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                         }}
                       />
                     ) : (
-                      <span className="text-white font-extrabold text-lg sm:text-xl tracking-wider select-none">
+                      <span className="text-white font-extrabold text-base sm:text-xl tracking-wider select-none">
                         {getNameInitials(student.name)}
                       </span>
                     )}
                   </div>
                 </Link>
-                <div>
-                  <h1 className="text-[22px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight flex items-center gap-2">
+                <div className="min-w-0">
+                  <h1 className="text-[18px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight flex items-center gap-1.5 truncate">
                     Good Morning, {student.name.split(" ")[0]}! 👋
                   </h1>
-                  <p className="text-[14px] text-[#6B7694] mt-1">
+                  <p className="text-[12px] sm:text-[14px] text-[#6B7694] mt-0.5 truncate">
                     {student.course} • {student.college}
                   </p>
                 </div>
               </div>
 
               {/* White quote card with orange quote mark */}
-              <div className="bg-white rounded-[12px] p-3.5 sm:p-4 border border-[#EEF1F7] shadow-sm max-w-sm flex items-start gap-3 shrink-0">
-                <span className="text-[#FF6B00] text-3xl font-serif font-black leading-none shrink-0">
+              <div className="bg-white/90 backdrop-blur-xs rounded-xl p-3 sm:p-4 border border-[#EEF1F7] shadow-xs max-w-sm flex items-start gap-2.5 shrink-0">
+                <span className="text-[#FF6B00] text-2xl sm:text-3xl font-serif font-black leading-none shrink-0">
                   “
                 </span>
-                <p className="text-[12px] sm:text-[13px] text-[#0B1F4B] font-medium leading-snug italic">
+                <p className="text-[11px] sm:text-[13px] text-[#0B1F4B] font-medium leading-snug italic">
                   Small steps everyday lead to big opportunities.
                 </p>
               </div>
             </div>
 
-            {/* 2. Four Stat Cards in a row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-              {/* Blue tint: Jobs Applied */}
-              <div className="bg-white rounded-[14px] p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-4 bg-gradient-to-br from-blue-50/40 to-white">
-                <div className="w-[56px] h-[56px] rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
-                  <FileText className="w-6 h-6" strokeWidth={1.75} />
+            {/* 1.5. NATIVE APK QUICK ACTION HUB (4 Fast Touch Action Tiles) */}
+            <div className="grid grid-cols-4 gap-2 sm:gap-3">
+              <Link
+                href="/student/jobs"
+                className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#1E5BE0]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+              >
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+                  <Briefcase className="w-5 h-5" strokeWidth={2} />
                 </div>
-                <div>
-                  <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.jobsApplied}</div>
-                  <div className="text-[14px] text-[#6B7694] mt-1">Jobs Applied</div>
-                  <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
-                    <TrendingUp className="w-3.5 h-3.5" /> {stats.jobsAppliedTrend}
+                <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+                  Browse Jobs
+                </span>
+              </Link>
+              <Link
+                href="/student/applications"
+                className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#22B573]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+              >
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+                  <FileCheck className="w-5 h-5" strokeWidth={2} />
+                </div>
+                <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+                  Applications
+                </span>
+              </Link>
+              <Link
+                href="/student/interviews"
+                className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#FF6B00]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+              >
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+                  <Calendar className="w-5 h-5" strokeWidth={2} />
+                </div>
+                <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+                  Interviews
+                </span>
+              </Link>
+              <Link
+                href="/student/resume"
+                className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#8B5CF6]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+              >
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+                  <FileText className="w-5 h-5" strokeWidth={2} />
+                </div>
+                <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+                  ATS Resume
+                </span>
+              </Link>
+            </div>
+
+            {/* 2. Four Stat Cards in a row (Mobile optimized 2x2 grid) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+              {/* Blue tint: Jobs Applied */}
+              <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-blue-50/40 to-white">
+                <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
+                  <FileText className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.jobsApplied}</div>
+                  <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Jobs Applied</div>
+                  <div className="text-[10px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
+                    <TrendingUp className="w-3 h-3" /> {stats.jobsAppliedTrend}
                   </div>
                 </div>
               </div>
 
               {/* Orange tint: Interviews */}
-              <div className="bg-white rounded-[14px] p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-4 bg-gradient-to-br from-orange-50/40 to-white">
-                <div className="w-[56px] h-[56px] rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
-                  <Calendar className="w-6 h-6" strokeWidth={1.75} />
+              <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-orange-50/40 to-white">
+                <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
                 </div>
-                <div>
-                  <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.interviews}</div>
-                  <div className="text-[14px] text-[#6B7694] mt-1">Interviews</div>
-                  <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
-                    <TrendingUp className="w-3.5 h-3.5" /> {stats.interviewsTrend}
+                <div className="min-w-0">
+                  <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.interviews}</div>
+                  <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Interviews</div>
+                  <div className="text-[10px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
+                    <TrendingUp className="w-3 h-3" /> {stats.interviewsTrend}
                   </div>
                 </div>
               </div>
 
               {/* Green tint: Shortlisted */}
-              <div className="bg-white rounded-[14px] p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
-                <div className="w-[56px] h-[56px] rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-6 h-6" strokeWidth={1.75} />
+              <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
+                <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
                 </div>
-                <div>
-                  <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.shortlisted}</div>
-                  <div className="text-[14px] text-[#6B7694] mt-1">Shortlisted</div>
-                  <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
-                    <TrendingUp className="w-3.5 h-3.5" /> {stats.shortlistedTrend}
+                <div className="min-w-0">
+                  <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.shortlisted}</div>
+                  <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Shortlisted</div>
+                  <div className="text-[10px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
+                    <TrendingUp className="w-3 h-3" /> {stats.shortlistedTrend}
                   </div>
                 </div>
               </div>
 
               {/* Purple tint: Offers */}
-              <div className="bg-white rounded-[14px] p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-4 bg-gradient-to-br from-purple-50/40 to-white">
-                <div className="w-[56px] h-[56px] rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
-                  <Briefcase className="w-6 h-6" strokeWidth={1.75} />
+              <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-purple-50/40 to-white">
+                <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
+                  <Briefcase className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
                 </div>
-                <div>
-                  <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.offers}</div>
-                  <div className="text-[14px] text-[#6B7694] mt-1">Offers</div>
-                  <div className="text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-1">
-                    <TrendingUp className="w-3.5 h-3.5" /> {stats.offersTrend}
+                <div className="min-w-0">
+                  <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.offers}</div>
+                  <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Offers</div>
+                  <div className="text-[10px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
+                    <TrendingUp className="w-3 h-3" /> {stats.offersTrend}
                   </div>
                 </div>
               </div>
@@ -599,23 +669,102 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                 )}
               </div>
             </div>
-                        {/* 5. "Recent Applications" Card with Table */}
-            <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)]">
+            {/* 5. "Recent Applications" Card with Mobile Card Feed & Desktop Table */}
+            <div className="bg-white rounded-2xl p-4 sm:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)]">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-[16px] font-bold text-[#0B1F4B]">Recent Applications</h3>
-                  <p className="text-[12px] text-[#6B7694] mt-0.5">Real-time status updates</p>
+                  <h3 className="text-[15px] sm:text-[16px] font-bold text-[#0B1F4B]">Recent Applications</h3>
+                  <p className="text-[11px] sm:text-[12px] text-[#6B7694] mt-0.5">Real-time status updates</p>
                 </div>
                 <Link
                   href="/student/applications"
-                  className="text-[13px] font-semibold text-[#1E5BE0] hover:underline"
+                  className="text-[12px] sm:text-[13px] font-semibold text-[#1E5BE0] hover:underline flex items-center gap-1"
                 >
-                  View All
+                  <span>View All</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
 
-              {/* Table with columns: Company, Job Title, Applied Date, Status, Actions */}
-              <div className="overflow-x-auto">
+              {/* A. MOBILE VIEW: Native APK Application Cards (Hidden on md+) */}
+              <div className="md:hidden space-y-2.5">
+                {recentApplicationsList.length === 0 ? (
+                  <div className="py-8 text-center text-[#6B7694] text-xs">
+                    No recent applications found. Start exploring and applying for jobs!
+                  </div>
+                ) : (
+                  recentApplicationsList.map((app) => (
+                    <div
+                      key={app.id}
+                      className="p-3.5 rounded-xl border border-[#EEF1F7] bg-[#F7F9FD]/60 hover:bg-white transition-all space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center border border-[#EEF1F7] shadow-2xs overflow-hidden font-bold text-xs text-[#1E5BE0] shrink-0">
+                            {app.companyLogo ? (
+                              <img
+                                src={app.companyLogo}
+                                alt={app.companyName || 'Company'}
+                                className="w-full h-full object-contain p-0.5"
+                                onError={(e) => {
+                                  const target = e.currentTarget as HTMLImageElement;
+                                  target.style.display = "none";
+                                  const parent = target.parentElement;
+                                  if (parent && !parent.querySelector(".logo-fb")) {
+                                    const fb = document.createElement("span");
+                                    fb.textContent = (app.companyName || "C").charAt(0).toUpperCase();
+                                    fb.className = "font-bold text-xs text-[#1E5BE0] logo-fb";
+                                    parent.appendChild(fb);
+                                  }
+                                }}
+                              />
+                            ) : (
+                              (app.companyName || 'C').charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          <span className="font-semibold text-xs text-[#0B1F4B] truncate">
+                            {app.companyName || 'Company'}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-[#6B7694] shrink-0">
+                          {app.appliedDate || 'Recent'}
+                        </span>
+                      </div>
+
+                      <div className="font-semibold text-[13px] text-[#0B1F4B] leading-snug">
+                        {app.jobTitle || (app as any).title || 'Position'}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <span
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            app.status === 'Shortlisted'
+                              ? 'bg-[#DDF5E8] text-[#1E9E63]'
+                              : app.status === 'Interview'
+                              ? 'bg-[#FFE9D6] text-[#E8650A]'
+                              : app.status === 'Rejected'
+                              ? 'bg-[#FFE0E0] text-[#D93636]'
+                              : app.status === 'Selected'
+                              ? 'bg-[#DDF5E8] text-[#1E9E63]'
+                              : 'bg-[#DCEBFF] text-[#1E5BE0]'
+                          }`}
+                        >
+                          {app.status || 'Under Review'}
+                        </span>
+
+                        <Link
+                          href="/student/applications"
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1E5BE0] bg-[#E8F0FF] hover:bg-[#1E5BE0] hover:text-white px-3 py-1 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Track <ChevronRight className="w-3 h-3" />
+                        </Link>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* B. DESKTOP VIEW: Detailed Data Table (Hidden on mobile) */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-[#F5F7FB] text-[12px] font-semibold text-[#6B7694] h-[44px]">

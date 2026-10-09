@@ -35,6 +35,8 @@ export interface RegisterPayload {
   companyLogo?: string;
   companySize?: string;
   about?: string;
+  tagline?: string;
+  culture?: string;
 }
 
 export interface VerifyEmailPayload {
@@ -67,6 +69,8 @@ export const authApi = {
       ...(payload.companyLogo ? { companyLogo: payload.companyLogo } : {}),
       ...(payload.companySize ? { companySize: payload.companySize } : {}),
       ...(payload.about ? { about: payload.about } : {}),
+      ...(payload.tagline ? { tagline: payload.tagline } : {}),
+      ...(payload.culture ? { culture: payload.culture } : {}),
     };
     const response = await apiClient.post<ApiResponse<RegisterResponseData>>("/auth/register", body);
     return response.data;
@@ -100,6 +104,7 @@ export const authApi = {
     const response = await apiClient.post<ApiResponse<LoginResponseData>>("/auth/login", {
       email: payload.email.trim().toLowerCase(),
       password: payload.password,
+      ...(payload.role ? { role: payload.role } : {}),
     });
 
     const data = response.data?.data;

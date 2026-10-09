@@ -161,6 +161,7 @@ export default function StudentJobDetailsClient({
     if (nextSaved) {
       const success = await studentService.saveJob(job.id);
       if (success) {
+        queryClient.invalidateQueries({ queryKey: ["student-saved-jobs"] });
         triggerToast("Job saved to your bookmarks");
       } else {
         setIsSaved(false);
@@ -169,6 +170,7 @@ export default function StudentJobDetailsClient({
     } else {
       const success = await studentService.removeSavedJob(job.id);
       if (success) {
+        queryClient.invalidateQueries({ queryKey: ["student-saved-jobs"] });
         triggerToast("Job removed from bookmarks");
       } else {
         setIsSaved(true);

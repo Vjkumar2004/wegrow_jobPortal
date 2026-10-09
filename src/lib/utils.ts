@@ -11,6 +11,21 @@ export function getCompanyLogoProxyUrl(companyId: string): string {
   return `${API_BASE_URL}/media/company-logo/${companyId}`;
 }
 
+export function resolveMediaUrl(url?: string | null): string {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:") || url.startsWith("blob:")) {
+    return url;
+  }
+  const cleanBase = (API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/+$/, "");
+  if (url.startsWith("/api/v1/")) {
+    return `${cleanBase}${url.slice("/api/v1".length)}`;
+  }
+  if (url.startsWith("/api/")) {
+    return `${cleanBase}${url.slice("/api".length)}`;
+  }
+  return `${cleanBase}/${url.replace(/^\/+/, "")}`;
+}
+
 export function getAvatarUrl(studentId?: string): string {
   if (!studentId) return "";
   return `${API_BASE_URL}/media/avatar/${studentId}`;

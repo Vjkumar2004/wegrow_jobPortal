@@ -25,8 +25,8 @@ export default function CompanyProfileSubSection() {
   const [industry, setIndustry] = useState("");
   const [location, setLocation] = useState("");
   const [website, setWebsite] = useState("");
-  const [size, setSize] = useState("50 - 200 employees");
-  const [hrEmail, setHrEmail] = useState("");
+  const [size, setSize] = useState("10 - 20 employees");
+  const [recruiterEmail, setRecruiterEmail] = useState("");
   const [hrPhone, setHrPhone] = useState("");
   const [description, setDescription] = useState("");
   const [culture, setCulture] = useState("");
@@ -39,15 +39,50 @@ export default function CompanyProfileSubSection() {
 
   const logoInputRef = React.useRef<HTMLInputElement>(null);
   const avatarInputRef = React.useRef<HTMLInputElement>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   React.useEffect(() => {
-    // Load HR user name
+    // 1. Check local user first for instant hydration
+    const localUser = authService.getCurrentUser();
+    if (localUser) {
+      const name = localUser.name || localUser.fullName || (localUser as any).hrProfile?.fullName || "Recruiter";
+      setRecruiterName(name);
+      if (localUser.email) setRecruiterEmail(localUser.email);
+      const phone = (localUser as any).hrProfile?.phone || (localUser as any).phone || (localUser as any).hrPhone;
+      if (phone) setHrPhone(phone);
+      const storedAvatar =
+        (localUser as any).avatarUrl ||
+        (localUser as any).avatar ||
+        (typeof window !== "undefined"
+          ? localStorage.getItem(`wegrow_hr_avatar_${localUser.id}`) || localStorage.getItem("wegrow_hr_avatar")
+          : null);
+      if (storedAvatar) {
+        setRecruiterAvatarUrl(storedAvatar);
+      }
+    }
+
+    // 2. Load HR user from API
     authService.getMe().then((res) => {
       const user = res.data?.user;
-      const name = user?.name || user?.fullName || user?.hrProfile?.fullName || "Recruiter"; setRecruiterName(name);
+      if (user) {
+        const name = user.name || user.fullName || (user as any).hrProfile?.fullName || "Recruiter";
+        setRecruiterName(name);
+        if (user.email) setRecruiterEmail(user.email);
+        const phone = (user as any).hrProfile?.phone || (user as any).phone || (user as any).hrPhone;
+        if (phone) setHrPhone(phone);
+        const storedAvatar =
+          (user as any).avatarUrl ||
+          (user as any).avatar ||
+          (typeof window !== "undefined"
+            ? localStorage.getItem(`wegrow_hr_avatar_${user.id}`) || localStorage.getItem("wegrow_hr_avatar")
+            : null);
+        if (storedAvatar) {
+          setRecruiterAvatarUrl(storedAvatar);
+        }
+      }
     }).catch(() => {});
 
-    // Load company profile via GET /api/v1/hr/company
+    // 3. Load company profile via GET /api/v1/hr/company
     hrService.getCompanyProfile()
       .then((comp: any) => {
         if (comp) {
@@ -56,11 +91,17 @@ export default function CompanyProfileSubSection() {
           if (comp.industry) setIndustry(comp.industry);
           if (comp.location) setLocation(comp.location);
           if (comp.website) setWebsite(comp.website);
-          if (comp.size || comp.companySize) setSize(comp.size || comp.companySize);
+          if (comp.size || comp.companySize) {
+            const raw = comp.size || comp.companySize;
+            if (raw === "SIZE_1_10" || raw === "SIZE_11_50") setSize("10 - 20 employees");
+            else if (raw === "SIZE_51_200") setSize("50 - 200 employees");
+            else if (raw === "SIZE_201_500") setSize("200 - 1,000 employees");
+            else if (raw === "SIZE_500_PLUS") setSize("1,000 - 10,000 employees");
+            else setSize(raw);
+          }
           if (comp.about || comp.description) setDescription(comp.about || comp.description);
           if (comp.culture) setCulture(comp.culture);
-          if (comp.hrEmail) setHrEmail(comp.hrEmail);
-          if (comp.hrPhone) setHrPhone(comp.hrPhone);
+          if (comp.hrPhone || comp.phone) setHrPhone(comp.hrPhone || comp.phone);
           if (comp.logoUrl) {
             setCompanyLogoUrl(comp.logoUrl);
           }
@@ -84,13 +125,29 @@ export default function CompanyProfileSubSection() {
         location,
         website,
         size,
-        hrEmail,
         hrPhone,
+        phone: hrPhone,
         about: description,
         culture,
       });
+
+      // Update local storage user phone if present so next instant hydration has it
+      const currentUser = authService.getCurrentUser();
+      if (currentUser && typeof window !== "undefined") {
+        try {
+          const userStr = localStorage.getItem("wegrow_auth_user");
+          if (userStr) {
+            const userObj = JSON.parse(userStr);
+            userObj.phone = hrPhone;
+            if (userObj.hrProfile) userObj.hrProfile.phone = hrPhone;
+            localStorage.setItem("wegrow_auth_user", JSON.stringify(userObj));
+          }
+        } catch {}
+      }
+
       setSaved(true);
       setTimeout(() => setSaved(false), 3200);
+      showToast("Company profile updated successfully!");
     } catch (err: any) {
       showToast(err?.response?.data?.message || "Failed to save company profile.", true);
     }
@@ -138,18 +195,125 @@ export default function CompanyProfileSubSection() {
     }
   };
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          setRecruiterAvatarUrl(result);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    e.target.value = "";
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      showToast("Please upload a valid photo (JPEG, PNG, or WebP).", true);
+      return;
     }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("Profile photo must be under 5 MB.", true);
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+
+    try {
+      // Compress / read file as image data URL
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const result = ev.target?.result as string;
+          if (!result) return reject(new Error("Failed to read image file"));
+
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const maxDim = 500;
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+              if (width > maxDim) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              }
+            } else {
+              if (height > maxDim) {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL("image/webp", 0.9));
+            } else {
+              resolve(result);
+            }
+          };
+          img.onerror = () => resolve(result);
+          img.src = result;
+        };
+        reader.onerror = () => reject(new Error("File read error"));
+        reader.readAsDataURL(file);
+      });
+
+      setRecruiterAvatarUrl(dataUrl);
+
+      // Persist in localStorage for user session
+      const currentUser = authService.getCurrentUser();
+      const userId = currentUser?.id || "default";
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`wegrow_hr_avatar_${userId}`, dataUrl);
+        localStorage.setItem("wegrow_hr_avatar", dataUrl);
+
+        // Also update AUTH_USER_KEY object so authService has it
+        const userStr = localStorage.getItem("wegrow_auth_user");
+        if (userStr) {
+          try {
+            const userObj = JSON.parse(userStr);
+            userObj.avatarUrl = dataUrl;
+            userObj.avatar = dataUrl;
+            localStorage.setItem("wegrow_auth_user", JSON.stringify(userObj));
+          } catch {}
+        }
+      }
+
+      // Broadcast to HRLayout and other components
+      window.dispatchEvent(
+        new CustomEvent("hr-avatar-updated", { detail: { avatarUrl: dataUrl } })
+      );
+
+      showToast("Recruiter profile photo updated successfully!");
+    } catch (err: any) {
+      showToast(err.message || "Failed to process profile photo", true);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleDeleteAvatar = () => {
+    if (!confirm("Are you sure you want to remove your profile photo?")) return;
+    setRecruiterAvatarUrl(null);
+    const currentUser = authService.getCurrentUser();
+    const userId = currentUser?.id || "default";
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(`wegrow_hr_avatar_${userId}`);
+      localStorage.removeItem("wegrow_hr_avatar");
+
+      const userStr = localStorage.getItem("wegrow_auth_user");
+      if (userStr) {
+        try {
+          const userObj = JSON.parse(userStr);
+          delete userObj.avatarUrl;
+          delete userObj.avatar;
+          localStorage.setItem("wegrow_auth_user", JSON.stringify(userObj));
+        } catch {}
+      }
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("hr-avatar-updated", { detail: { avatarUrl: null } })
+    );
+
+    showToast("Profile photo removed.");
   };
 
   return (
@@ -237,7 +401,7 @@ export default function CompanyProfileSubSection() {
                   <ShieldCheck className="w-3.5 h-3.5" /> Verified Partner
                 </span>
               </div>
-              <p className="text-xs text-[#6B7694] mt-0.5">{tagline}</p>
+              <p className="text-xs text-[#6B7694] mt-0.5">{tagline || "Add your corporate motto or tagline"}</p>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-[#6B7694] mt-2">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5 text-[#1E5BE0]" /> {location || "—"}
@@ -266,14 +430,16 @@ export default function CompanyProfileSubSection() {
           </div>
 
           {/* Right Recruiter Profile Avatar Upload Box */}
-          <div className="flex items-center gap-4 bg-[#F7F9FD] p-3.5 rounded-xl border border-[#EEF1F7] shrink-0">
-            <div className="relative">
+          <div className="flex items-center gap-3.5 bg-[#F7F9FD] p-3.5 rounded-2xl border border-[#EEF1F7] shrink-0">
+            <div className="relative group">
               <div
                 onClick={() => avatarInputRef.current?.click()}
-                className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-tr from-[#FF6B00] to-amber-400 text-white font-bold text-sm flex items-center justify-center shadow-sm shrink-0 cursor-pointer border-2 border-white hover:opacity-90 transition"
+                className="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-tr from-[#FF6B00] to-amber-400 text-white font-bold text-base flex items-center justify-center shadow-md shrink-0 cursor-pointer border-2 border-white hover:opacity-90 transition relative ring-2 ring-[#FF6B00]/20"
                 title="Click to upload recruiter profile photo"
               >
-                {recruiterAvatarUrl ? (
+                {isUploadingAvatar ? (
+                  <div className="flex items-center justify-center text-[11px] font-semibold text-white">...</div>
+                ) : recruiterAvatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={recruiterAvatarUrl} alt="Recruiter Photo" className="w-full h-full object-cover" />
                 ) : (
@@ -283,22 +449,37 @@ export default function CompanyProfileSubSection() {
               <button
                 type="button"
                 onClick={() => avatarInputRef.current?.click()}
-                className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#FF6B00] text-white flex items-center justify-center shadow-sm border border-white cursor-pointer"
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#FF6B00] text-white flex items-center justify-center shadow-md border-2 border-white cursor-pointer hover:scale-110 active:scale-95 transition"
                 title="Upload Recruiter Photo"
               >
-                <Camera className="w-2.5 h-2.5" />
+                <Camera className="w-3 h-3" />
               </button>
             </div>
 
             <div className="text-left text-xs">
-              <div className="font-bold text-[#0B1F4B]">{recruiterName || "Recruiter"}</div>
-              <button
-                type="button"
-                onClick={() => avatarInputRef.current?.click()}
-                className="text-[11px] text-[#FF6B00] font-semibold hover:underline block cursor-pointer mt-0.5"
-              >
-                Upload Photo →
-              </button>
+              <div className="font-bold text-[#0B1F4B] text-[13px]">{recruiterName || "Recruiter"}</div>
+              <p className="text-[11px] text-[#6B7694] truncate max-w-[180px]">{recruiterEmail || "Hiring Lead / Recruiter"}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="text-[11px] text-[#FF6B00] font-semibold hover:underline cursor-pointer"
+                >
+                  {recruiterAvatarUrl ? "Change Photo" : "Upload Photo →"}
+                </button>
+                {recruiterAvatarUrl && (
+                  <>
+                    <span className="text-[#9BA5BB] text-[10px]">•</span>
+                    <button
+                      type="button"
+                      onClick={handleDeleteAvatar}
+                      className="text-[11px] text-rose-500 font-semibold hover:underline cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -329,6 +510,7 @@ export default function CompanyProfileSubSection() {
               </label>
               <input
                 type="text"
+                placeholder="e.g. Innovating Tomorrow's Talent"
                 value={tagline}
                 onChange={(e) => setTagline(e.target.value)}
                 className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] text-xs px-3.5 py-2.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20"
@@ -372,10 +554,12 @@ export default function CompanyProfileSubSection() {
                 onChange={(e) => setSize(e.target.value)}
                 className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] text-xs px-3.5 py-2.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 cursor-pointer"
               >
+                <option value="10 - 20 employees">10 - 20 employees</option>
+                <option value="20 - 50 employees">20 - 50 employees</option>
                 <option value="50 - 200 employees">50 - 200 employees</option>
                 <option value="200 - 1,000 employees">200 - 1,000 employees</option>
                 <option value="1,000 - 10,000 employees">1,000 - 10,000 employees</option>
-                <option value="100,000+ employees">100,000+ employees</option>
+                <option value="10,000+ employees">10,000+ employees</option>
               </select>
             </div>
           </div>
@@ -395,15 +579,20 @@ export default function CompanyProfileSubSection() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#0B1F4B] mb-1.5">
-                Campus HR Email *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-[#0B1F4B]">
+                  Recruiter Account Email
+                </label>
+                <span className="text-[10px] font-bold text-[#22B573] bg-[#E8F8EF] px-2 py-0.5 rounded-full">
+                  Login Account
+                </span>
+              </div>
               <input
                 type="email"
-                required
-                value={hrEmail}
-                onChange={(e) => setHrEmail(e.target.value)}
-                className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] text-xs px-3.5 py-2.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20"
+                disabled
+                value={recruiterEmail}
+                className="w-full bg-[#F1F4F9] border border-[#E3E8F0] text-[#6B7694] text-xs px-3.5 py-2.5 rounded-[10px] cursor-not-allowed select-none font-medium"
+                title="Your verified login email (managed via account settings)"
               />
             </div>
 
@@ -413,6 +602,7 @@ export default function CompanyProfileSubSection() {
               </label>
               <input
                 type="tel"
+                placeholder="e.g. +91 98765 43210"
                 value={hrPhone}
                 onChange={(e) => setHrPhone(e.target.value)}
                 className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] text-xs px-3.5 py-2.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20"

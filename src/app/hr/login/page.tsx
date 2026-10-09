@@ -49,6 +49,7 @@ function HRLoginContent() {
       const res = await authService.login({
         email: email.trim(),
         password,
+        role: "HR",
       });
 
       // Check if there is pending onboarding data from registration
@@ -111,6 +112,14 @@ function HRLoginContent() {
       const message = errorObj?.response?.data?.message;
 
       if (
+        status === 403 &&
+        (code === "ROLE_MISMATCH" || message?.includes("Student") || message?.includes("Recruiter"))
+      ) {
+        authService.logout();
+        setError(
+          message || "This account is registered as a Student. Please use the Student login portal."
+        );
+      } else if (
         status === 403 &&
         (code === "APPLICATION_REJECTED" ||
           code === "COMPANY_REJECTED" ||

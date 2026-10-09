@@ -2,6 +2,7 @@ import apiClient from "./api";
 import { Job, Application, Interview } from "@/types";
 import { mapBackendJobToFrontend } from "./jobs.service";
 import { BackendPublicJob, BackendInterview } from "@/types/api";
+import { getAvatarUrl, resolveMediaUrl } from "@/lib/utils";
 
 export const hrService = {
   /**
@@ -197,16 +198,30 @@ export const hrService = {
       if (Array.isArray(items)) {
         return items.map((i) => {
           const d = new Date(i.scheduledStartAt);
+          const student = i.application?.student;
+          const studentId = student?.id || (i.application as any)?.studentId;
+          const rawAvatar =
+            (i as any)?.candidateAvatar ||
+            (student as any)?.avatarUrl ||
+            (student as any)?.avatar ||
+            (student as any)?.photoUrl;
+
+          const avatar = rawAvatar
+            ? resolveMediaUrl(rawAvatar)
+            : studentId
+            ? getAvatarUrl(studentId)
+            : undefined;
+
           return {
             id: i.id,
             applicationId: i.applicationId,
             jobTitle: i.application?.job?.title || i.title,
             companyName: i.application?.job?.company?.name || "Hiring Partner",
             companyLogo: i.application?.job?.company?.logoUrl || undefined,
-            candidateName: i.application?.student?.fullName || (i.application?.student as any)?.name || "Candidate",
-            candidateEmail: i.application?.student?.user?.email || (i.application?.student as any)?.email || "",
-            candidateCollege: (i.application?.student as any)?.currentCollege || (i.application?.student as any)?.educations?.[0]?.institution || "",
-            candidateAvatar: (i.application?.student as any)?.avatarUrl || (i.application?.student as any)?.avatar || undefined,
+            candidateName: student?.fullName || (student as any)?.name || "Candidate",
+            candidateEmail: (student as any)?.user?.email || (student as any)?.email || "",
+            candidateCollege: (student as any)?.currentCollege || (student as any)?.educations?.[0]?.institution || "",
+            candidateAvatar: avatar,
             date: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
             time: d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             scheduledStartAt: i.scheduledStartAt,
@@ -268,12 +283,14 @@ export const hrService = {
             id: inv.id,
             applicationId: inv.applicationId,
             jobTitle: inv.title,
-            companyName: "Company",
-            candidateName: "Candidate",
-            candidateEmail: "",
+            companyName: interviewData.companyName || "Company",
+            candidateName: interviewData.candidateName || "Candidate",
+            candidateEmail: interviewData.candidateEmail || "",
+            candidateCollege: interviewData.candidateCollege || "",
+            candidateAvatar: interviewData.candidateAvatar,
             date: new Date(inv.scheduledStartAt).toLocaleDateString(),
-            time: new Date(inv.scheduledStartAt).toLocaleTimeString(),
-            type: "Technical",
+            time: new Date(inv.scheduledStartAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            type: (interviewData.type || "Technical") as any,
             status: "Upcoming",
             meetingLink: inv.meetingLink,
           };
@@ -346,14 +363,13 @@ export const hrService = {
       // Map company size to enum
       const sizeStr = payload.companySize || payload.size;
       const sizeEnum = sizeStr
-        ? (['SIZE_1_10', 'SIZE_11_50', 'SIZE_51_200', 'SIZE_201_500', 'SIZE_501_1000', 'SIZE_1000_PLUS'].includes(sizeStr)
+        ? (['SIZE_1_10', 'SIZE_11_50', 'SIZE_51_200', 'SIZE_201_500', 'SIZE_500_PLUS'].includes(sizeStr)
             ? sizeStr
             : String(sizeStr).includes('1-10') ? 'SIZE_1_10'
-            : String(sizeStr).includes('11-50') ? 'SIZE_11_50'
-            : String(sizeStr).includes('201-500') ? 'SIZE_201_500'
-            : String(sizeStr).includes('501-1000') ? 'SIZE_501_1000'
-            : String(sizeStr).includes('1000') ? 'SIZE_1000_PLUS'
-            : 'SIZE_51_200')
+            : String(sizeStr).includes('10 - 20') || String(sizeStr).includes('10-20') || String(sizeStr).includes('20 - 50') || String(sizeStr).includes('11-50') ? 'SIZE_11_50'
+            : String(sizeStr).includes('50 - 200') || String(sizeStr).includes('51-200') ? 'SIZE_51_200'
+            : String(sizeStr).includes('200 -') || String(sizeStr).includes('201-500') ? 'SIZE_201_500'
+            : 'SIZE_500_PLUS')
         : undefined;
 
       const sanitized: Record<string, any> = {};
@@ -363,6 +379,8 @@ export const hrService = {
       if (payload.industry) sanitized.industry = String(payload.industry).trim();
       if (sizeEnum) sanitized.companySize = sizeEnum;
       if (payload.location) sanitized.location = String(payload.location).trim();
+      if (payload.tagline !== undefined) sanitized.tagline = payload.tagline ? String(payload.tagline).trim() : null;
+      if (payload.culture !== undefined) sanitized.culture = payload.culture ? String(payload.culture).trim() : null;
       if (payload.about || payload.description) sanitized.about = String(payload.about || payload.description).trim();
 
       // Update company
@@ -371,11 +389,19 @@ export const hrService = {
       // If recruiter phone or designation provided, update HR profile too
       if (payload.hrPhone || payload.phone || payload.recruiterName || payload.designation) {
         try {
-          await apiClient.patch("/hr/me", {
-            phone: payload.hrPhone || payload.phone,
-            designation: payload.designation,
-            fullName: payload.recruiterName,
-          });
+          const hrUpdate: Record<string, any> = {};
+          if (payload.hrPhone || payload.phone) {
+            hrUpdate.phone = String(payload.hrPhone || payload.phone).trim();
+          }
+          if (payload.designation && String(payload.designation).trim()) {
+            hrUpdate.designation = String(payload.designation).trim();
+          }
+          if (payload.recruiterName && String(payload.recruiterName).trim().length >= 2) {
+            hrUpdate.fullName = String(payload.recruiterName).trim();
+          }
+          if (Object.keys(hrUpdate).length > 0) {
+            await apiClient.patch("/hr/me", hrUpdate);
+          }
         } catch {
           // Soft fail
         }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   Search,
@@ -32,6 +32,7 @@ interface StudentBrowseJobsClientProps {
 }
 
 export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJobsClientProps) {
+  const queryClient = useQueryClient();
   const mergeAppliedFromStorage = (list: StudentBrowseJobItem[]) => {
     try {
       return list.map((j) => ({
@@ -93,14 +94,42 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
   const [activeQuickFilter, setActiveQuickFilter] = useState("");
   const [sortBy, setSortBy] = useState("Newest First");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const [bookmarks, setBookmarks] = useState<{ [id: string]: boolean }>(() => {
     const map: { [id: string]: boolean } = {};
-    initialData.jobs.forEach((j) => { map[j.id] = !!j.isBookmarked; });
+    initialData.jobs.forEach((j) => {
+      map[j.id] = !!j.isBookmarked || (typeof window !== "undefined" && localStorage.getItem(`saved_job_${j.id}`) === "true");
+    });
     return map;
   });
 
-  const toggleBookmark = (id: string) => setBookmarks((prev) => ({ ...prev, [id]: !prev[id] }));
+  // Hydrate saved jobs from backend on mount
+  useEffect(() => {
+    studentService.getSavedJobs().then((savedList) => {
+      if (Array.isArray(savedList)) {
+        const map: { [id: string]: boolean } = {};
+        savedList.forEach((j) => { map[j.id] = true; });
+        setBookmarks((prev) => ({ ...prev, ...map }));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const toggleBookmark = async (id: string) => {
+    const isCurrentlySaved = !!bookmarks[id];
+    setBookmarks((prev) => ({ ...prev, [id]: !isCurrentlySaved }));
+    try {
+      if (isCurrentlySaved) {
+        await studentService.removeSavedJob(id);
+      } else {
+        await studentService.saveJob(id);
+      }
+      queryClient.invalidateQueries({ queryKey: ["student-saved-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
+    } catch {
+      setBookmarks((prev) => ({ ...prev, [id]: isCurrentlySaved }));
+    }
+  };
 
   const getSalaryLPA = (text?: string): number => {
     if (!text) return 0;
@@ -326,15 +355,34 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
               type="button"
               onClick={handleImmediateSearch}
               disabled={isSearching}
-              className="h-11 px-5 bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-[13px] font-semibold rounded-xl transition shadow-sm cursor-pointer flex items-center gap-1.5 shrink-0 disabled:opacity-60"
+              className="h-11 px-4 sm:px-5 bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-[13px] font-semibold rounded-xl transition shadow-sm cursor-pointer flex items-center gap-1.5 shrink-0 disabled:opacity-60 active:scale-95"
             >
               {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
               <span className="hidden sm:inline">Search</span>
             </button>
+
+            {/* Mobile Filter Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen((prev) => !prev)}
+              className={`sm:hidden h-11 px-3.5 rounded-xl border flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer active:scale-95 shrink-0 ${
+                mobileFiltersOpen || [selectedLocation, selectedJobType, selectedExperience, selectedWorkMode, selectedSalary].some(x => x !== "All")
+                  ? "bg-[#EEF4FF] border-[#1E5BE0] text-[#1E5BE0]"
+                  : "bg-[#F7F9FD] border-[#E3E8F0] text-[#0B1F4B]"
+              }`}
+            >
+              <Filter className="w-3.5 h-3.5" />
+              <span>Filters</span>
+              {[selectedLocation, selectedJobType, selectedExperience, selectedWorkMode, selectedSalary].filter(x => x !== "All").length > 0 && (
+                <span className="w-4 h-4 rounded-full bg-[#1E5BE0] text-white text-[10px] font-bold flex items-center justify-center">
+                  {[selectedLocation, selectedJobType, selectedExperience, selectedWorkMode, selectedSalary].filter(x => x !== "All").length}
+                </span>
+              )}
+            </button>
           </div>
 
-          {/* Dropdowns */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          {/* Dropdowns (Collapsible on mobile, always visible on tablet/desktop) */}
+          <div className={`${mobileFiltersOpen ? "grid" : "hidden sm:grid"} grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-1`}>
             {[
               { icon: <MapPin className="w-3.5 h-3.5" />, val: selectedLocation, set: setSelectedLocation, opts: [["All","All Locations"],["Chennai","Chennai"],["Bangalore","Bangalore"],["Hyderabad","Hyderabad"],["Pune","Pune"],["Remote","Remote"]] },
               { icon: <Briefcase className="w-3.5 h-3.5" />, val: selectedJobType, set: setSelectedJobType, opts: [["All","Job Type"],["Full Time","Full Time"],["Internship","Internship"],["Part Time","Part Time"]] },
@@ -356,16 +404,16 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
             ))}
           </div>
 
-          {/* Quick filters */}
-          <div className="flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            <Filter className="w-3.5 h-3.5 text-[#9BA5BB] shrink-0" />
+          {/* Quick filters (Horizontal swipeable chip row) */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ scrollbarWidth: "none" }}>
+            <span className="text-[11px] font-semibold text-[#6B7694] shrink-0 hidden sm:inline">Quick:</span>
             {quickFilters.map((qf) => (
               <button
                 key={qf}
                 type="button"
                 onClick={() => setActiveQuickFilter(activeQuickFilter === qf ? "" : qf)}
-                className={`text-[12px] font-semibold px-3 py-1 rounded-full whitespace-nowrap transition-all cursor-pointer shrink-0 ${
-                  activeQuickFilter === qf ? "bg-[#1E5BE0] text-white shadow-sm" : "bg-[#F4F6FA] text-[#6B7694] hover:bg-[#EEF4FF] hover:text-[#1E5BE0]"
+                className={`text-[12px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer shrink-0 active:scale-95 ${
+                  activeQuickFilter === qf ? "bg-[#1E5BE0] text-white shadow-xs" : "bg-[#F4F6FA] text-[#6B7694] hover:bg-[#EEF4FF] hover:text-[#1E5BE0]"
                 }`}
               >
                 {qf}

@@ -231,7 +231,7 @@ export const applicationsService = {
           appliedDateText: new Date(app.appliedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
           location: app.job?.location || "—",
           jobType: mapJobType(app.job?.employmentType || ""),
-          experience: app.job?.minExperience === 0 ? "Fresher" : `${app.job?.minExperience}+ Years`,
+          experience: app.job?.minExperience === 0 ? "Fresher" : app.job?.minExperience != null ? `${app.job.minExperience}+ Years` : "Fresher",
           status,
           statusUpdateText: `Status: ${s}`,
           steps: [

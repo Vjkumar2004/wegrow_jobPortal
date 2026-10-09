@@ -118,7 +118,7 @@ export const adminService = {
 
   async getJobs(): Promise<Job[]> {
     try {
-      const response = await apiClient.get<{ success: boolean; data: { items: any[] } }>("/jobs?limit=100");
+      const response = await apiClient.get<{ success: boolean; data: { items: any[] } }>("/jobs?limit=50");
       const items = response.data?.data?.items;
       if (Array.isArray(items)) {
         return items.map(mapBackendJobToFrontend);
@@ -164,7 +164,7 @@ export const adminService = {
     try {
       const [companiesRes, jobsRes, studentsRes] = await Promise.all([
         apiClient.get<{ success: boolean; data: { items: any[] } }>("/admin/companies?limit=100").catch(() => null),
-        apiClient.get<{ success: boolean; data: { items: any[] } }>("/jobs?limit=100").catch(() => null),
+        apiClient.get<{ success: boolean; data: { items: any[] } }>("/jobs?limit=50").catch(() => null),
         apiClient.get<{ success: boolean; data: { items: any[] } }>("/admin/students").catch(() => null),
       ]);
 

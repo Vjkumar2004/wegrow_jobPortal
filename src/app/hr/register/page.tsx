@@ -41,7 +41,7 @@ export default function HRRegisterPage() {
   const [industry, setIndustry] = useState("Information Technology & Services");
   const [website, setWebsite] = useState("");
   const [location, setLocation] = useState("");
-  const [size, setSize] = useState("50 - 200 employees");
+  const [size, setSize] = useState("10 - 20 employees");
   const [hrEmail, setHrEmail] = useState("");
   const [hrPhone, setHrPhone] = useState("");
   const [description, setDescription] = useState("");
@@ -112,18 +112,20 @@ export default function HRRegisterPage() {
 
     try {
       const mappedSize =
-        size === "100,000+ employees" || size === "1,000 - 10,000 employees"
+        size === "100,000+ employees" || size === "10,000+ employees" || size === "1,000 - 10,000 employees"
           ? "SIZE_500_PLUS"
           : size === "200 - 1,000 employees"
           ? "SIZE_201_500"
-          : "SIZE_51_200";
+          : size === "50 - 200 employees"
+          ? "SIZE_51_200"
+          : "SIZE_11_50";
 
       // 1. Register corporate HR user account with backend including logo & company profile
       await authService.register({
         name: name.trim(),
         email: email.trim(),
         companyName: companyName.trim(),
-        phone: phone.trim(),
+        phone: hrPhone.trim() || phone.trim(),
         password,
         role: "HR",
         companyWebsite: website.trim() || undefined,
@@ -133,11 +135,15 @@ export default function HRRegisterPage() {
         companyLogo: companyLogoUrl || undefined,
         companySize: mappedSize,
         about: description.trim() || undefined,
+        tagline: tagline.trim() || undefined,
+        culture: culture.trim() || undefined,
       });
 
       // 2. Temporarily keep company profile in sessionStorage for onboarding right after verification
       const companyOnboardingData = {
         companyName: companyName.trim(),
+        tagline: tagline.trim() || undefined,
+        culture: culture.trim() || undefined,
         logoUrl: companyLogoUrl || undefined,
         website: website.trim() || undefined,
         industry: industry.trim() || undefined,
@@ -146,7 +152,7 @@ export default function HRRegisterPage() {
         about: description.trim() || undefined,
         fullName: name.trim() || undefined,
         designation: "Hiring Lead",
-        phone: phone.trim() || undefined,
+        phone: hrPhone.trim() || phone.trim() || undefined,
       };
 
       try {
@@ -612,10 +618,12 @@ export default function HRRegisterPage() {
                         onChange={(e) => setSize(e.target.value)}
                         className="w-full bg-[#F8FAFD] border border-slate-200 text-slate-900 text-xs px-3.5 py-2.5 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0756A8]/20 focus:border-[#0756A8] cursor-pointer"
                       >
+                        <option value="10 - 20 employees">10 - 20 employees</option>
+                        <option value="20 - 50 employees">20 - 50 employees</option>
                         <option value="50 - 200 employees">50 - 200 employees</option>
                         <option value="200 - 1,000 employees">200 - 1,000 employees</option>
                         <option value="1,000 - 10,000 employees">1,000 - 10,000 employees</option>
-                        <option value="100,000+ employees">100,000+ employees</option>
+                        <option value="10,000+ employees">10,000+ employees</option>
                       </select>
                     </div>
                   </div>

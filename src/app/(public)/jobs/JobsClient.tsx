@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 
 import { authService } from "@/services/auth.service";
+import { studentService } from "@/services/student.service";
 import { jobsService } from "@/services/jobs.service";
 
 interface FilterParams {
@@ -90,8 +91,34 @@ export default function JobsClient({
     };
   }, [initialParams]);
 
-  const toggleSave = (jobId: string) => {
-    setSavedJobs((prev) => ({ ...prev, [jobId]: !prev[jobId] }));
+  useEffect(() => {
+    const user = authService.getCurrentUser();
+    if (user?.role === "STUDENT") {
+      studentService.getSavedJobs().then((savedList) => {
+        if (Array.isArray(savedList)) {
+          const map: Record<string, boolean> = {};
+          savedList.forEach((j) => { map[j.id] = true; });
+          setSavedJobs(map);
+        }
+      }).catch(() => {});
+    }
+  }, []);
+
+  const toggleSave = async (jobId: string) => {
+    const isCurrentlySaved = !!savedJobs[jobId];
+    setSavedJobs((prev) => ({ ...prev, [jobId]: !isCurrentlySaved }));
+    const user = authService.getCurrentUser();
+    if (user?.role === "STUDENT") {
+      try {
+        if (isCurrentlySaved) {
+          await studentService.removeSavedJob(jobId);
+        } else {
+          await studentService.saveJob(jobId);
+        }
+      } catch {
+        setSavedJobs((prev) => ({ ...prev, [jobId]: isCurrentlySaved }));
+      }
+    }
   };
 
   const applyFilters = () => {

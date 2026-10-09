@@ -289,7 +289,8 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
 
       {/* 3. Candidates Pipeline Table with Instant Status Change */}
       <div className="bg-white rounded-[16px] border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-[#F7F9FD] text-[#6B7694] font-semibold uppercase text-[11px] border-b border-[#EEF1F7]">
               <tr>
@@ -477,6 +478,162 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Native APK Candidate Cards View */}
+        <div className="md:hidden divide-y divide-[#EEF1F7] p-3 space-y-3">
+          {filteredApplicants.length === 0 ? (
+            <div className="py-10 text-center text-xs text-[#6B7694]">
+              No candidates found for this status tab or search filter.
+            </div>
+          ) : (
+            filteredApplicants.map((app) => (
+              <div
+                key={app.id}
+                className="bg-[#F8FAFC] border border-[#E9EFF6] rounded-2xl p-4 space-y-3 shadow-2xs"
+              >
+                {/* Header: Candidate Info & Status Dropdown */}
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <div className="w-10 h-10 rounded-full shrink-0 shadow-xs overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-blue-400 flex items-center justify-center">
+                      {app.applicantAvatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={app.applicantAvatar}
+                          alt={app.applicantName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const fallbackUrl = app.applicantId
+                              ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${app.applicantId}`
+                              : "";
+                            if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
+                              e.currentTarget.src = fallbackUrl;
+                              return;
+                            }
+                            const el = e.currentTarget;
+                            el.style.display = "none";
+                            const parent = el.parentElement;
+                            if (parent && !parent.querySelector(".fb-init")) {
+                              const span = document.createElement("span");
+                              span.className = "fb-init text-white font-bold text-sm";
+                              span.textContent = getNameInitials(app.applicantName);
+                              parent.appendChild(span);
+                            }
+                          }}
+                        />
+                      ) : (
+                        <span className="text-white font-bold text-sm">
+                          {getNameInitials(app.applicantName)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-[#0B1F4B] text-sm truncate">{app.applicantName}</p>
+                      <p className="text-[11px] text-[#6B7694] truncate">{app.applicantEmail}</p>
+                    </div>
+                  </div>
+
+                  <select
+                    value={app.status}
+                    onChange={(e) => handleStatusChange(app, e.target.value)}
+                    className="bg-white text-[#0B1F4B] text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-[#D8E2EE] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 shadow-2xs shrink-0"
+                  >
+                    <option value="Under Review">Under Review</option>
+                    <option value="Shortlisted">Shortlisted</option>
+                    <option value="Interview">Interview</option>
+                    <option value="Selected">Selected</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+
+                {/* Candidate Quick Meta */}
+                <div className="bg-white rounded-xl p-2.5 border border-[#EEF1F7] text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#6B7694] text-[11px]">Applied Role:</span>
+                    <span className="font-semibold text-[#0B1F4B] text-right truncate max-w-[200px]">
+                      {app.jobTitle}
+                    </span>
+                  </div>
+                  {app.applicantCollege && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#6B7694] text-[11px]">College:</span>
+                      <span className="text-[#3E4A62] text-[11px] font-medium text-right truncate max-w-[190px]">
+                        {app.applicantCollege}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between pt-0.5 text-[11px] text-[#6B7694]">
+                    <span>Applied: {formatDate(app.appliedDate)}</span>
+                    <span className={`px-2 py-0.5 rounded-full font-bold ${getStatusBadge(app.status)}`}>
+                      {app.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions row */}
+                <div className="flex items-center gap-2 pt-0.5">
+                  {/* CV Download / View */}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (app.resumeId) {
+                        try {
+                          const dl = await hrService.getCandidateResumeDownloadUrl(app.resumeId);
+                          if (dl?.downloadUrl) {
+                            window.open(dl.downloadUrl, "_blank", "noopener,noreferrer");
+                            return;
+                          }
+                        } catch (err: any) {
+                          showToast(err.response?.data?.message || "Failed to download candidate resume");
+                          return;
+                        }
+                      }
+                      if (app.resumeUrl) {
+                        window.open(app.resumeUrl, "_blank", "noopener,noreferrer");
+                      } else {
+                        showToast("No resume on file for this candidate.");
+                      }
+                    }}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-[#D8E2EE] text-[#1E5BE0] active:bg-[#F1F4F9] rounded-xl text-xs font-bold shadow-2xs"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>View CV</span>
+                  </button>
+
+                  {/* Schedule or Scheduled */}
+                  {scheduledAppIds.has(app.id) ? (
+                    <span className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8] rounded-xl text-xs font-semibold select-none">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Scheduled</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openScheduleModal(app)}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 bg-[#1E5BE0] active:scale-[0.98] text-white rounded-xl text-xs font-semibold shadow-xs"
+                    >
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>Schedule</span>
+                    </button>
+                  )}
+
+                  {/* Reject button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Reject application for ${app.applicantName}?`)) {
+                        updateStatus(app.id, "Rejected");
+                      }
+                    }}
+                    className="inline-flex items-center justify-center p-2 text-rose-600 bg-rose-50 border border-rose-200 rounded-xl active:bg-rose-100"
+                    title="Reject Candidate"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

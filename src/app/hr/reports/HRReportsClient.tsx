@@ -149,7 +149,7 @@ export default function HRReportsClient({ initialReports }: { initialReports?: P
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap w-full sm:w-auto shrink-0">
           {loading && (
             <div className="inline-flex items-center gap-1.5 text-xs text-[#6B7694]">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1E5BE0]" />
@@ -160,7 +160,7 @@ export default function HRReportsClient({ initialReports }: { initialReports?: P
           <select
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value as any)}
-            className="bg-white border border-[#E3E8F0] text-[#0B1F4B] text-xs font-semibold px-3 py-2 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 shadow-xs cursor-pointer"
+            className="flex-1 sm:flex-initial bg-white border border-[#E3E8F0] text-[#0B1F4B] text-xs font-semibold px-3 py-2 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 shadow-xs cursor-pointer"
           >
             <option value="Last 3 Months">Last 3 Months</option>
             <option value="Last 6 Months">Last 6 Months</option>
@@ -170,7 +170,7 @@ export default function HRReportsClient({ initialReports }: { initialReports?: P
           <button
             type="button"
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#1E5BE0] hover:bg-[#1546B0] text-white text-xs font-semibold rounded-[10px] transition-colors shadow-sm cursor-pointer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-[#1E5BE0] hover:bg-[#1546B0] text-white text-xs font-semibold rounded-[10px] transition-colors shadow-sm cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export Analytics</span>

@@ -132,10 +132,11 @@ export default function PostJobModal({ isOpen, onClose, onJobCreated }: PostJobM
             <button
               type="button"
               onClick={handleQuickTemplate}
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-[#1E5BE0] bg-[#E8F0FF] hover:bg-[#d8e6ff] px-3 py-1.5 rounded-lg transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-bold text-[#1E5BE0] bg-[#E8F0FF] hover:bg-[#d8e6ff] px-2.5 sm:px-3 py-1.5 rounded-lg transition cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" />
-              <span>Fill SDE Template</span>
+              <span className="hidden sm:inline">Fill SDE Template</span>
+              <span className="sm:hidden">Auto-fill</span>
             </button>
             <button
               type="button"

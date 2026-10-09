@@ -177,7 +177,11 @@ export interface BackendInterview {
       };
     };
     student?: {
+      id?: string;
       fullName: string;
+      avatarUrl?: string | null;
+      avatarStorageKey?: string | null;
+      currentCollege?: string | null;
       user?: {
         email: string;
       };

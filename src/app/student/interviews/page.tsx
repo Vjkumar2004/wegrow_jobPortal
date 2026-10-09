@@ -70,7 +70,7 @@ export default function StudentInterviewsPage() {
             {upcoming.map((item) => (
               <div
                 key={item.id}
-                className="bg-white rounded-[14px] border border-[#EEF1F7] p-6 shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:border-[#1E5BE0]/40 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md space-y-4 flex flex-col justify-between"
+                className="bg-white rounded-2xl border border-[#EEF1F7] p-4 sm:p-6 shadow-2xs hover:border-[#1E5BE0]/40 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs space-y-4 flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">

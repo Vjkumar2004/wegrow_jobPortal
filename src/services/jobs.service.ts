@@ -123,8 +123,8 @@ export const jobsService = {
       const queryParams: Record<string, string | number> = {};
       if (params?.search) queryParams.search = params.search;
       if (params?.location && params.location !== "All") queryParams.location = params.location;
-      if (params?.page) queryParams.page = params.page;
-      if (params?.limit) queryParams.limit = params.limit;
+      if (params?.page) queryParams.page = Math.max(1, Number(params.page) || 1);
+      queryParams.limit = Math.min(Number(params?.limit) || 50, 50);
 
       // Map workMode filter
       if (params?.workMode && params.workMode !== "All") {
@@ -243,7 +243,9 @@ export const jobsService = {
         workMode: j.workMode,
         experience: j.experience,
         salaryText: j.salaryMin && j.salaryMax
-          ? `Rs ${Math.round(j.salaryMin / 100000)} - ${Math.round(j.salaryMax / 100000)} LPA`
+          ? `₹${(j.salaryMin / 100000).toFixed(1).replace(/\.0$/, "")} - ₹${(j.salaryMax / 100000).toFixed(1).replace(/\.0$/, "")} LPA`
+          : j.salaryMin
+          ? `₹${(j.salaryMin / 100000).toFixed(1).replace(/\.0$/, "")} LPA`
           : "Not Disclosed",
         skills: j.skills,
         overflowSkillsCount: Math.max(0, j.skills.length - 3),

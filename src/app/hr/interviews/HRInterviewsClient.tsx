@@ -30,7 +30,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Interview, Application } from "@/types";
 import { hrService } from "@/services/hr.service";
-import { getNameInitials } from "@/lib/utils";
+import { getNameInitials, resolveMediaUrl } from "@/lib/utils";
 
 interface HRInterviewsClientProps {
   initialInterviews: Interview[];
@@ -167,11 +167,14 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
         endIso = new Date(d.getTime() + 60 * 60 * 1000).toISOString();
       }
 
+      const selectedApp = applicantsList.find((a) => a.id === selectedAppId);
       const created = await hrService.scheduleInterview({
         applicationId: selectedAppId,
-        candidateName: customCandidateName,
-        candidateEmail: customCandidateEmail,
-        jobTitle: customJobTitle || "Software Trainee",
+        candidateName: customCandidateName || selectedApp?.applicantName || "Candidate",
+        candidateEmail: customCandidateEmail || selectedApp?.applicantEmail || "",
+        candidateCollege: selectedApp?.applicantCollege,
+        candidateAvatar: selectedApp?.applicantAvatar,
+        jobTitle: customJobTitle || selectedApp?.jobTitle || "Software Trainee",
         date: interviewDate,
         time: interviewTime,
         type: interviewType,
@@ -180,6 +183,10 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
         scheduledStartAt: startIso,
         scheduledEndAt: endIso,
       });
+
+      if (selectedApp?.applicantAvatar && !created.candidateAvatar) {
+        created.candidateAvatar = selectedApp.applicantAvatar;
+      }
 
       setInterviews((prev) => [created, ...prev]);
       queryClient.invalidateQueries({ queryKey: ["hr-interviews"] });
@@ -249,19 +256,19 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto shrink-0">
           <Link
             href="/hr/applicants"
-            className="inline-flex items-center gap-2 px-3.5 py-2.5 border border-[#E3E8F0] hover:bg-white text-[#0B1F4B] text-xs font-semibold rounded-[10px] transition-colors shadow-2xs"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2.5 border border-[#E3E8F0] hover:bg-white text-[#0B1F4B] text-xs font-semibold rounded-xl transition-colors shadow-2xs"
           >
             <User className="w-3.5 h-3.5 text-[#1E5BE0]" />
-            <span>View Applicants</span>
+            <span>Applicants</span>
           </Link>
 
           <button
             type="button"
             onClick={() => setIsScheduleModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1E5BE0] hover:bg-[#1546B0] text-white text-xs font-bold rounded-[10px] transition-colors shadow-sm cursor-pointer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-[#1E5BE0] hover:bg-[#1546B0] text-white text-xs font-bold rounded-xl transition-colors shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Schedule Interview</span>
@@ -447,15 +454,23 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
               {/* Header: Candidate Details & Format Badges */}
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-base flex items-center justify-center shrink-0 shadow-2xs overflow-hidden">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-base flex items-center justify-center shrink-0 shadow-2xs overflow-hidden relative">
                     {interview.candidateAvatar ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={interview.candidateAvatar}
+                        src={resolveMediaUrl(interview.candidateAvatar)}
                         alt={interview.candidateName}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.currentTarget.style.display = "none";
+                          const el = e.currentTarget;
+                          el.style.display = "none";
+                          const parent = el.parentElement;
+                          if (parent && !parent.querySelector(".fallback-initials")) {
+                            const span = document.createElement("span");
+                            span.className = "fallback-initials text-white font-bold text-base select-none";
+                            span.textContent = getNameInitials(interview.candidateName || "Candidate");
+                            parent.appendChild(span);
+                          }
                         }}
                       />
                     ) : (
@@ -619,7 +634,7 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
       {/* 5. Schedule Interview Modal */}
       {isScheduleModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B1F4B]/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-[20px] max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-[#EEF1F7] space-y-5">
+          <div className="bg-white rounded-[20px] max-w-lg w-full max-h-[92vh] overflow-y-auto p-5 sm:p-7 shadow-2xl border border-[#EEF1F7] space-y-5">
             <div className="flex items-center justify-between border-b border-[#EEF1F7] pb-4">
               <div>
                 <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1E5BE0] bg-[#E8F0FF] px-2.5 py-0.5 rounded-full mb-1">

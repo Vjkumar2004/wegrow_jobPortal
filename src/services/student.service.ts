@@ -752,8 +752,23 @@ export const studentService = {
   async saveJob(jobId: string): Promise<boolean> {
     try {
       await apiClient.post(`/students/me/saved-jobs/${jobId}`);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`saved_job_${jobId}`, "true");
+        } catch {}
+      }
       return true;
-    } catch {
+    } catch (err: any) {
+      if (err?.response?.status === 409) {
+        // Already bookmarked in DB
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`saved_job_${jobId}`, "true");
+          } catch {}
+        }
+        return true;
+      }
+      console.error("Failed to save job:", err);
       return false;
     }
   },
@@ -764,8 +779,23 @@ export const studentService = {
   async removeSavedJob(jobId: string): Promise<boolean> {
     try {
       await apiClient.delete(`/students/me/saved-jobs/${jobId}`);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem(`saved_job_${jobId}`);
+        } catch {}
+      }
       return true;
-    } catch {
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        // Already removed
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.removeItem(`saved_job_${jobId}`);
+          } catch {}
+        }
+        return true;
+      }
+      console.error("Failed to remove saved job:", err);
       return false;
     }
   },
