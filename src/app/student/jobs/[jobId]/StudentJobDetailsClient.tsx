@@ -387,10 +387,10 @@ export default function StudentJobDetailsClient({
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#FFF0E6]/60 via-[#E8F0FF]/40 to-transparent rounded-full blur-3xl -z-0 pointer-events-none" />
 
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-            {/* Left: Company Logo Tile + Badges + Title */}
-            <div className="flex flex-col sm:flex-row items-start gap-5 sm:gap-6 min-w-0 flex-1">
-              {/* Logo Tile */}
-              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 border-white bg-white p-2.5 flex items-center justify-center shrink-0 shadow-md ring-2 ring-[#EEF1F7]">
+            {/* Left: Logo + Job Info (Side by Side like LinkedIn) */}
+            <div className="flex items-start gap-4 sm:gap-5 min-w-0 flex-1">
+              {/* Company Logo Tile */}
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border border-[#EEF1F7] bg-white p-2 flex items-center justify-center shrink-0 shadow-sm ring-1 ring-slate-100">
                 {job.company.logo || job.company.id ? (
                   <img
                     src={getCompanyLogoUrl(job.company, job.company.id)}
@@ -413,112 +413,136 @@ export default function StudentJobDetailsClient({
                   </div>
                 )}
                 {/* Verified badge pin */}
-                <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#22B573] text-white flex items-center justify-center border-2 border-white shadow-xs">
-                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#22B573] text-white flex items-center justify-center border-2 border-white shadow-xs">
+                  <Check className="w-3 h-3 stroke-[3]" />
                 </span>
               </div>
 
-              {/* Title, Category Badges & Metadata */}
-              <div className="min-w-0 flex-1 space-y-2.5">
-                {/* Badges Pill Row */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8]">
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#22B573]" />
-                    Verified Campus Partner
-                  </span>
-
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#E8F0FF] text-[#1E5BE0] border border-[#D0E2FF]">
-                    <Sparkles className="w-3.5 h-3.5 text-[#1E5BE0]" />
-                    {job.experience || "Fresher Friendly"}
-                  </span>
-
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#FFF0E6] text-[#FF6B00] border border-[#FFE0CC]">
-                    <Tag className="w-3.5 h-3.5 text-[#FF6B00]" />
-                    {job.jobType} • {job.workMode}
-                  </span>
-
-                  {job.status === "Published" && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Actively Hiring
-                    </span>
-                  )}
-                </div>
-
-                {/* Job Title */}
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#0B1F4B] leading-tight tracking-tight">
+              {/* Directly beside Logo: Title, Company Name, Meta, Badges, and Action Buttons */}
+              <div className="min-w-0 flex-1 space-y-2">
+                {/* 1. Job Title */}
+                <h1 className="text-xl sm:text-2xl lg:text-[28px] font-extrabold text-[#0B1F4B] leading-tight tracking-tight">
                   {job.title}
                 </h1>
 
-                {/* Company Name & Location line */}
-                <div className="flex flex-wrap items-center gap-3 text-sm text-[#6B7694]">
-                  <span className="font-bold text-[#1E5BE0] text-[15px] sm:text-[16px]">
-                    {job.company.name}
-                  </span>
-                  <span>•</span>
-                  <span className="inline-flex items-center gap-1 text-[#0B1F4B] font-medium">
-                    <MapPin className="w-4 h-4 text-[#FF6B00]" />
+                {/* 2. Company Name & Location Meta line (LinkedIn pattern) */}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-[14px] text-[#475467]">
+                  <a
+                    href="#company"
+                    className="font-bold text-[#1E5BE0] hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>{job.company.name}</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#22B573]" />
+                  </a>
+                  <span>·</span>
+                  <span className="font-medium text-[#0B1F4B]">
                     {job.location} ({job.workMode})
                   </span>
-                  {job.deadline && (
+                  <span>·</span>
+                  <span className="text-[#6B7694]">
+                    {job.postedDate
+                      ? new Date(job.postedDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })
+                      : "Recently Posted"}
+                  </span>
+                  {job.status === "Published" && (
                     <>
-                      <span>•</span>
-                      <span className="inline-flex items-center gap-1 text-rose-600 font-semibold text-xs">
-                        <Clock className="w-3.5 h-3.5" />
-                        Apply by {new Date(job.deadline).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                      <span>·</span>
+                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Actively Hiring
                       </span>
                     </>
                   )}
                 </div>
+
+                {/* 3. Attribute Chips (Badges) */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8]">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#22B573]" />
+                    Verified Campus Partner
+                  </span>
+
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#E8F0FF] text-[#1E5BE0] border border-[#D0E2FF]">
+                    <Sparkles className="w-3.5 h-3.5 text-[#1E5BE0]" />
+                    {job.experience || "Fresher Friendly"}
+                  </span>
+
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FFF0E6] text-[#FF6B00] border border-[#FFE0CC]">
+                    <Tag className="w-3.5 h-3.5 text-[#FF6B00]" />
+                    {job.jobType}
+                  </span>
+
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F8FAFD] text-[#0B1F4B] border border-[#EEF1F7]">
+                    <IndianRupee className="w-3 h-3 text-[#FF6B00]" />
+                    {formattedSalary}
+                  </span>
+                </div>
+
+                {/* 4. Action Buttons (Apply, Save, Share) - Placed directly under the job info */}
+                <div className="flex flex-wrap items-center gap-3 pt-3">
+                  {isApplied ? (
+                    <button
+                      disabled
+                      className="h-11 px-6 rounded-xl text-xs sm:text-sm font-bold bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8] cursor-not-allowed shadow-none flex items-center justify-center gap-2 select-none"
+                    >
+                      <CheckCircle className="w-4 h-4 stroke-[2.5]" />
+                      <span>Already Applied</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setApplyModalOpen(true)}
+                      className="h-11 px-7 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_4px_18px_rgba(255,107,0,0.3)] hover:shadow-[0_8px_25px_rgba(255,107,0,0.4)] bg-gradient-to-r from-[#FF6B00] via-[#FF7A1A] to-[#FF8533] text-white hover:opacity-95 active:scale-98"
+                    >
+                      <span>Apply Now</span>
+                      <Send className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
+                  <button
+                    onClick={handleToggleSave}
+                    className={`h-11 px-4.5 rounded-xl border flex items-center gap-2 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                      isSaved
+                        ? "bg-[#1E5BE0] border-[#1E5BE0] text-white shadow-sm"
+                        : "bg-white border-[#EEF1F7] text-[#475467] hover:border-[#1E5BE0] hover:text-[#1E5BE0] hover:bg-[#F7F9FD]"
+                    }`}
+                    aria-label="Bookmark Job"
+                    title={isSaved ? "Saved in Bookmarks" : "Save this Job"}
+                  >
+                    <Bookmark className={`w-4 h-4 ${isSaved ? "fill-white text-white" : ""}`} />
+                    <span>{isSaved ? "Saved" : "Save"}</span>
+                  </button>
+
+                  <button
+                    onClick={handleShare}
+                    className="h-11 px-4.5 rounded-xl border border-[#EEF1F7] bg-white hover:bg-[#F7F9FD] text-[#475467] hover:text-[#0B1F4B] flex items-center gap-2 text-xs sm:text-sm font-semibold transition-all cursor-pointer"
+                    title="Share Job"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>{copiedLink ? "Copied!" : "Share"}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Right: CTA Actions & Sharing Card */}
-            <div className="flex sm:flex-row lg:flex-col items-center lg:items-end justify-between sm:justify-start gap-3 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-[#EEF1F7]">
-              {/* Primary Apply Button */}
-              {isApplied ? (
-                <button
-                  disabled
-                  className="w-full sm:w-auto lg:w-[200px] h-[48px] px-6 rounded-xl text-sm font-bold bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8] cursor-not-allowed shadow-none flex items-center justify-center gap-2 select-none"
-                >
-                  <CheckCircle className="w-4 h-4 stroke-[2.5]" />
-                  <span>Already Applied</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => setApplyModalOpen(true)}
-                  className="w-full sm:w-auto lg:w-[200px] h-[48px] px-6 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_4px_18px_rgba(255,107,0,0.3)] hover:shadow-[0_8px_25px_rgba(255,107,0,0.4)] bg-gradient-to-r from-[#FF6B00] via-[#FF7A1A] to-[#FF8533] text-white hover:opacity-95 active:scale-98"
-                >
-                  <span>Apply Now</span>
-                  <Send className="w-4 h-4" />
-                </button>
-              )}
-
-              {/* Action Buttons: Save & Share */}
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <button
-                  onClick={handleToggleSave}
-                  className={`h-11 px-4 rounded-xl border flex items-center gap-2 text-xs font-semibold transition-all cursor-pointer ${
-                    isSaved
-                      ? "bg-[#1E5BE0] border-[#1E5BE0] text-white shadow-sm"
-                      : "bg-white border-[#EEF1F7] text-[#475467] hover:border-[#1E5BE0] hover:text-[#1E5BE0] hover:bg-[#F7F9FD]"
-                  }`}
-                  aria-label="Bookmark Job"
-                  title={isSaved ? "Saved in Bookmarks" : "Save this Job"}
-                >
-                  <Bookmark className={`w-4 h-4 ${isSaved ? "fill-white text-white" : ""}`} />
-                  <span>{isSaved ? "Saved" : "Save"}</span>
-                </button>
-
-                <button
-                  onClick={handleShare}
-                  className="h-11 px-4 rounded-xl border border-[#EEF1F7] bg-white hover:bg-[#F7F9FD] text-[#475467] hover:text-[#0B1F4B] flex items-center gap-2 text-xs font-semibold transition-all cursor-pointer"
-                  title="Share Job"
-                >
-                  <Share2 className="w-4 h-4" />
-                  <span>{copiedLink ? "Copied!" : "Share"}</span>
-                </button>
+            {/* Right: Estimated Compensation & Application Deadline Cardlet (Desktop Only) */}
+            <div className="hidden lg:flex flex-col items-end justify-between self-stretch shrink-0 text-right">
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-[#FFF8F3] to-[#F8FAFD] border border-[#FFE8D6] text-right space-y-1 min-w-[210px] shadow-2xs">
+                <span className="text-[11px] font-bold text-[#8E9AAC] uppercase tracking-wider block">
+                  Estimated Package
+                </span>
+                <span className="text-xl font-extrabold text-[#FF6B00] block">
+                  {formattedSalary}
+                </span>
+                <span className="text-[11px] text-[#6B7694] block">
+                  {job.openings || 1} Opening{(job.openings || 1) > 1 ? "s" : ""} · {job.jobType}
+                </span>
               </div>
+              {job.deadline && (
+                <div className="text-xs text-rose-600 font-semibold flex items-center gap-1.5 pt-2">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Deadline: {new Date(job.deadline).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}</span>
+                </div>
+              )}
             </div>
           </div>
 
