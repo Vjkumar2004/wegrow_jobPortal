@@ -148,8 +148,9 @@ export const applicationsService = {
 
   /**
    * Student Application Tracker Page Data
+   * Accepts an optional pre-fetched student profile to skip a duplicate GET /students/me.
    */
-  async getStudentApplicationsPageData(): Promise<import("@/types").StudentApplicationsPageData> {
+  async getStudentApplicationsPageData(cachedProfile?: import("@/types").StudentProfile): Promise<import("@/types").StudentApplicationsPageData> {
     const empty = {
       stats: { totalApplied: 0, underReview: 0, shortlisted: 0, interviews: 0, selected: 0, rejected: 0 },
       monthlyStats: [] as Array<{ month: string; value: number }>,
@@ -161,12 +162,11 @@ export const applicationsService = {
     try {
       const [appsResult, profileResult] = await Promise.allSettled([
         apiClient.get<any>("/students/me/applications"),
-        apiClient.get<any>("/students/me"),
+        cachedProfile ? Promise.resolve(null) : apiClient.get<any>("/students/me"),
       ]);
 
       const res = appsResult.status === "fulfilled" ? appsResult.value : null;
       const resData = res?.data?.data;
-      console.log("[applications.service] raw response:", JSON.stringify(res?.data)?.slice(0, 400));
       const rawItems: BackendStudentApplication[] =
         (Array.isArray(resData?.items) ? resData.items : null) ??
         (Array.isArray(resData?.applications) ? resData.applications : null) ??
@@ -175,7 +175,18 @@ export const applicationsService = {
       let profileCompletion: { percentage: number; checklist: Array<{ label: string; done: boolean }> } =
         { percentage: 0, checklist: [] };
 
-      if (profileResult.status === "fulfilled") {
+      if (cachedProfile) {
+        // Build completion from cached frontend profile
+        const checklist = [
+          { label: "Personal Information", done: Boolean(cachedProfile.name || cachedProfile.phone) },
+          { label: "Education Details", done: Boolean(cachedProfile.education?.length) },
+          { label: "Add Skills", done: Boolean(cachedProfile.skills?.length) },
+          { label: "Upload Resume", done: Boolean(cachedProfile.resumeId) },
+          { label: "Add Projects", done: Boolean(cachedProfile.projects?.length) },
+        ];
+        const doneCount = checklist.filter((c) => c.done).length;
+        profileCompletion = { percentage: Math.round((doneCount / checklist.length) * 100), checklist };
+      } else if (profileResult.status === "fulfilled" && profileResult.value) {
         const d = profileResult.value?.data?.data;
         const stu = d?.profile || d?.student || d;
         if (stu) {
@@ -191,10 +202,7 @@ export const applicationsService = {
             { label: "Add Projects", done: Boolean(rawProjs.length > 0) },
           ];
           const doneCount = checklist.filter((c) => c.done).length;
-          profileCompletion = {
-            percentage: Math.round((doneCount / checklist.length) * 100),
-            checklist,
-          };
+          profileCompletion = { percentage: Math.round((doneCount / checklist.length) * 100), checklist };
         }
       }
 

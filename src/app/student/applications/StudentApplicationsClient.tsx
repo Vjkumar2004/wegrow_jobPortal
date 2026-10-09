@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import type { StudentProfile } from "@/types";
 import Link from "next/link";
 import {
   FileText,
@@ -48,11 +50,16 @@ interface StudentApplicationsClientProps {
 }
 
 export default function StudentApplicationsClient({ initialData = DEFAULT_APPLICATIONS_DATA }: StudentApplicationsClientProps) {
-  const { data = initialData } = useQuery({
+  const queryClient = useQueryClient();
+
+  const { data = initialData, isPending } = useQuery({
     queryKey: ["student-applications"],
-    queryFn: () => applicationsService.getStudentApplicationsPageData(),
+    queryFn: () => {
+      const cachedProfile = queryClient.getQueryData<StudentProfile>(["student-profile"]);
+      return applicationsService.getStudentApplicationsPageData(cachedProfile ?? undefined);
+    },
     initialData,
-    staleTime: 20_000,
+    staleTime: 60_000,
   });
 
   const [activeTab, setActiveTab] = useState<string>("All");
@@ -110,6 +117,24 @@ export default function StudentApplicationsClient({ initialData = DEFAULT_APPLIC
       if (sortBy === "Status") return a.status.localeCompare(b.status);
       return new Date(b.appliedDateText).getTime() - new Date(a.appliedDateText).getTime();
     });
+
+  // Show skeleton while first fetch is in progress
+  if (isPending) {
+    return (
+      <div className="flex-1 p-4 sm:p-6 lg:p-7 space-y-5 animate-pulse">
+        <div className="h-10 w-52 rounded-xl bg-[#EEF1F7]" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-20 rounded-2xl bg-white border border-[#EEF1F7]" />
+          ))}
+        </div>
+        <div className="h-12 rounded-xl bg-white border border-[#EEF1F7]" />
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-36 rounded-2xl bg-white border border-[#EEF1F7]" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col xl:flex-row min-w-0 p-4 sm:p-6 lg:p-7 gap-5 overflow-hidden font-['Poppins',sans-serif] text-[#0B1F4B]">
