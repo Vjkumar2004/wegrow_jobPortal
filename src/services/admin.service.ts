@@ -11,6 +11,20 @@ export interface AuditLog {
   timestamp: string;
 }
 
+export interface EmailLog {
+  id: string;
+  recipientEmail: string;
+  recipientUserId?: string | null;
+  subject: string;
+  templateName?: string | null;
+  status: "QUEUED" | "SENT" | "FAILED";
+  provider?: string | null;
+  providerMessageId?: string | null;
+  failureReason?: string | null;
+  sentAt?: string | null;
+  createdAt: string;
+}
+
 export interface AdminReportData {
   totalStudents: number;
   totalCompanies: number;
@@ -170,6 +184,19 @@ export const adminService = {
   async sendEmail(payload: { to: string; cc?: string; bcc?: string; subject: string; message: string }) {
     const response = await apiClient.post("/admin/email/send", payload);
     return response.data;
+  },
+
+  async getEmailLogs(params?: { search?: string; status?: string; page?: number; limit?: number }): Promise<EmailLog[]> {
+    try {
+      const response = await apiClient.get("/admin/email/logs", { params });
+      const data = response.data?.data?.items || response.data?.data;
+      if (Array.isArray(data)) {
+        return data;
+      }
+      return [];
+    } catch {
+      return [];
+    }
   },
 
   async getReports(): Promise<AdminReportData> {
