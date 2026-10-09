@@ -88,7 +88,8 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
       return studentService.getDashboardData(cachedProfile ?? undefined);
     },
     initialData,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   // Dynamic state populated from dashboardData

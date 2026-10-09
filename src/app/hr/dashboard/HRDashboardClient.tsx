@@ -46,7 +46,7 @@ import CompanyProfileSubSection from "@/components/hr/CompanyProfileSubSection";
 import { authService } from "@/services/auth.service";
 import { hrService } from "@/services/hr.service";
 import { applicationsService } from "@/services/applications.service";
-import { getNameInitials } from "@/lib/utils";
+import { getNameInitials, getHRAvatarUrl } from "@/lib/utils";
 
 interface HRDashboardClientProps {
   initialJobs: Job[];
@@ -254,22 +254,74 @@ export default function HRDashboardClient({
 
   const [companyApprovalStatus, setCompanyApprovalStatus] = useState<CompanyApprovalStatus | null>(null);
   const [companyName, setCompanyName] = useState<string>("");
+  const [hrUserId, setHrUserId] = useState<string>("");
   const [hrUserName, setHrUserName] = useState<string>("");
+  const [hrAvatarUrl, setHrAvatarUrl] = useState<string | null>(null);
+  const [hrCompanyLogoUrl, setHrCompanyLogoUrl] = useState<string | null>(null);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
+  };
 
   React.useEffect(() => {
     const user = authService.getCurrentUser();
     if (user) {
+      if (user.id) setHrUserId(user.id);
       const name = user.name || user.fullName || (user as any).hrProfile?.fullName || "Recruiter";
       setHrUserName(name);
       const hr = (user as any).hrProfile;
       if (hr?.company) {
         setCompanyName(hr.company.name);
+        if (hr.company.logoUrl) setHrCompanyLogoUrl(hr.company.logoUrl);
         const st = hr.company.approvalStatus;
         setCompanyApprovalStatus(
           st === "APPROVED" ? "Approved" : st === "REJECTED" ? "Rejected" : st === "SUSPENDED" ? "Suspended" : "Pending"
         );
       }
+      const avatar =
+        (user as any).avatarUrl ||
+        (user as any).avatar ||
+        (user as any).hrProfile?.avatarUrl ||
+        (user as any).hrProfile?.avatar ||
+        (typeof window !== "undefined"
+          ? localStorage.getItem(`wegrow_hr_avatar_${user.id}`) || localStorage.getItem("wegrow_hr_avatar")
+          : null);
+      if (avatar) setHrAvatarUrl(avatar);
     }
+
+    authService.getMe().then((res) => {
+      const u = res?.data?.user;
+      if (u) {
+        if (u.id) setHrUserId(u.id);
+        const name = u.name || u.fullName || (u as any).hrProfile?.fullName;
+        if (name) setHrUserName(name);
+        const hr = (u as any).hrProfile;
+        if (hr?.company) {
+          if (hr.company.name) setCompanyName(hr.company.name);
+          if (hr.company.logoUrl) setHrCompanyLogoUrl(hr.company.logoUrl);
+        }
+        const avatar =
+          (u as any).avatarUrl ||
+          (u as any).avatar ||
+          (u as any).hrProfile?.avatarUrl ||
+          (u as any).hrProfile?.avatar;
+        if (avatar) {
+          setHrAvatarUrl(avatar);
+        } else if (u.id) {
+          setHrAvatarUrl(getHRAvatarUrl(u.id));
+        }
+      }
+    }).catch(() => {});
+
+    const onAvatarUpdate = (e: any) => {
+      const newAvatar = e.detail?.avatarUrl ?? null;
+      setHrAvatarUrl(newAvatar);
+    };
+    window.addEventListener("hr-avatar-updated", onAvatarUpdate);
+    return () => window.removeEventListener("hr-avatar-updated", onAvatarUpdate);
   }, []);
 
   const activeJobs = jobs.filter((j) => j.status === "Published");
@@ -434,45 +486,114 @@ export default function HRDashboardClient({
       )}
 
       {/* ============================================================== */}
-      {/* 1. WELCOME BANNER (Identical sleek structure to Student view)  */}
+      {/* 1. PREMIUM RECRUITER HERO BANNER                               */}
       {/* ============================================================== */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0B1F4B] via-[#0E2963] to-[#1E5BE0] text-white p-5 sm:p-8 shadow-lg shadow-[#0B1F4B]/10">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6">
-          <div className="space-y-1.5 sm:space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[#FFB020] text-xs font-semibold uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-[#FFB020]" />
-              Campus Recruitment Drive 2025 - 2026
+      <div className="relative overflow-hidden rounded-2xl border border-[#EEF1F7] shadow-[0_4px_20px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F8FAFD] to-[#EDF4FF] p-4 sm:p-6 lg:p-7 transition-all duration-200 hover:shadow-md">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5 sm:gap-6">
+          {/* Left: Avatar + Recruiter Details + Status */}
+          <div className="flex items-start sm:items-center gap-3.5 sm:gap-4.5 min-w-0">
+            {/* Avatar / Brand Icon Frame (strictly sized 48px mobile, 64px desktop) */}
+            <div className="relative w-12 h-12 sm:w-16 sm:h-16 shrink-0">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl border-2 border-white shadow-md overflow-hidden bg-gradient-to-tr from-[#FF6B00] via-[#FF8533] to-amber-400 flex items-center justify-center text-white font-extrabold text-sm sm:text-xl select-none ring-2 ring-orange-100">
+                {hrAvatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={hrAvatarUrl}
+                    alt={hrUserName || "Recruiter"}
+                    className="w-full h-full object-cover"
+                    onError={() => {
+                      if (hrUserId && hrAvatarUrl !== getHRAvatarUrl(hrUserId)) {
+                        setHrAvatarUrl(getHRAvatarUrl(hrUserId));
+                      } else {
+                        setHrAvatarUrl(null);
+                      }
+                    }}
+                  />
+                ) : hrCompanyLogoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={hrCompanyLogoUrl}
+                    alt="Company Logo"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{hrUserName ? hrUserName.slice(0, 2).toUpperCase() : "HR"}</span>
+                )}
+              </div>
+              {/* Online pulse indicator */}
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full shadow-2xs z-10" />
             </div>
-            <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Welcome back{hrUserName ? `, ${hrUserName}` : ""}! 👋
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-200/90 leading-relaxed">
-              You have <strong className="text-white font-semibold">{applicants.length} candidate submission{applicants.length === 1 ? "" : "s"}</strong> across your {activeJobs.length} active campus opening{activeJobs.length === 1 ? "" : "s"}.
-            </p>
+
+            {/* Recruiter info & heading */}
+            <div className="min-w-0 space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/90 border border-[#E2E8F0] text-[11px] font-semibold text-[#0B1F4B] shadow-2xs">
+                <Building2 className="w-3.5 h-3.5 text-[#FF6B00]" />
+                <span className="truncate max-w-[200px] sm:max-w-xs">{companyName || "WeGrow Partner"}</span>
+                {companyApprovalStatus === "Approved" && (
+                  <CheckCircle2 className="w-3 h-3 text-[#1E5BE0] shrink-0" />
+                )}
+              </div>
+
+              <h1 className="text-[20px] sm:text-[26px] font-extrabold text-[#0B1F4B] tracking-tight truncate">
+                {getGreeting()}, {hrUserName ? hrUserName.split(" ")[0] : "Recruiter"}! 👋
+              </h1>
+
+              <p className="text-[12px] sm:text-[13px] text-[#6B7694] leading-relaxed">
+                You have <span className="font-bold text-[#1E5BE0]">{applicants.length} candidate application{applicants.length === 1 ? "" : "s"}</span> across <span className="font-bold text-[#0B1F4B]">{activeJobs.length} active opening{activeJobs.length === 1 ? "" : "s"}</span>.
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={() => setIsPostJobModalOpen(true)}
-              className="inline-flex items-center gap-2 bg-[#FF6B00] hover:bg-[#e05e00] text-white font-bold text-xs sm:text-sm px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl transition-all shadow-md shadow-[#FF6B00]/25 cursor-pointer active:scale-95"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Post New Job Opening</span>
-            </button>
-            <Link
-              href="/hr/applicants"
-              className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold text-xs sm:text-sm px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl transition-colors cursor-pointer active:scale-95"
-            >
-              <span>Review Candidates</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+          {/* Right: Quick Pulse Stats & Primary CTAs */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 lg:pl-4">
+            {/* Quick Micro Stat Pills */}
+            <div className="hidden md:flex items-center gap-2.5">
+              <div className="bg-white/80 backdrop-blur-xs rounded-xl px-3.5 py-2 border border-[#EEF1F7] shadow-2xs flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center">
+                  <Briefcase className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <div className="text-[10px] text-[#6B7694] uppercase font-bold tracking-wider leading-none">Jobs</div>
+                  <div className="text-[14px] font-extrabold text-[#0B1F4B] leading-tight">{activeJobs.length} Live</div>
+                </div>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-xs rounded-xl px-3.5 py-2 border border-[#EEF1F7] shadow-2xs flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center">
+                  <Calendar className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <div className="text-[10px] text-[#6B7694] uppercase font-bold tracking-wider leading-none">Interviews</div>
+                  <div className="text-[14px] font-extrabold text-[#0B1F4B] leading-tight">{interviews.length} Scheduled</div>
+                </div>
+              </div>
+            </div>
+
+            {/* CTAs */}
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsPostJobModalOpen(true)}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#e05e00] text-white font-bold text-[13px] sm:text-[14px] px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95 cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Post New Job</span>
+              </button>
+
+              <Link
+                href="/hr/applicants"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-[#0B1F4B] border border-[#D8E2F0] font-semibold text-[13px] sm:text-[14px] px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
+              >
+                <span>Applicants</span>
+                <ArrowRight className="w-4 h-4 text-[#6B7694]" />
+              </Link>
+            </div>
           </div>
         </div>
 
-        {/* Decorative background glow circles */}
-        <div className="absolute -right-16 -bottom-16 w-64 h-64 rounded-full bg-blue-400/10 pointer-events-none blur-2xl" />
-        <div className="absolute right-1/3 -top-12 w-48 h-48 rounded-full bg-orange-400/10 pointer-events-none blur-xl" />
+        {/* Ambient subtle background decorative blurs */}
+        <div className="absolute -right-12 -bottom-12 w-48 h-48 rounded-full bg-[#1E5BE0]/6 pointer-events-none blur-2xl" />
+        <div className="absolute right-1/2 -top-12 w-40 h-40 rounded-full bg-[#FF6B00]/6 pointer-events-none blur-xl" />
       </div>
 
       {/* 1.5. NATIVE RECRUITER APK QUICK ACTION HUB (4 Fast Touch Action Tiles) */}

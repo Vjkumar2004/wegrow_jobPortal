@@ -111,14 +111,27 @@ export const authApi = {
     if (data?.tokens?.accessToken) {
       setAuthTokens(data.tokens.accessToken, data.tokens.refreshToken);
       if (typeof window !== "undefined") {
+        const avatarUrl =
+          data.user?.avatarUrl ||
+          data.user?.avatar ||
+          data.user?.hrProfile?.avatarUrl ||
+          data.user?.hrProfile?.avatar ||
+          (data.user?.id ? `${API_BASE_URL}/media/hr-avatar/${data.user.id}` : null);
+
         const userWithRole = {
           ...data.user,
+          avatarUrl: avatarUrl || data.user?.avatarUrl,
+          avatar: avatarUrl || data.user?.avatar,
           token: data.tokens.accessToken,
         };
         if (userWithRole.hrProfile?.company?.id) {
           userWithRole.hrProfile.company.logoUrl = `${API_BASE_URL}/media/company-logo/${userWithRole.hrProfile.company.id}`;
         }
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userWithRole));
+        if (avatarUrl && data.user?.id) {
+          localStorage.setItem(`wegrow_hr_avatar_${data.user.id}`, avatarUrl);
+          localStorage.setItem("wegrow_hr_avatar", avatarUrl);
+        }
       }
     }
 
@@ -158,8 +171,34 @@ export const authApi = {
    */
   async getMe(): Promise<ApiResponse<{ user: BackendUser }>> {
     const response = await apiClient.get<ApiResponse<{ user: BackendUser }>>("/auth/me");
-    if (response.data?.data?.user?.hrProfile?.company?.id) {
-      response.data.data.user.hrProfile.company.logoUrl = `${API_BASE_URL}/media/company-logo/${response.data.data.user.hrProfile.company.id}`;
+    const user = response.data?.data?.user;
+    if (user) {
+      if (user.hrProfile?.company?.id) {
+        user.hrProfile.company.logoUrl = `${API_BASE_URL}/media/company-logo/${user.hrProfile.company.id}`;
+      }
+      const avatarUrl =
+        user.avatarUrl ||
+        user.avatar ||
+        user.hrProfile?.avatarUrl ||
+        user.hrProfile?.avatar ||
+        (user.id ? `${API_BASE_URL}/media/hr-avatar/${user.id}` : null);
+
+      if (avatarUrl && typeof window !== "undefined") {
+        if (user.id) {
+          localStorage.setItem(`wegrow_hr_avatar_${user.id}`, avatarUrl);
+          localStorage.setItem("wegrow_hr_avatar", avatarUrl);
+        }
+        const userStr = localStorage.getItem(AUTH_USER_KEY);
+        if (userStr) {
+          try {
+            const parsed = JSON.parse(userStr);
+            parsed.avatarUrl = avatarUrl;
+            parsed.avatar = avatarUrl;
+            if (user.hrProfile) parsed.hrProfile = user.hrProfile;
+            localStorage.setItem(AUTH_USER_KEY, JSON.stringify(parsed));
+          } catch {}
+        }
+      }
     }
     return response.data;
   },

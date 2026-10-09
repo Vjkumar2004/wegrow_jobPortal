@@ -44,6 +44,46 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
   const queryClient = useQueryClient();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [navImgError, setNavImgError] = useState(false);
+  const [showBottomNav, setShowBottomNav] = useState(true);
+  const lastScrollYRef = React.useRef(0);
+
+  // Auto-hide bottom navbar on scroll down, show on scroll up (native app pattern)
+  React.useEffect(() => {
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          const prevScrollY = lastScrollYRef.current;
+          const diff = currentScrollY - prevScrollY;
+
+          // Always visible at the top of the page
+          if (currentScrollY <= 20) {
+            setShowBottomNav(true);
+          } else if (diff > 8) {
+            // Scrolling DOWN -> Hide bottom nav
+            setShowBottomNav(false);
+          } else if (diff < -8) {
+            // Scrolling UP -> Show bottom nav
+            setShowBottomNav(true);
+          }
+
+          lastScrollYRef.current = Math.max(0, currentScrollY);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  React.useEffect(() => {
+    setShowBottomNav(true);
+  }, [pathname]);
+
   const [studentProfile, setStudentProfile] = useState<{
     id?: string;
     name: string;
@@ -507,7 +547,9 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
         {/* ============================================================== */}
         <nav
           aria-label="Student Mobile App Navigation"
-          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#EEF1F7] px-2 pt-1.5 shadow-[0_-8px_30px_rgba(11,31,75,0.08)] pb-[max(0.6rem,env(safe-area-inset-bottom))]"
+          className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#EEF1F7] px-2 pt-1.5 shadow-[0_-8px_30px_rgba(11,31,75,0.08)] pb-[max(0.6rem,env(safe-area-inset-bottom))] transition-transform duration-300 ease-in-out will-change-transform ${
+            showBottomNav ? "translate-y-0" : "translate-y-[120%] pointer-events-none"
+          }`}
         >
           <div className="grid grid-cols-5 max-w-md mx-auto items-center">
             {bottomNavLinks.map((item) => {

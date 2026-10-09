@@ -53,20 +53,12 @@ export default function StudentJobDetailsClient({
   const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [applyModalOpen, setApplyModalOpen] = useState(false);
-  const [isApplied, setIsApplied] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        if (localStorage.getItem(`applied_job_${job.id}`) === "true") return true;
-      } catch {}
-    }
-    return Boolean(hasApplied);
-  });
+  const [isApplied, setIsApplied] = useState(Boolean(hasApplied));
   const [applicationId, setApplicationId] = useState<string | undefined>(initialAppId);
 
   const markApplied = (appId?: string) => {
     setIsApplied(true);
     if (appId) setApplicationId(appId);
-    try { localStorage.setItem(`applied_job_${job.id}`, "true"); } catch {}
   };
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isStickyHeaderVisible, setIsStickyHeaderVisible] = useState(false);
@@ -94,28 +86,39 @@ export default function StudentJobDetailsClient({
     }
   }, [cachedProfile]);
 
-  // Check saved and applied status directly from backend APIs & fresh job info
+  // Check saved and applied status directly from backend APIs & fresh job info (DB is single source of truth)
   useEffect(() => {
     let isMounted = true;
+
+    // Purge legacy local storage key if any exists
+    if (typeof window !== "undefined") {
+      try { localStorage.removeItem(`applied_job_${job.id}`); } catch {}
+    }
+
     Promise.all([
       studentService.getSavedJobs().catch(() => []),
       applicationsService.getStudentApplications().catch(() => []),
       jobsService.getJobById(job.id).catch(() => null),
     ]).then(([savedList, applicationsList, freshJob]) => {
       if (!isMounted) return;
-      if (freshJob?.hasApplied) {
-        markApplied(freshJob.applicationId || undefined);
+
+      const applicationFound = Array.isArray(applicationsList) && applicationsList.find((app) => app.jobId === job.id);
+      const isJobAppliedInDb = Boolean(freshJob?.hasApplied || applicationFound);
+
+      setIsApplied(isJobAppliedInDb);
+      if (applicationFound) {
+        setApplicationId(applicationFound.id);
+      } else if (freshJob?.applicationId) {
+        setApplicationId(freshJob.applicationId);
+      } else {
+        setApplicationId(undefined);
       }
-      if (Array.isArray(savedList) && savedList.some((sj) => sj.id === job.id)) {
-        setIsSaved(true);
-      }
-      if (Array.isArray(applicationsList)) {
-        const found = applicationsList.find((app) => app.jobId === job.id);
-        if (found) {
-          markApplied(found.id);
-        }
+
+      if (Array.isArray(savedList)) {
+        setIsSaved(savedList.some((sj) => sj.id === job.id));
       }
     });
+
     return () => {
       isMounted = false;
     };

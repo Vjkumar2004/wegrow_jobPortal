@@ -13,6 +13,9 @@ export interface BackendUser {
   isEmailVerified: boolean;
   name?: string;
   fullName?: string;
+  avatarUrl?: string;
+  avatar?: string;
+  photoUrl?: string;
   createdAt?: string;
   studentProfile?: {
     id: string;
@@ -23,6 +26,9 @@ export interface BackendUser {
     graduationYear?: number;
     cgpa?: number;
     completionPercentage?: number;
+    avatarUrl?: string;
+    avatar?: string;
+    photoUrl?: string;
   } | null;
   hrProfile?: {
     id: string;
@@ -31,6 +37,9 @@ export interface BackendUser {
     phone?: string;
     isCompanyAdmin: boolean;
     companyId: string;
+    avatarUrl?: string;
+    avatar?: string;
+    photoUrl?: string;
     company?: {
       id: string;
       name: string;

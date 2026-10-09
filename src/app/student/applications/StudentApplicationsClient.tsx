@@ -55,7 +55,8 @@ export default function StudentApplicationsClient() {
       return applicationsService.getStudentApplicationsPageData(cachedProfile ?? undefined);
     },
     placeholderData: DEFAULT_APPLICATIONS_DATA,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const [activeTab, setActiveTab] = useState<string>("All");

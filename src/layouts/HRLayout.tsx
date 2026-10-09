@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { authService } from "@/services/auth.service";
 import { hrService } from "@/services/hr.service";
+import { getHRAvatarUrl } from "@/lib/utils";
 
 import { useQuery } from "@tanstack/react-query";
 
@@ -40,10 +41,50 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hrUserId, setHrUserId] = useState<string>("");
   const [hrUserName, setHrUserName] = useState("");
   const [hrCompanyName, setHrCompanyName] = useState("");
   const [hrCompanyLogoUrl, setHrCompanyLogoUrl] = useState<string | null>(null);
   const [hrAvatarUrl, setHrAvatarUrl] = useState<string | null>(null);
+  const [showBottomNav, setShowBottomNav] = useState(true);
+  const lastScrollYRef = React.useRef(0);
+
+  // Auto-hide bottom navbar on scroll down, show on scroll up (native app pattern)
+  React.useEffect(() => {
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          const prevScrollY = lastScrollYRef.current;
+          const diff = currentScrollY - prevScrollY;
+
+          // Always visible at the top of the page
+          if (currentScrollY <= 20) {
+            setShowBottomNav(true);
+          } else if (diff > 8) {
+            // Scrolling DOWN -> Hide bottom nav
+            setShowBottomNav(false);
+          } else if (diff < -8) {
+            // Scrolling UP -> Show bottom nav
+            setShowBottomNav(true);
+          }
+
+          lastScrollYRef.current = Math.max(0, currentScrollY);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  React.useEffect(() => {
+    setShowBottomNav(true);
+  }, [pathname]);
 
   const { data: compProfile } = useQuery({
     queryKey: ["hr-company"],
@@ -57,6 +98,7 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
     const localUser = authService.getCurrentUser();
     if (localUser) {
+      if (localUser.id) setHrUserId(localUser.id);
       const name = localUser.name || localUser.fullName || (localUser as any).hrProfile?.fullName || "Recruiter";
       setHrUserName(name);
       const company = (localUser as any).hrProfile?.company;
@@ -66,11 +108,36 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
       const avatar =
         (localUser as any).avatarUrl ||
         (localUser as any).avatar ||
+        (localUser as any).hrProfile?.avatarUrl ||
+        (localUser as any).hrProfile?.avatar ||
         (typeof window !== "undefined"
           ? localStorage.getItem(`wegrow_hr_avatar_${localUser.id}`) || localStorage.getItem("wegrow_hr_avatar")
           : null);
       if (avatar) setHrAvatarUrl(avatar);
     }
+
+    // Always fetch fresh profile on mount to hydrate cross-browser sessions
+    authService.getMe().then((res) => {
+      const user = res?.data?.user;
+      if (user) {
+        if (user.id) setHrUserId(user.id);
+        const name = user.name || user.fullName || (user as any).hrProfile?.fullName;
+        if (name) setHrUserName(name);
+        const company = (user as any).hrProfile?.company;
+        if (company?.name) setHrCompanyName(company.name);
+        if (company?.logoUrl) setHrCompanyLogoUrl(company.logoUrl);
+        const avatar =
+          (user as any).avatarUrl ||
+          (user as any).avatar ||
+          (user as any).hrProfile?.avatarUrl ||
+          (user as any).hrProfile?.avatar;
+        if (avatar) {
+          setHrAvatarUrl(avatar);
+        } else if (user.id) {
+          setHrAvatarUrl(getHRAvatarUrl(user.id));
+        }
+      }
+    }).catch(() => {});
 
     const onAvatarUpdate = (e: any) => {
       const newAvatar = e.detail?.avatarUrl ?? null;
@@ -197,6 +264,13 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
                       src={hrAvatarUrl}
                       alt={hrUserName || "Recruiter"}
                       className="w-full h-full object-cover"
+                      onError={() => {
+                        if (hrUserId && hrAvatarUrl !== getHRAvatarUrl(hrUserId)) {
+                          setHrAvatarUrl(getHRAvatarUrl(hrUserId));
+                        } else {
+                          setHrAvatarUrl(null);
+                        }
+                      }}
                     />
                   ) : hrCompanyLogoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -269,6 +343,13 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
                         src={hrAvatarUrl}
                         alt={hrUserName || "Recruiter"}
                         className="w-full h-full object-cover"
+                        onError={() => {
+                          if (hrUserId && hrAvatarUrl !== getHRAvatarUrl(hrUserId)) {
+                            setHrAvatarUrl(getHRAvatarUrl(hrUserId));
+                          } else {
+                            setHrAvatarUrl(null);
+                          }
+                        }}
                       />
                     ) : hrCompanyLogoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -426,7 +507,9 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
           {/* ============================================================== */}
           <nav
             aria-label="Recruiter Mobile App Navigation"
-            className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#EEF1F7] px-2 pt-1.5 shadow-[0_-8px_30px_rgba(11,31,75,0.08)] pb-[max(0.6rem,env(safe-area-inset-bottom))]"
+            className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#EEF1F7] px-2 pt-1.5 shadow-[0_-8px_30px_rgba(11,31,75,0.08)] pb-[max(0.6rem,env(safe-area-inset-bottom))] transition-transform duration-300 ease-in-out will-change-transform ${
+              showBottomNav ? "translate-y-0" : "translate-y-[120%] pointer-events-none"
+            }`}
           >
             <div className="grid grid-cols-5 max-w-md mx-auto items-center">
               {bottomNavLinks.map((item) => {

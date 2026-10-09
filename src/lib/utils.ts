@@ -31,6 +31,11 @@ export function getAvatarUrl(studentId?: string): string {
   return `${API_BASE_URL}/media/avatar/${studentId}`;
 }
 
+export function getHRAvatarUrl(hrIdOrUserId?: string): string {
+  if (!hrIdOrUserId) return "";
+  return `${API_BASE_URL}/media/hr-avatar/${hrIdOrUserId}`;
+}
+
 export function formatDate(dateString: string): string {
   try {
     const d = new Date(dateString);

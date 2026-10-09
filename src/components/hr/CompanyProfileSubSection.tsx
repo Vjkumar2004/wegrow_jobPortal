@@ -53,6 +53,8 @@ export default function CompanyProfileSubSection() {
       const storedAvatar =
         (localUser as any).avatarUrl ||
         (localUser as any).avatar ||
+        (localUser as any).hrProfile?.avatarUrl ||
+        (localUser as any).hrProfile?.avatar ||
         (typeof window !== "undefined"
           ? localStorage.getItem(`wegrow_hr_avatar_${localUser.id}`) || localStorage.getItem("wegrow_hr_avatar")
           : null);
@@ -73,6 +75,8 @@ export default function CompanyProfileSubSection() {
         const storedAvatar =
           (user as any).avatarUrl ||
           (user as any).avatar ||
+          (user as any).hrProfile?.avatarUrl ||
+          (user as any).hrProfile?.avatar ||
           (typeof window !== "undefined"
             ? localStorage.getItem(`wegrow_hr_avatar_${user.id}`) || localStorage.getItem("wegrow_hr_avatar")
             : null);

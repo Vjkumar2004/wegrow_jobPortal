@@ -33,33 +33,34 @@ interface StudentBrowseJobsClientProps {
 
 export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJobsClientProps) {
   const queryClient = useQueryClient();
-  const mergeAppliedFromStorage = (list: StudentBrowseJobItem[]) => {
-    try {
-      return list.map((j) => ({
-        ...j,
-        hasApplied: j.hasApplied || localStorage.getItem(`applied_job_${j.id}`) === "true",
-      }));
-    } catch {
-      return list;
-    }
-  };
 
-  const [jobs, setJobs] = useState<StudentBrowseJobItem[]>(initialData.jobs);
-
-  // Apply localStorage applied-state after hydration to avoid SSR/client mismatch
+  // Purge any legacy client-side localStorage applied flags on mount so DB is the true single source
   useEffect(() => {
-    setJobs((prev) => mergeAppliedFromStorage(prev));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (typeof window !== "undefined") {
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith("applied_job_")) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+      } catch {}
+    }
   }, []);
 
+  const [jobs, setJobs] = useState<StudentBrowseJobItem[]>(initialData.jobs);
   const [totalCount, setTotalCount] = useState(initialData.totalJobsCount);
   const [profileCompletion, setProfileCompletion] = useState(initialData.profileCompletion);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Real-time DB query for jobs with applied status (no stale caching, always fresh from DB)
   const { data: freshJobsData } = useQuery({
     queryKey: ["browse-jobs"],
     queryFn: () => jobsService.getBrowseJobsPageData({ limit: 50 }),
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const { data: freshProfile } = useQuery({
@@ -70,10 +71,9 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
 
   useEffect(() => {
     if (freshJobsData?.jobs && freshJobsData.jobs.length > 0) {
-      setJobs(mergeAppliedFromStorage(freshJobsData.jobs));
+      setJobs(freshJobsData.jobs);
       setTotalCount(freshJobsData.totalJobsCount || freshJobsData.jobs.length);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [freshJobsData]);
 
   useEffect(() => {
@@ -147,9 +147,8 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
         const res = await jobsService.getBrowseJobsPageData({ search: searchTerm.trim(), limit: 50 });
         if (res?.jobs && res.jobs.length > 0) {
           setJobs((prev) => {
-            const merged = mergeAppliedFromStorage(res.jobs);
             const map = new Map(prev.map((j) => [j.id, j]));
-            merged.forEach((j) => map.set(j.id, j));
+            res.jobs.forEach((j) => map.set(j.id, j));
             return Array.from(map.values());
           });
         }
@@ -168,9 +167,8 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
       const res = await jobsService.getBrowseJobsPageData({ search: searchTerm.trim(), limit: 50 });
       if (res?.jobs && res.jobs.length > 0) {
         setJobs((prev) => {
-          const merged = mergeAppliedFromStorage(res.jobs);
           const map = new Map(prev.map((j) => [j.id, j]));
-          merged.forEach((j) => map.set(j.id, j));
+          res.jobs.forEach((j) => map.set(j.id, j));
           return Array.from(map.values());
         });
       }
