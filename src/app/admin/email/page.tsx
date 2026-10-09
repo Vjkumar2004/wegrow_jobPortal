@@ -91,7 +91,7 @@ export default function AdminEmailPage() {
   const fetchEmailLogs = async () => {
     setIsLoadingLogs(true);
     try {
-      const logs = await adminService.getEmailLogs();
+      const logs = await adminService.getEmailLogs({ template: "ADMIN_BROADCAST" });
       setEmailLogs(logs);
     } catch {
       // Keep existing
@@ -148,8 +148,11 @@ export default function AdminEmailPage() {
   const set = (field: keyof EmailDraft) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setDraft((prev) => ({ ...prev, [field]: e.target.value }));
 
-  // Filtered Email Logs
+  // Filtered Email Logs - Only show emails dispatched from Admin Dashboard
   const filteredLogs = emailLogs.filter((log) => {
+    const isBroadcast = !log.templateName || log.templateName === "ADMIN_BROADCAST";
+    if (!isBroadcast) return false;
+
     const matchesSearch =
       log.recipientEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
       log.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -158,8 +161,8 @@ export default function AdminEmailPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const totalSent = emailLogs.filter((l) => l.status === "SENT").length;
-  const totalFailed = emailLogs.filter((l) => l.status === "FAILED").length;
+  const totalSent = emailLogs.filter((l) => (!l.templateName || l.templateName === "ADMIN_BROADCAST") && l.status === "SENT").length;
+  const totalFailed = emailLogs.filter((l) => (!l.templateName || l.templateName === "ADMIN_BROADCAST") && l.status === "FAILED").length;
 
   return (
     <AdminLayout>
@@ -284,7 +287,7 @@ export default function AdminEmailPage() {
                 <tr className="bg-[#F5F7FB] text-[12px] font-semibold text-[#6B7694] h-[48px]">
                   <th className="px-5 py-3 rounded-l-lg">Recipient Email</th>
                   <th className="px-5 py-3">Subject Line</th>
-                  <th className="px-5 py-3">Template / Category</th>
+                  <th className="px-5 py-3">Channel</th>
                   <th className="px-5 py-3 text-center">Status</th>
                   <th className="px-5 py-3">Sent Timestamp</th>
                   <th className="px-5 py-3 text-right rounded-r-lg">Details</th>
@@ -302,7 +305,7 @@ export default function AdminEmailPage() {
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-[#6B7694]">
                       <Mail className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                      No email history matching your query.
+                      No admin broadcast history matching your query.
                     </td>
                   </tr>
                 ) : (
@@ -329,10 +332,10 @@ export default function AdminEmailPage() {
                           {log.subject}
                         </td>
 
-                        {/* Template */}
+                        {/* Channel */}
                         <td className="px-5 py-4">
-                          <span className="inline-block px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[#F1F4F9] text-[#6B7694]">
-                            {log.templateName ? log.templateName.replace(/_/g, " ") : "BROADCAST"}
+                          <span className="inline-block px-2.5 py-1 rounded-md text-[11px] font-semibold bg-blue-50 text-[#1E5BE0]">
+                            Admin Broadcast
                           </span>
                         </td>
 
@@ -385,7 +388,7 @@ export default function AdminEmailPage() {
             ) : filteredLogs.length === 0 ? (
               <div className="py-10 px-4 text-center text-[#6B7694] text-xs">
                 <Mail className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                No emails found matching your filter.
+                No admin broadcast emails found.
               </div>
             ) : (
               filteredLogs.map((log) => {
@@ -422,11 +425,11 @@ export default function AdminEmailPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-[10px]">
-                      <span className="px-2 py-0.5 rounded-md bg-[#F1F4F9] text-[#6B7694] font-semibold">
-                        {log.templateName ? log.templateName.replace(/_/g, " ") : "BROADCAST"}
+                      <span className="px-2 py-0.5 rounded-md bg-blue-50 text-[#1E5BE0] font-semibold">
+                        Admin Broadcast
                       </span>
                       {log.provider && (
-                        <span className="px-2 py-0.5 rounded-md bg-blue-50 text-[#1E5BE0] uppercase font-bold">
+                        <span className="px-2 py-0.5 rounded-md bg-[#F1F4F9] text-[#6B7694] uppercase font-bold">
                           via {log.provider}
                         </span>
                       )}
@@ -507,9 +510,9 @@ export default function AdminEmailPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 bg-slate-50 rounded-xl">
-                  <span className="text-[10px] font-bold text-[#6B7694] uppercase tracking-wider block">Template</span>
+                  <span className="text-[10px] font-bold text-[#6B7694] uppercase tracking-wider block">Channel</span>
                   <p className="font-semibold text-[#0B1F4B] mt-0.5">
-                    {selectedLog.templateName ? selectedLog.templateName.replace(/_/g, " ") : "ADMIN_BROADCAST"}
+                    Admin Broadcast
                   </p>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xl">

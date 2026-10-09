@@ -186,9 +186,14 @@ export const adminService = {
     return response.data;
   },
 
-  async getEmailLogs(params?: { search?: string; status?: string; page?: number; limit?: number }): Promise<EmailLog[]> {
+  async getEmailLogs(params?: { search?: string; status?: string; template?: string; page?: number; limit?: number }): Promise<EmailLog[]> {
     try {
-      const response = await apiClient.get("/admin/email/logs", { params });
+      const response = await apiClient.get("/admin/email/logs", {
+        params: {
+          template: "ADMIN_BROADCAST",
+          ...params,
+        },
+      });
       const data = response.data?.data?.items || response.data?.data;
       if (Array.isArray(data)) {
         return data;
