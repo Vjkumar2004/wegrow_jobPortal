@@ -44,7 +44,7 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
   const { data: applicantsQuery = initialApplicants } = useQuery({
     queryKey: ["hr-applications"],
     queryFn: () => hrService.getApplicants(),
-    initialData: initialApplicants.length > 0 ? initialApplicants : undefined,
+    placeholderData: initialApplicants,
     staleTime: 20_000,
   });
 

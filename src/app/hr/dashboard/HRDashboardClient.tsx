@@ -67,21 +67,21 @@ export default function HRDashboardClient({
   const { data: jobsQuery = initialJobs } = useQuery({
     queryKey: ["hr-jobs"],
     queryFn: () => hrService.getMyJobs(),
-    initialData: initialJobs.length > 0 ? initialJobs : undefined,
+    placeholderData: initialJobs,
     staleTime: 30_000,
   });
 
   const { data: applicantsQuery = initialApplicants } = useQuery({
     queryKey: ["hr-applications"],
     queryFn: () => hrService.getApplicants(),
-    initialData: initialApplicants.length > 0 ? initialApplicants : undefined,
+    placeholderData: initialApplicants,
     staleTime: 20_000,
   });
 
   const { data: interviewsQuery = initialInterviews } = useQuery({
     queryKey: ["hr-interviews"],
     queryFn: () => hrService.getInterviews(),
-    initialData: initialInterviews.length > 0 ? initialInterviews : undefined,
+    placeholderData: initialInterviews,
     staleTime: 20_000,
   });
 

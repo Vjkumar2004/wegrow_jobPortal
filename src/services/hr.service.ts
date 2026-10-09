@@ -267,52 +267,45 @@ export const hrService = {
    * POST /api/v1/hr/applications/:applicationId/interviews
    */
   async scheduleInterview(interviewData: Partial<Interview> & { scheduledStartAt?: string; scheduledEndAt?: string }): Promise<Interview> {
-    try {
-      if (interviewData.applicationId) {
-        const payload = {
-          title: interviewData.jobTitle || "Interview Round",
-          type: interviewData.type === "HR Discussion" ? "HR_DISCUSSION" : "TECHNICAL",
-          scheduledStartAt: interviewData.scheduledStartAt || new Date(Date.now() + 86400000).toISOString(),
-          scheduledEndAt: interviewData.scheduledEndAt || new Date(Date.now() + 86400000 + 3600000).toISOString(),
-          meetingLink: interviewData.meetingLink,
-        };
-        const response = await apiClient.post(`/hr/applications/${interviewData.applicationId}/interviews`, payload);
-        if (response.data?.data?.interview) {
-          const inv = response.data.data.interview;
-          return {
-            id: inv.id,
-            applicationId: inv.applicationId,
-            jobTitle: inv.title,
-            companyName: interviewData.companyName || "Company",
-            candidateName: interviewData.candidateName || "Candidate",
-            candidateEmail: interviewData.candidateEmail || "",
-            candidateCollege: interviewData.candidateCollege || "",
-            candidateAvatar: interviewData.candidateAvatar,
-            date: new Date(inv.scheduledStartAt).toLocaleDateString(),
-            time: new Date(inv.scheduledStartAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            type: (interviewData.type || "Technical") as any,
-            status: "Upcoming",
-            meetingLink: inv.meetingLink,
-          };
-        }
-      }
-    } catch {
-      // Fallback
+    if (!interviewData.applicationId) {
+      throw new Error("applicationId is required to schedule an interview.");
+    }
+
+    const backendType =
+      interviewData.type === "HR Discussion" ? "HR_DISCUSSION"
+      : interviewData.type === "Managerial" ? "MANAGERIAL"
+      : interviewData.type === "Screening" ? "SCREENING"
+      : "TECHNICAL";
+
+    const payload = {
+      title: interviewData.jobTitle || "Interview Round",
+      type: backendType,
+      scheduledStartAt: interviewData.scheduledStartAt || new Date(Date.now() + 86400000).toISOString(),
+      scheduledEndAt: interviewData.scheduledEndAt || new Date(Date.now() + 86400000 + 3600000).toISOString(),
+      meetingLink: interviewData.meetingLink,
+    };
+
+    const response = await apiClient.post(`/hr/applications/${interviewData.applicationId}/interviews`, payload);
+
+    const inv = response.data?.data?.interview;
+    if (!inv) {
+      throw new Error("Failed to schedule interview — no data returned from server.");
     }
 
     return {
-      id: `int-${Date.now()}`,
-      applicationId: interviewData.applicationId || "app-1",
-      jobTitle: interviewData.jobTitle || "Software Engineer",
-      companyName: "WeGrow Partner Corp",
+      id: inv.id,
+      applicationId: inv.applicationId,
+      jobTitle: inv.title,
+      companyName: interviewData.companyName || "Company",
       candidateName: interviewData.candidateName || "Candidate",
-      candidateEmail: interviewData.candidateEmail || "candidate@example.com",
-      date: interviewData.date || "2024-04-10",
-      time: interviewData.time || "11:00 AM",
-      type: interviewData.type || "Technical",
-      meetingLink: interviewData.meetingLink || "https://meet.google.com/test-room",
+      candidateEmail: interviewData.candidateEmail || "",
+      candidateCollege: interviewData.candidateCollege || "",
+      candidateAvatar: interviewData.candidateAvatar,
+      date: new Date(inv.scheduledStartAt).toLocaleDateString(),
+      time: new Date(inv.scheduledStartAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      type: (interviewData.type || "Technical") as any,
       status: "Upcoming",
-      notes: interviewData.notes,
+      meetingLink: inv.meetingLink,
     };
   },
 

@@ -137,13 +137,9 @@ export const applicationsService = {
    * PATCH /api/v1/hr/applications/:applicationId/status
    */
   async updateApplicationStatus(applicationId: string, status: string, note?: string): Promise<boolean> {
-    try {
-      const statusUpper = status.toUpperCase().replace(" ", "_");
-      await apiClient.patch(`/hr/applications/${applicationId}/status`, { status: statusUpper, note });
-      return true;
-    } catch {
-      return false;
-    }
+    const statusUpper = status.toUpperCase().replace(" ", "_");
+    await apiClient.patch(`/hr/applications/${applicationId}/status`, { status: statusUpper, note });
+    return true;
   },
 
   /**
