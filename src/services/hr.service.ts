@@ -593,6 +593,68 @@ export const hrService = {
     return true;
   },
 
+  // ===================== HR PERSONAL AVATAR (Cloudflare R2) =====================
+  /**
+   * POST /api/v1/hr/avatar
+   * Body: FormData with key 'file' (JPEG, PNG, WebP | Max: 5MB)
+   */
+  async uploadAvatar(file: File): Promise<{ avatarUrl: string; avatar?: string; fileName?: string }> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+      data: { avatarUrl: string; avatar?: string; fileName?: string };
+    }>("/hr/avatar", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    const resData = response.data?.data;
+    const finalUrl = resData?.avatarUrl || resData?.avatar;
+
+    if (typeof window !== "undefined" && finalUrl) {
+      try {
+        const userStr = localStorage.getItem("auth_user") || localStorage.getItem("wegrow_auth_user");
+        if (userStr) {
+          const userObj = JSON.parse(userStr);
+          if (userObj) {
+            userObj.avatarUrl = finalUrl;
+            userObj.avatar = finalUrl;
+            userObj.photoUrl = finalUrl;
+            if (userObj.hrProfile) {
+              userObj.hrProfile.avatarUrl = finalUrl;
+              userObj.hrProfile.avatar = finalUrl;
+              userObj.hrProfile.photoUrl = finalUrl;
+            }
+            localStorage.setItem("auth_user", JSON.stringify(userObj));
+            localStorage.setItem("wegrow_auth_user", JSON.stringify(userObj));
+          }
+        }
+        localStorage.setItem("wegrow_hr_avatar", finalUrl);
+      } catch (err) {
+        console.warn("[uploadHRAvatar] Failed to update localStorage user:", err);
+      }
+    }
+
+    return resData;
+  },
+
+  /**
+   * DELETE /api/v1/hr/avatar
+   */
+  async deleteAvatar(): Promise<boolean> {
+    await apiClient.delete("/hr/avatar");
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("wegrow_hr_avatar");
+      } catch {}
+    }
+    return true;
+  },
+
   // ===================== CANDIDATE RESUME DOWNLOAD (Cloudflare R2) =====================
   /**
    * GET /api/v1/hr/resumes/:resumeId/download

@@ -214,106 +214,79 @@ export default function CompanyProfileSubSection() {
     setIsUploadingAvatar(true);
 
     try {
-      // Compress / read file as image data URL
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const result = ev.target?.result as string;
-          if (!result) return reject(new Error("Failed to read image file"));
+      // Upload directly to Cloudflare R2 via backend API
+      const res = await hrService.uploadAvatar(file);
+      const uploadedUrl = res?.avatarUrl || res?.avatar;
 
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            const maxDim = 500;
-            let width = img.width;
-            let height = img.height;
-            if (width > height) {
-              if (width > maxDim) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-              }
-            } else {
-              if (height > maxDim) {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-              }
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d");
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, width, height);
-              resolve(canvas.toDataURL("image/webp", 0.9));
-            } else {
-              resolve(result);
-            }
-          };
-          img.onerror = () => resolve(result);
-          img.src = result;
-        };
-        reader.onerror = () => reject(new Error("File read error"));
-        reader.readAsDataURL(file);
-      });
+      if (!uploadedUrl) {
+        throw new Error("No avatar URL returned from storage service");
+      }
 
-      setRecruiterAvatarUrl(dataUrl);
+      setRecruiterAvatarUrl(uploadedUrl);
 
-      // Persist in localStorage for user session
+      // Persist in localStorage for instant fast hydration
       const currentUser = authService.getCurrentUser();
       const userId = currentUser?.id || "default";
       if (typeof window !== "undefined") {
-        localStorage.setItem(`wegrow_hr_avatar_${userId}`, dataUrl);
-        localStorage.setItem("wegrow_hr_avatar", dataUrl);
+        localStorage.setItem(`wegrow_hr_avatar_${userId}`, uploadedUrl);
+        localStorage.setItem("wegrow_hr_avatar", uploadedUrl);
 
-        // Also update AUTH_USER_KEY object so authService has it
         const userStr = localStorage.getItem("wegrow_auth_user");
         if (userStr) {
           try {
             const userObj = JSON.parse(userStr);
-            userObj.avatarUrl = dataUrl;
-            userObj.avatar = dataUrl;
+            userObj.avatarUrl = uploadedUrl;
+            userObj.avatar = uploadedUrl;
             localStorage.setItem("wegrow_auth_user", JSON.stringify(userObj));
           } catch {}
         }
       }
 
-      // Broadcast to HRLayout and other components
+      // Broadcast to HRLayout and navbar
       window.dispatchEvent(
-        new CustomEvent("hr-avatar-updated", { detail: { avatarUrl: dataUrl } })
+        new CustomEvent("hr-avatar-updated", { detail: { avatarUrl: uploadedUrl } })
       );
 
-      showToast("Recruiter profile photo updated successfully!");
+      showToast("Recruiter profile photo uploaded to Cloudflare storage successfully!");
     } catch (err: any) {
-      showToast(err.message || "Failed to process profile photo", true);
+      const msg = err?.response?.data?.message || err?.message || "Failed to upload profile photo";
+      showToast(msg, true);
     } finally {
       setIsUploadingAvatar(false);
     }
   };
 
-  const handleDeleteAvatar = () => {
+  const handleDeleteAvatar = async () => {
     if (!confirm("Are you sure you want to remove your profile photo?")) return;
-    setRecruiterAvatarUrl(null);
-    const currentUser = authService.getCurrentUser();
-    const userId = currentUser?.id || "default";
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(`wegrow_hr_avatar_${userId}`);
-      localStorage.removeItem("wegrow_hr_avatar");
+    try {
+      await hrService.deleteAvatar();
+      setRecruiterAvatarUrl(null);
+      const currentUser = authService.getCurrentUser();
+      const userId = currentUser?.id || "default";
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(`wegrow_hr_avatar_${userId}`);
+        localStorage.removeItem("wegrow_hr_avatar");
 
-      const userStr = localStorage.getItem("wegrow_auth_user");
-      if (userStr) {
-        try {
-          const userObj = JSON.parse(userStr);
-          delete userObj.avatarUrl;
-          delete userObj.avatar;
-          localStorage.setItem("wegrow_auth_user", JSON.stringify(userObj));
-        } catch {}
+        const userStr = localStorage.getItem("wegrow_auth_user");
+        if (userStr) {
+          try {
+            const userObj = JSON.parse(userStr);
+            delete userObj.avatarUrl;
+            delete userObj.avatar;
+            localStorage.setItem("wegrow_auth_user", JSON.stringify(userObj));
+          } catch {}
+        }
       }
+
+      window.dispatchEvent(
+        new CustomEvent("hr-avatar-updated", { detail: { avatarUrl: null } })
+      );
+
+      showToast("Profile photo removed successfully.");
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to remove profile photo";
+      showToast(msg, true);
     }
-
-    window.dispatchEvent(
-      new CustomEvent("hr-avatar-updated", { detail: { avatarUrl: null } })
-    );
-
-    showToast("Profile photo removed.");
   };
 
   return (
