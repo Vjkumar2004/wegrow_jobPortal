@@ -45,10 +45,13 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
     }
   };
 
-  const [jobs, setJobs] = useState<StudentBrowseJobItem[]>(() => {
-    if (typeof window !== "undefined") return mergeAppliedFromStorage(initialData.jobs);
-    return initialData.jobs;
-  });
+  const [jobs, setJobs] = useState<StudentBrowseJobItem[]>(initialData.jobs);
+
+  // Apply localStorage applied-state after hydration to avoid SSR/client mismatch
+  useEffect(() => {
+    setJobs((prev) => mergeAppliedFromStorage(prev));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [totalCount, setTotalCount] = useState(initialData.totalJobsCount);
   const [profileCompletion, setProfileCompletion] = useState(initialData.profileCompletion);
 

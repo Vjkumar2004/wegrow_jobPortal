@@ -992,18 +992,38 @@ export const studentService = {
   },
 
   /**
-   * GET dashboard data - Computed purely from real backend endpoints
+   * GET dashboard data - Computed purely from real backend endpoints.
+   * Accepts an optional pre-fetched StudentProfile to avoid a duplicate GET /students/me
+   * when the ["student-profile"] React Query cache is already populated.
    */
-  async getDashboardData(): Promise<import("@/types").StudentDashboardData> {
+  async getDashboardData(cachedStudentProfile?: StudentProfile): Promise<import("@/types").StudentDashboardData> {
     try {
       const [profileRes, appsRes, interviewsRes, jobsRes] = await Promise.all([
-        apiClient.get("/students/me").catch(() => null),
+        cachedStudentProfile
+          ? Promise.resolve(null)
+          : apiClient.get("/students/me").catch(() => null),
         apiClient.get<any>("/students/me/applications").catch(() => null),
         apiClient.get<any>("/students/me/interviews").catch(() => null),
         apiClient.get<any>("/jobs?limit=6").catch(() => null),
       ]);
 
-      const stu = profileRes?.data?.data?.profile || profileRes?.data?.data?.student || profileRes?.data?.data;
+      const stu = cachedStudentProfile
+        ? {
+            id: cachedStudentProfile.id,
+            fullName: cachedStudentProfile.name,
+            phone: cachedStudentProfile.phone,
+            avatarUrl: cachedStudentProfile.avatarUrl || cachedStudentProfile.avatar,
+            photoUrl: cachedStudentProfile.photoUrl,
+            user: { email: cachedStudentProfile.email },
+            educations: cachedStudentProfile.education?.map((e) => ({
+              degree: e.degree,
+              institution: e.institution,
+            })) || [],
+            studentSkills: cachedStudentProfile.skills?.map((s) => ({ name: s })) || [],
+            resumes: cachedStudentProfile.resumeId ? [{ id: cachedStudentProfile.resumeId }] : [],
+            projects: cachedStudentProfile.projects || [],
+          }
+        : profileRes?.data?.data?.profile || profileRes?.data?.data?.student || profileRes?.data?.data;
       const _appsRaw: any = appsRes?.data?.data;
       const apps: any[] =
         (Array.isArray(_appsRaw?.items) ? _appsRaw.items : null) ??

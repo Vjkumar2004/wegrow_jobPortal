@@ -69,7 +69,7 @@ const TREND_DATA = [
 ];
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { StudentDashboardData } from "@/types";
+import { StudentDashboardData, StudentProfile } from "@/types";
 import { studentService } from "@/services/student.service";
 
 interface StudentDashboardClientProps {
@@ -83,7 +83,10 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
 
   const { data: dashboardData, isLoading: isLoadingData } = useQuery({
     queryKey: ["student-dashboard"],
-    queryFn: () => studentService.getDashboardData(),
+    queryFn: () => {
+      const cachedProfile = queryClient.getQueryData<StudentProfile>(["student-profile"]);
+      return studentService.getDashboardData(cachedProfile ?? undefined);
+    },
     initialData,
     staleTime: 30_000,
   });
