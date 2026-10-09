@@ -153,16 +153,25 @@ export const jobsService = {
         queryParams.sortBy = "latest";
       }
 
-      const response = await apiClient.get<{ success: boolean; data: { items: BackendPublicJob[]; total: number } }>("/jobs", {
-        params: queryParams,
-      });
+      const response = await apiClient.get<any>("/jobs", { params: queryParams });
 
-      const items = response.data?.data?.items;
-      if (Array.isArray(items)) {
-        return items.map(mapBackendJobToFrontend);
+      const d = response.data?.data;
+      // Try all known response shapes the backend may return
+      const items: BackendPublicJob[] =
+        (Array.isArray(d?.items) ? d.items : null) ??
+        (Array.isArray(d?.jobs) ? d.jobs : null) ??
+        (Array.isArray(d) ? d : null) ??
+        [];
+
+      if (typeof window !== "undefined") {
+        console.log("[jobs.service] /jobs raw shape:", JSON.stringify(response.data)?.slice(0, 300), "| parsed count:", items.length);
       }
-      return [];
-    } catch {
+
+      return items.map(mapBackendJobToFrontend);
+    } catch (err) {
+      if (typeof window !== "undefined") {
+        console.error("[jobs.service] getJobs error:", err);
+      }
       return [];
     }
   },

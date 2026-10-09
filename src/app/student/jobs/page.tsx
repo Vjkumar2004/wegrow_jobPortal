@@ -1,29 +1,22 @@
 import React from "react";
-import { jobsService } from "@/services/jobs.service";
 import StudentBrowseJobsClient from "./StudentBrowseJobsClient";
+import type { StudentBrowseJobsPageData } from "@/types";
 
 export const metadata = {
   title: "Browse Jobs | WeGrow Skill Campus",
   description: "Explore 512+ verified campus opportunities, tech roles, and internships with top recruiters.",
 };
 
-interface StudentJobsPageProps {
-  searchParams: Promise<{
-    search?: string;
-    location?: string;
-    jobType?: string;
-    experience?: string;
-    workMode?: string;
-    company?: string;
-    sortBy?: "newest" | "salaryHigh" | "salaryLow";
-  }>;
-}
+const EMPTY_DATA: StudentBrowseJobsPageData = {
+  totalJobsCount: 0,
+  jobs: [],
+  topCompanies: [],
+  latestJobs: [],
+  profileCompletion: { percentage: 0, checklist: [] },
+};
 
-export default async function StudentJobsPage(props: StudentJobsPageProps) {
-  const resolvedSearchParams = await props.searchParams;
-
-  // Backend fetch with graceful verified mock fallback
-  const initialData = await jobsService.getBrowseJobsPageData(resolvedSearchParams);
-
-  return <StudentBrowseJobsClient initialData={initialData} />;
+// Jobs data is fetched client-side via useQuery (auth token available in browser).
+// Server-side fetch is skipped because the apiClient cannot attach the JWT on the server.
+export default function StudentJobsPage() {
+  return <StudentBrowseJobsClient initialData={EMPTY_DATA} />;
 }
