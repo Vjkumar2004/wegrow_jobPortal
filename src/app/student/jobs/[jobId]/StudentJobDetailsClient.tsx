@@ -380,169 +380,151 @@ export default function StudentJobDetailsClient({
         </div>
 
         {/* ============================================================== */}
-        {/* 1. HERO JOB HEADER BANNER (State of the Art Design)            */}
+        {/* 1. HERO JOB HEADER BANNER                                      */}
         {/* ============================================================== */}
-        <div className="relative overflow-hidden rounded-[22px] bg-white border border-[#EEF1F7] shadow-[0_4px_24px_rgba(11,31,75,0.06)] p-5 sm:p-7 lg:p-8 transition-all">
+        <div className="relative overflow-hidden rounded-[22px] bg-white border border-[#EEF1F7] shadow-[0_4px_24px_rgba(11,31,75,0.06)] p-5 sm:p-7 lg:p-8 transition-all space-y-5">
           {/* Subtle decorative background gradient splash */}
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#FFF0E6]/60 via-[#E8F0FF]/40 to-transparent rounded-full blur-3xl -z-0 pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-            {/* Left: Logo + Job Info (Side by Side like LinkedIn) */}
-            <div className="flex items-start gap-4 sm:gap-5 min-w-0 flex-1">
-              {/* Company Logo Tile */}
-              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border border-[#EEF1F7] bg-white p-2 flex items-center justify-center shrink-0 shadow-sm ring-1 ring-slate-100">
-                {job.company.logo || job.company.id ? (
-                  <img
-                    src={getCompanyLogoUrl(job.company, job.company.id)}
-                    alt={job.company.name}
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      const target = e.currentTarget as HTMLImageElement;
-                      const proxyUrl = job.company.id ? getCompanyLogoProxyUrl(job.company.id) : "";
-                      if (proxyUrl && !target.dataset.tried && target.src !== proxyUrl) {
-                        target.dataset.tried = "true";
-                        target.src = proxyUrl;
-                        return;
-                      }
-                      target.style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full rounded-xl bg-gradient-to-tr from-[#1E5BE0] to-sky-400 text-white font-black text-xl flex items-center justify-center">
-                    {getNameInitials(job.company.name)}
-                  </div>
-                )}
-                {/* Verified badge pin */}
-                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#22B573] text-white flex items-center justify-center border-2 border-white shadow-xs">
-                  <Check className="w-3 h-3 stroke-[3]" />
-                </span>
-              </div>
-
-              {/* Directly beside Logo: Title, Company Name, Meta, Badges, and Action Buttons */}
-              <div className="min-w-0 flex-1 space-y-2">
-                {/* 1. Job Title */}
-                <h1 className="text-xl sm:text-2xl lg:text-[28px] font-extrabold text-[#0B1F4B] leading-tight tracking-tight">
-                  {job.title}
-                </h1>
-
-                {/* 2. Company Name & Location Meta line (LinkedIn pattern) */}
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-[14px] text-[#475467]">
-                  <a
-                    href="#company"
-                    className="font-bold text-[#1E5BE0] hover:underline inline-flex items-center gap-1"
-                  >
-                    <span>{job.company.name}</span>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#22B573]" />
-                  </a>
-                  <span>·</span>
-                  <span className="font-medium text-[#0B1F4B]">
-                    {job.location} ({job.workMode})
-                  </span>
-                  <span>·</span>
-                  <span className="text-[#6B7694]">
-                    {job.postedDate
-                      ? new Date(job.postedDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })
-                      : "Recently Posted"}
-                  </span>
-                  {job.status === "Published" && (
-                    <>
-                      <span>·</span>
-                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Actively Hiring
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {/* 3. Attribute Chips (Badges) */}
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8]">
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#22B573]" />
-                    Verified Campus Partner
-                  </span>
-
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#E8F0FF] text-[#1E5BE0] border border-[#D0E2FF]">
-                    <Sparkles className="w-3.5 h-3.5 text-[#1E5BE0]" />
-                    {job.experience || "Fresher Friendly"}
-                  </span>
-
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FFF0E6] text-[#FF6B00] border border-[#FFE0CC]">
-                    <Tag className="w-3.5 h-3.5 text-[#FF6B00]" />
-                    {job.jobType}
-                  </span>
-
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F8FAFD] text-[#0B1F4B] border border-[#EEF1F7]">
-                    <IndianRupee className="w-3 h-3 text-[#FF6B00]" />
-                    {formattedSalary}
-                  </span>
-                </div>
-
-                {/* 4. Action Buttons (Apply, Save, Share) - Placed directly under the job info */}
-                <div className="flex flex-wrap items-center gap-3 pt-3">
-                  {isApplied ? (
-                    <button
-                      disabled
-                      className="h-11 px-6 rounded-xl text-xs sm:text-sm font-bold bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8] cursor-not-allowed shadow-none flex items-center justify-center gap-2 select-none"
-                    >
-                      <CheckCircle className="w-4 h-4 stroke-[2.5]" />
-                      <span>Already Applied</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setApplyModalOpen(true)}
-                      className="h-11 px-7 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_4px_18px_rgba(255,107,0,0.3)] hover:shadow-[0_8px_25px_rgba(255,107,0,0.4)] bg-gradient-to-r from-[#FF6B00] via-[#FF7A1A] to-[#FF8533] text-white hover:opacity-95 active:scale-98"
-                    >
-                      <span>Apply Now</span>
-                      <Send className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-
-                  <button
-                    onClick={handleToggleSave}
-                    className={`h-11 px-4.5 rounded-xl border flex items-center gap-2 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                      isSaved
-                        ? "bg-[#1E5BE0] border-[#1E5BE0] text-white shadow-sm"
-                        : "bg-white border-[#EEF1F7] text-[#475467] hover:border-[#1E5BE0] hover:text-[#1E5BE0] hover:bg-[#F7F9FD]"
-                    }`}
-                    aria-label="Bookmark Job"
-                    title={isSaved ? "Saved in Bookmarks" : "Save this Job"}
-                  >
-                    <Bookmark className={`w-4 h-4 ${isSaved ? "fill-white text-white" : ""}`} />
-                    <span>{isSaved ? "Saved" : "Save"}</span>
-                  </button>
-
-                  <button
-                    onClick={handleShare}
-                    className="h-11 px-4.5 rounded-xl border border-[#EEF1F7] bg-white hover:bg-[#F7F9FD] text-[#475467] hover:text-[#0B1F4B] flex items-center gap-2 text-xs sm:text-sm font-semibold transition-all cursor-pointer"
-                    title="Share Job"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    <span>{copiedLink ? "Copied!" : "Share"}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Estimated Compensation & Application Deadline Cardlet (Desktop Only) */}
-            <div className="hidden lg:flex flex-col items-end justify-between self-stretch shrink-0 text-right">
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-[#FFF8F3] to-[#F8FAFD] border border-[#FFE8D6] text-right space-y-1 min-w-[210px] shadow-2xs">
-                <span className="text-[11px] font-bold text-[#8E9AAC] uppercase tracking-wider block">
-                  Estimated Package
-                </span>
-                <span className="text-xl font-extrabold text-[#FF6B00] block">
-                  {formattedSalary}
-                </span>
-                <span className="text-[11px] text-[#6B7694] block">
-                  {job.openings || 1} Opening{(job.openings || 1) > 1 ? "s" : ""} · {job.jobType}
-                </span>
-              </div>
-              {job.deadline && (
-                <div className="text-xs text-rose-600 font-semibold flex items-center gap-1.5 pt-2">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Deadline: {new Date(job.deadline).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}</span>
+          {/* Top Row: Logo + (Job Title, Company Name, City only) */}
+          <div className="relative z-10 flex items-start gap-4 sm:gap-5 min-w-0">
+            {/* Company Logo Tile */}
+            <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border border-[#EEF1F7] bg-white p-2 flex items-center justify-center shrink-0 shadow-sm ring-1 ring-slate-100">
+              {job.company.logo || job.company.id ? (
+                <img
+                  src={getCompanyLogoUrl(job.company, job.company.id)}
+                  alt={job.company.name}
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const target = e.currentTarget as HTMLImageElement;
+                    const proxyUrl = job.company.id ? getCompanyLogoProxyUrl(job.company.id) : "";
+                    if (proxyUrl && !target.dataset.tried && target.src !== proxyUrl) {
+                      target.dataset.tried = "true";
+                      target.src = proxyUrl;
+                      return;
+                    }
+                    target.style.display = "none";
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full rounded-xl bg-gradient-to-tr from-[#1E5BE0] to-sky-400 text-white font-black text-xl flex items-center justify-center">
+                  {getNameInitials(job.company.name)}
                 </div>
               )}
+              {/* Verified badge pin */}
+              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#22B573] text-white flex items-center justify-center border-2 border-white shadow-xs">
+                <Check className="w-3 h-3 stroke-[3]" />
+              </span>
+            </div>
+
+            {/* Beside the logo: ONLY Job Name, Company Name, and City! */}
+            <div className="min-w-0 flex-1 space-y-1">
+              {/* 1. Job Name */}
+              <h1 className="text-xl sm:text-2xl lg:text-[28px] font-extrabold text-[#0B1F4B] leading-tight tracking-tight">
+                {job.title}
+              </h1>
+
+              {/* 2. Company Name */}
+              <div className="flex items-center gap-1.5 text-sm sm:text-[15px] font-bold text-[#1E5BE0]">
+                <a href="#company" className="hover:underline flex items-center gap-1.5">
+                  <span>{job.company.name}</span>
+                  <CheckCircle2 className="w-4 h-4 text-[#22B573] shrink-0" />
+                </a>
+              </div>
+
+              {/* 3. City / Location */}
+              <div className="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm text-[#6B7694]">
+                <MapPin className="w-3.5 h-3.5 text-[#FF6B00] shrink-0" />
+                <span className="font-medium text-[#475467]">{job.location}</span>
+                {job.workMode && (
+                  <span className="text-[#8E9AAC]">({job.workMode})</span>
+                )}
+                {job.postedDate && (
+                  <>
+                    <span>·</span>
+                    <span className="text-[#8E9AAC]">
+                      {new Date(job.postedDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Everything else is below the logo across full width */}
+          <div className="relative z-10 pt-1 space-y-4">
+            {/* Attribute Badges Row */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8]">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#22B573]" />
+                Verified Campus Partner
+              </span>
+
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#E8F0FF] text-[#1E5BE0] border border-[#D0E2FF]">
+                <Sparkles className="w-3.5 h-3.5 text-[#1E5BE0]" />
+                {job.experience || "Fresher Friendly"}
+              </span>
+
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#FFF0E6] text-[#FF6B00] border border-[#FFE0CC]">
+                <Tag className="w-3.5 h-3.5 text-[#FF6B00]" />
+                {job.jobType}
+              </span>
+
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#F8FAFD] text-[#0B1F4B] border border-[#EEF1F7]">
+                <IndianRupee className="w-3 h-3 text-[#FF6B00]" />
+                {formattedSalary}
+              </span>
+
+              {job.status === "Published" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Actively Hiring
+                </span>
+              )}
+            </div>
+
+            {/* Action Buttons Row */}
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              {isApplied ? (
+                <button
+                  disabled
+                  className="h-11 px-6 rounded-xl text-xs sm:text-sm font-bold bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8] cursor-not-allowed shadow-none flex items-center justify-center gap-2 select-none"
+                >
+                  <CheckCircle className="w-4 h-4 stroke-[2.5]" />
+                  <span>Already Applied</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setApplyModalOpen(true)}
+                  className="h-11 px-7 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_4px_18px_rgba(255,107,0,0.3)] hover:shadow-[0_8px_25px_rgba(255,107,0,0.4)] bg-gradient-to-r from-[#FF6B00] via-[#FF7A1A] to-[#FF8533] text-white hover:opacity-95 active:scale-98"
+                >
+                  <span>Apply Now</span>
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              <button
+                onClick={handleToggleSave}
+                className={`h-11 px-5 rounded-xl border flex items-center gap-2 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                  isSaved
+                    ? "bg-[#1E5BE0] border-[#1E5BE0] text-white shadow-sm"
+                    : "bg-white border-[#EEF1F7] text-[#475467] hover:border-[#1E5BE0] hover:text-[#1E5BE0] hover:bg-[#F7F9FD]"
+                }`}
+                aria-label="Bookmark Job"
+                title={isSaved ? "Saved in Bookmarks" : "Save this Job"}
+              >
+                <Bookmark className={`w-4 h-4 ${isSaved ? "fill-white text-white" : ""}`} />
+                <span>{isSaved ? "Saved" : "Save"}</span>
+              </button>
+
+              <button
+                onClick={handleShare}
+                className="h-11 px-5 rounded-xl border border-[#EEF1F7] bg-white hover:bg-[#F7F9FD] text-[#475467] hover:text-[#0B1F4B] flex items-center gap-2 text-xs sm:text-sm font-semibold transition-all cursor-pointer"
+                title="Share Job"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>{copiedLink ? "Copied!" : "Share"}</span>
+              </button>
             </div>
           </div>
 
