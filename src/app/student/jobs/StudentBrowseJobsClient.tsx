@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import Image from "next/image";
 import {
   Search,
   MapPin,
@@ -12,17 +11,16 @@ import {
   IndianRupee,
   Bookmark,
   CheckCircle2,
-  ChevronRight,
   ChevronDown,
   LayoutGrid,
   List,
-  SlidersHorizontal,
   X,
   Building2,
   Check,
   ArrowRight,
   Filter,
   Loader2,
+  ChevronRight,
 } from "lucide-react";
 import { StudentBrowseJobsPageData, StudentBrowseJobItem } from "@/types";
 import { jobsService } from "@/services/jobs.service";
@@ -52,12 +50,11 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
     setJobs((prev) => mergeAppliedFromStorage(prev));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
   const [totalCount, setTotalCount] = useState(initialData.totalJobsCount);
   const [profileCompletion, setProfileCompletion] = useState(initialData.profileCompletion);
-
   const [isSearching, setIsSearching] = useState(false);
 
-  // Fetch fresh jobs and student profile in parallel, with caching
   const { data: freshJobsData } = useQuery({
     queryKey: ["browse-jobs"],
     queryFn: () => jobsService.getBrowseJobsPageData({ limit: 50 }),
@@ -75,6 +72,7 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
       setJobs(mergeAppliedFromStorage(freshJobsData.jobs));
       setTotalCount(freshJobsData.totalJobsCount || freshJobsData.jobs.length);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [freshJobsData]);
 
   useEffect(() => {
@@ -86,7 +84,6 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
     }
   }, [freshProfile]);
 
-  // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [selectedJobType, setSelectedJobType] = useState("All");
@@ -97,20 +94,14 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
   const [sortBy, setSortBy] = useState("Newest First");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  // Bookmarking state
   const [bookmarks, setBookmarks] = useState<{ [id: string]: boolean }>(() => {
     const map: { [id: string]: boolean } = {};
-    initialData.jobs.forEach((j) => {
-      map[j.id] = !!j.isBookmarked;
-    });
+    initialData.jobs.forEach((j) => { map[j.id] = !!j.isBookmarked; });
     return map;
   });
 
-  const toggleBookmark = (id: string) => {
-    setBookmarks((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  const toggleBookmark = (id: string) => setBookmarks((prev) => ({ ...prev, [id]: !prev[id] }));
 
-  // Helper to parse numerical LPA from salary string
   const getSalaryLPA = (text?: string): number => {
     if (!text) return 0;
     const match = text.match(/(\d+(\.\d+)?)/g);
@@ -118,879 +109,510 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
     return Math.max(...match.map(Number));
   };
 
-  // Debounced search with live backend sync
+  // Debounced search
   useEffect(() => {
     if (!searchTerm.trim()) return;
-
     const timer = setTimeout(async () => {
       try {
         setIsSearching(true);
-        const res = await jobsService.getBrowseJobsPageData({
-          search: searchTerm.trim(),
-          limit: 50,
-        });
+        const res = await jobsService.getBrowseJobsPageData({ search: searchTerm.trim(), limit: 50 });
         if (res?.jobs && res.jobs.length > 0) {
           setJobs((prev) => {
             const merged = mergeAppliedFromStorage(res.jobs);
-            const existingMap = new Map(prev.map((j) => [j.id, j]));
-            merged.forEach((j) => existingMap.set(j.id, j));
-            return Array.from(existingMap.values());
+            const map = new Map(prev.map((j) => [j.id, j]));
+            merged.forEach((j) => map.set(j.id, j));
+            return Array.from(map.values());
           });
         }
-      } catch (err) {
-        console.warn("Backend search fallback to client data", err);
-      } finally {
+      } catch { /* client-side filter still works */ } finally {
         setIsSearching(false);
       }
     }, 350);
-
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 
   const handleImmediateSearch = async () => {
     if (!searchTerm.trim()) return;
     try {
       setIsSearching(true);
-      const res = await jobsService.getBrowseJobsPageData({
-        search: searchTerm.trim(),
-        limit: 50,
-      });
+      const res = await jobsService.getBrowseJobsPageData({ search: searchTerm.trim(), limit: 50 });
       if (res?.jobs && res.jobs.length > 0) {
         setJobs((prev) => {
           const merged = mergeAppliedFromStorage(res.jobs);
-          const existingMap = new Map(prev.map((j) => [j.id, j]));
-          merged.forEach((j) => existingMap.set(j.id, j));
-          return Array.from(existingMap.values());
+          const map = new Map(prev.map((j) => [j.id, j]));
+          merged.forEach((j) => map.set(j.id, j));
+          return Array.from(map.values());
         });
       }
-    } catch {
-      // client-side filtering already handles it
-    } finally {
-      setIsSearching(false);
-    }
+    } catch { /* noop */ } finally { setIsSearching(false); }
   };
 
-  // Quick Filter options
-  const quickFilters = [
-    "Fresher",
-    "Internship",
-    "Full Time",
-    "Remote",
-    "Chennai",
-    "Bangalore",
-    "IT",
-    "Marketing",
-    "Design",
-    "Data Analyst",
-  ];
+  const quickFilters = ["Fresher", "Internship", "Full Time", "Remote", "Chennai", "Bangalore", "IT", "Marketing", "Design", "Data Analyst"];
 
-  // Dynamic live client filtering over jobs list with smart multi-token search
   const filteredJobs = jobs.filter((job) => {
-    // 1. Search query multi-field token matching
     if (searchTerm.trim()) {
       const tokens = searchTerm.trim().toLowerCase().split(/\s+/).filter(Boolean);
-      const title = (job.title || "").toLowerCase();
-      const compName = (job.company?.name || "").toLowerCase();
-      const loc = (job.location || "").toLowerCase();
-      const jt = (job.jobType || "").toLowerCase();
-      const wm = (job.workMode || "").toLowerCase();
-      const exp = (job.experience || "").toLowerCase();
-      const sal = (job.salaryText || "").toLowerCase();
-      const skills = Array.isArray(job.skills) ? job.skills.map((s) => (s || "").toLowerCase()) : [];
-
-      const matchesAllTokens = tokens.every((token) => {
-        return (
-          title.includes(token) ||
-          compName.includes(token) ||
-          loc.includes(token) ||
-          jt.includes(token) ||
-          wm.includes(token) ||
-          exp.includes(token) ||
-          sal.includes(token) ||
-          skills.some((s) => s.includes(token))
-        );
-      });
-
-      if (!matchesAllTokens) return false;
+      const haystack = [job.title, job.company?.name, job.location, job.jobType, job.workMode, job.experience, job.salaryText, ...(job.skills ?? [])].map((s) => (s || "").toLowerCase());
+      if (!tokens.every((t) => haystack.some((h) => h.includes(t)))) return false;
     }
-
-    // 2. Location filter
-    if (selectedLocation !== "All") {
-      const jobLoc = (job.location || "").toLowerCase();
-      const selLoc = selectedLocation.toLowerCase();
-      if (!jobLoc.includes(selLoc)) return false;
-    }
-
-    // 3. Job Type filter
-    if (selectedJobType !== "All") {
-      if ((job.jobType || "").toLowerCase() !== selectedJobType.toLowerCase()) {
-        return false;
-      }
-    }
-
-    // 4. Work Mode filter
-    if (selectedWorkMode !== "All") {
-      if ((job.workMode || "").toLowerCase() !== selectedWorkMode.toLowerCase()) {
-        return false;
-      }
-    }
-
-    // 5. Experience filter
+    if (selectedLocation !== "All" && !(job.location || "").toLowerCase().includes(selectedLocation.toLowerCase())) return false;
+    if (selectedJobType !== "All" && (job.jobType || "").toLowerCase() !== selectedJobType.toLowerCase()) return false;
+    if (selectedWorkMode !== "All" && (job.workMode || "").toLowerCase() !== selectedWorkMode.toLowerCase()) return false;
     if (selectedExperience !== "All") {
-      const expStr = (job.experience || "").toLowerCase();
-      if (selectedExperience === "0-1 Years" && !expStr.includes("0-1") && !expStr.includes("0-") && !expStr.includes("fresher") && !expStr.includes("entry")) {
-        return false;
-      }
-      if (selectedExperience === "0-2 Years" && !expStr.includes("0-1") && !expStr.includes("0-2") && !expStr.includes("0-") && !expStr.includes("1-2") && !expStr.includes("fresher")) {
-        return false;
-      }
-      if (selectedExperience === "1-3 Years" && !expStr.includes("1-3") && !expStr.includes("1-2") && !expStr.includes("2-3") && !expStr.includes("2+")) {
-        return false;
-      }
-      if (selectedExperience === "3+ Years" && !expStr.includes("3+") && !expStr.includes("3-5") && !expStr.includes("4+") && !expStr.includes("5+") && !expStr.includes("senior")) {
-        return false;
-      }
+      const exp = (job.experience || "").toLowerCase();
+      if (selectedExperience === "0-1 Years" && !exp.match(/0-?1|0-?|fresher|entry/)) return false;
+      if (selectedExperience === "0-2 Years" && !exp.match(/0-?[12]|fresher/)) return false;
+      if (selectedExperience === "1-3 Years" && !exp.match(/1-?[23]|2\+/)) return false;
+      if (selectedExperience === "3+ Years" && !exp.match(/3\+|[345]-|[456789]\+|senior/)) return false;
     }
-
-    // 6. Salary filter
     if (selectedSalary !== "All") {
       const lpa = getSalaryLPA(job.salaryText);
       if (selectedSalary === "3-6" && (lpa < 3 || lpa > 6)) return false;
       if (selectedSalary === "6-10" && (lpa < 6 || lpa > 10)) return false;
       if (selectedSalary === "10+" && lpa < 10) return false;
     }
-
-    // 7. Quick filter check
     if (activeQuickFilter) {
       const qf = activeQuickFilter.toLowerCase();
-      if (qf === "fresher") {
-        const exp = (job.experience || "").toLowerCase();
-        if (!exp.includes("0-") && !exp.includes("fresher") && !exp.includes("entry") && !exp.includes("0 year")) return false;
-      } else if (qf === "internship") {
-        if ((job.jobType || "").toLowerCase() !== "internship") return false;
-      } else if (qf === "full time") {
-        if ((job.jobType || "").toLowerCase() !== "full time") return false;
-      } else if (qf === "remote") {
-        if ((job.workMode || "").toLowerCase() !== "remote" && !(job.location || "").toLowerCase().includes("remote")) return false;
-      } else if (qf === "chennai") {
-        if (!(job.location || "").toLowerCase().includes("chennai")) return false;
-      } else if (qf === "bangalore") {
-        const loc = (job.location || "").toLowerCase();
-        if (!loc.includes("bangalore") && !loc.includes("bengaluru")) return false;
-      } else if (qf === "it") {
-        const combined = `${job.title} ${(job.skills || []).join(" ")}`.toLowerCase();
-        if (!combined.includes("it") && !combined.includes("software") && !combined.includes("developer") && !combined.includes("engineer") && !combined.includes("tech")) return false;
-      } else if (qf === "marketing") {
-        const combined = `${job.title} ${(job.skills || []).join(" ")}`.toLowerCase();
-        if (!combined.includes("marketing") && !combined.includes("sales") && !combined.includes("growth") && !combined.includes("seo")) return false;
-      } else if (qf === "design") {
-        const combined = `${job.title} ${(job.skills || []).join(" ")}`.toLowerCase();
-        if (!combined.includes("design") && !combined.includes("ui") && !combined.includes("ux")) return false;
-      } else if (qf === "data analyst") {
-        const combined = `${job.title} ${(job.skills || []).join(" ")}`.toLowerCase();
-        if (!combined.includes("data") && !combined.includes("analyst") && !combined.includes("analytics")) return false;
-      }
+      const combined = `${job.title} ${(job.skills || []).join(" ")} ${job.location} ${job.jobType} ${job.workMode} ${job.experience}`.toLowerCase();
+      if (qf === "fresher" && !combined.match(/0-?|fresher|entry/)) return false;
+      if (qf === "internship" && (job.jobType || "").toLowerCase() !== "internship") return false;
+      if (qf === "full time" && (job.jobType || "").toLowerCase() !== "full time") return false;
+      if (qf === "remote" && !combined.includes("remote")) return false;
+      if (qf === "chennai" && !(job.location || "").toLowerCase().includes("chennai")) return false;
+      if (qf === "bangalore" && !(job.location || "").toLowerCase().match(/bangalore|bengaluru/)) return false;
+      if (qf === "it" && !combined.match(/it|software|developer|engineer|tech/)) return false;
+      if (qf === "marketing" && !combined.match(/marketing|sales|growth|seo/)) return false;
+      if (qf === "design" && !combined.match(/design|ui|ux/)) return false;
+      if (qf === "data analyst" && !combined.match(/data|analyst|analytics/)) return false;
     }
-
     return true;
   });
 
-  // Sort filtered jobs
   const sortedFilteredJobs = [...filteredJobs].sort((a, b) => {
-    if (sortBy === "Salary High to Low") {
-      return getSalaryLPA(b.salaryText) - getSalaryLPA(a.salaryText);
-    }
+    if (sortBy === "Salary High to Low") return getSalaryLPA(b.salaryText) - getSalaryLPA(a.salaryText);
     if (sortBy === "Relevance" && searchTerm.trim()) {
       const q = searchTerm.trim().toLowerCase();
-      const aTitleScore = a.title.toLowerCase().includes(q) ? 2 : 0;
-      const bTitleScore = b.title.toLowerCase().includes(q) ? 2 : 0;
-      const aCompScore = a.company.name.toLowerCase().includes(q) ? 1 : 0;
-      const bCompScore = b.company.name.toLowerCase().includes(q) ? 1 : 0;
-      return (bTitleScore + bCompScore) - (aTitleScore + aCompScore);
+      return ((b.title.toLowerCase().includes(q) ? 2 : 0) + (b.company.name.toLowerCase().includes(q) ? 1 : 0))
+           - ((a.title.toLowerCase().includes(q) ? 2 : 0) + (a.company.name.toLowerCase().includes(q) ? 1 : 0));
     }
     return 0;
   });
 
-  // Active filters list for removable chips
-  const activeFilterChips: Array<{ key: string; label: string; onRemove: () => void }> = [];
-  if (searchTerm.trim()) {
-    activeFilterChips.push({
-      key: "search",
-      label: `Keyword: "${searchTerm}"`,
-      onRemove: () => setSearchTerm(""),
-    });
-  }
-  if (selectedLocation !== "All") {
-    activeFilterChips.push({
-      key: "loc",
-      label: `Location: ${selectedLocation}`,
-      onRemove: () => setSelectedLocation("All"),
-    });
-  }
-  if (selectedJobType !== "All") {
-    activeFilterChips.push({
-      key: "jt",
-      label: `Type: ${selectedJobType}`,
-      onRemove: () => setSelectedJobType("All"),
-    });
-  }
-  if (selectedWorkMode !== "All") {
-    activeFilterChips.push({
-      key: "wm",
-      label: `Mode: ${selectedWorkMode}`,
-      onRemove: () => setSelectedWorkMode("All"),
-    });
-  }
-  if (selectedExperience !== "All") {
-    activeFilterChips.push({
-      key: "exp",
-      label: `Exp: ${selectedExperience}`,
-      onRemove: () => setSelectedExperience("All"),
-    });
-  }
-  if (selectedSalary !== "All") {
-    activeFilterChips.push({
-      key: "sal",
-      label: `Salary: ${selectedSalary}`,
-      onRemove: () => setSelectedSalary("All"),
-    });
-  }
-  if (activeQuickFilter) {
-    activeFilterChips.push({
-      key: "qf",
-      label: `Quick: ${activeQuickFilter}`,
-      onRemove: () => setActiveQuickFilter(""),
-    });
-  }
+  const activeFilterChips = [
+    searchTerm.trim() && { key: "search", label: `"${searchTerm}"`, onRemove: () => setSearchTerm("") },
+    selectedLocation !== "All" && { key: "loc", label: selectedLocation, onRemove: () => setSelectedLocation("All") },
+    selectedJobType !== "All" && { key: "jt", label: selectedJobType, onRemove: () => setSelectedJobType("All") },
+    selectedWorkMode !== "All" && { key: "wm", label: selectedWorkMode, onRemove: () => setSelectedWorkMode("All") },
+    selectedExperience !== "All" && { key: "exp", label: selectedExperience, onRemove: () => setSelectedExperience("All") },
+    selectedSalary !== "All" && { key: "sal", label: `${selectedSalary} LPA`, onRemove: () => setSelectedSalary("All") },
+    activeQuickFilter && { key: "qf", label: activeQuickFilter, onRemove: () => setActiveQuickFilter("") },
+  ].filter(Boolean) as Array<{ key: string; label: string; onRemove: () => void }>;
+
+  const resetAllFilters = () => {
+    setSearchTerm(""); setSelectedLocation("All"); setSelectedJobType("All");
+    setSelectedExperience("All"); setSelectedWorkMode("All"); setSelectedSalary("All"); setActiveQuickFilter("");
+  };
+
+  const topCompanies = (freshJobsData?.topCompanies?.length ? freshJobsData.topCompanies : initialData.topCompanies) ?? [];
+  const latestJobs   = (freshJobsData?.latestJobs?.length   ? freshJobsData.latestJobs   : initialData.latestJobs)   ?? [];
+
+  // ─── Helpers for logo rendering ───────────────────────────────────────────
+  const CompanyLogo = ({ id, name, logo, size = 44 }: { id?: string; name: string; logo?: string; size?: number }) => {
+    const initials = name.slice(0, 2).toUpperCase();
+    return (
+      <div
+        className="rounded-xl bg-[#F4F6FA] border border-[#EEF1F7] flex items-center justify-center font-bold text-[#1E5BE0] shrink-0 overflow-hidden"
+        style={{ width: size, height: size, fontSize: size < 40 ? 10 : 12 }}
+      >
+        {logo || id ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={getCompanyLogoUrl({ logo, id } as any, id || "")}
+            alt={name}
+            className="w-full h-full object-contain p-0.5"
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement;
+              const proxy = id ? getCompanyLogoProxyUrl(id) : "";
+              if (proxy && !img.dataset.fallbackTried) {
+                img.dataset.fallbackTried = "true";
+                img.src = proxy;
+                return;
+              }
+              img.style.display = "none";
+              if (img.parentElement && !img.parentElement.querySelector(".logo-fb")) {
+                const fb = document.createElement("span");
+                fb.textContent = initials;
+                fb.className = "logo-fb font-bold text-[#1E5BE0]";
+                fb.style.fontSize = size < 40 ? "10px" : "12px";
+                img.parentElement.appendChild(fb);
+              }
+            }}
+          />
+        ) : (
+          <span>{initials}</span>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div className="flex-1 flex flex-col xl:flex-row min-w-0 p-4 sm:p-6 lg:p-7 gap-5 overflow-hidden font-['Poppins',sans-serif] text-[#0B1F4B]">
-      {/* ================= ZONE 2: CENTER CONTENT (flexible) ================= */}
+    <div className="flex-1 flex flex-col xl:flex-row min-w-0 p-4 sm:p-6 lg:p-7 gap-6 font-['Poppins',sans-serif] text-[#0B1F4B]">
+
+      {/* ═══════════════════ MAIN CONTENT ═══════════════════ */}
       <main className="flex-1 min-w-0 space-y-5">
-        {/* 1. Page Header Row */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-[28px] sm:text-[36px] font-[800] text-[#0B1F4B] tracking-tight leading-tight">
-              Browse Jobs
-            </h1>
-            <p className="text-[14px] sm:text-[16px] text-[#6B7694] mt-1">
-              Find the right opportunities from top companies and start your career journey.
-            </p>
+            <h1 className="text-[26px] sm:text-[30px] font-[800] text-[#0B1F4B] tracking-tight">Browse Jobs</h1>
+            <p className="text-[14px] text-[#6B7694] mt-0.5">Find the right opportunity and start your career journey.</p>
           </div>
-
-          <div className="flex items-center gap-3 self-start md:self-auto shrink-0">
-            <span className="text-[14px] font-[500] text-[#0B1F4B]">
-              <strong className="font-bold text-[#1E5BE0]">{sortedFilteredJobs.length}</strong> {sortedFilteredJobs.length === 1 ? "Job" : "Jobs"} Found
-              {(searchTerm.trim() || selectedLocation !== "All" || selectedJobType !== "All" || selectedWorkMode !== "All" || selectedExperience !== "All" || selectedSalary !== "All" || activeQuickFilter) ? (
-                <span className="text-xs text-[#6B7694] ml-1.5 font-normal">(Filtered from {jobs.length})</span>
-              ) : null}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="hidden sm:block text-[13px] font-semibold text-[#6B7694] bg-white border border-[#E3E8F0] rounded-xl px-3 py-1.5">
+              <span className="text-[#1E5BE0]">{sortedFilteredJobs.length}</span>
+              {jobs.length > 0 && sortedFilteredJobs.length !== jobs.length ? ` / ${jobs.length}` : ""}{" "}
+              {sortedFilteredJobs.length === 1 ? "Job" : "Jobs"}
             </span>
-
-            {/* Sort Dropdown */}
             <div className="relative">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="bg-white border border-[#E3E8F0] text-[13px] font-medium text-[#0B1F4B] rounded-[10px] pl-3 pr-8 py-2 appearance-none focus:outline-none focus:ring-1 focus:ring-[#1E5BE0] cursor-pointer shadow-xs"
+                className="bg-white border border-[#E3E8F0] text-[13px] font-medium text-[#0B1F4B] rounded-xl pl-3 pr-7 py-2 appearance-none focus:outline-none focus:ring-1 focus:ring-[#1E5BE0] cursor-pointer shadow-xs"
               >
-                <option value="Newest First">Sort by: Newest First</option>
+                <option value="Newest First">Newest First</option>
                 <option value="Salary High to Low">Salary: High to Low</option>
                 <option value="Relevance">Relevance</option>
               </select>
-              <ChevronDown className="w-4 h-4 text-[#6B7694] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-[#6B7694] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
-
-            {/* Grid / List View Toggle */}
-            <div className="flex items-center bg-white border border-[#E3E8F0] rounded-[10px] p-1 shadow-xs">
-              <button
-                type="button"
-                onClick={() => setViewMode("grid")}
-                className={`p-1.5 rounded-[7px] transition-colors cursor-pointer ${
-                  viewMode === "grid"
-                    ? "bg-[#1E5BE0] text-white shadow-xs"
-                    : "text-[#6B7694] hover:text-[#0B1F4B]"
-                }`}
-                title="Grid view"
-                aria-label="Grid view"
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                className={`p-1.5 rounded-[7px] transition-colors cursor-pointer ${
-                  viewMode === "list"
-                    ? "bg-[#1E5BE0] text-white shadow-xs"
-                    : "text-[#6B7694] hover:text-[#0B1F4B]"
-                }`}
-                title="List view"
-                aria-label="List view"
-              >
-                <List className="w-4 h-4" />
-              </button>
+            <div className="flex bg-white border border-[#E3E8F0] rounded-xl p-0.5 shadow-xs">
+              {(["grid", "list"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setViewMode(m)}
+                  className={`p-2 rounded-[9px] transition-colors cursor-pointer ${viewMode === m ? "bg-[#1E5BE0] text-white" : "text-[#9BA5BB] hover:text-[#0B1F4B]"}`}
+                  aria-label={`${m} view`}
+                >
+                  {m === "grid" ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* 2. Filter Card (white, 14px radius, padding 16px) */}
-        <div className="bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] space-y-3.5">
-          {/* Full-width Search Input with interactive clear and search action */}
-          <div className="relative flex items-center">
-            <Search className="w-5 h-5 text-[#6B7694] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleImmediateSearch();
-              }}
-              placeholder="Job title, company, skills, or location (e.g. React, Zoho, Chennai, Remote...)"
-              className="w-full h-[50px] bg-[#F4F6FA] text-sm text-[#0B1F4B] placeholder-[#6B7694] pl-12 pr-28 rounded-[12px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0] transition-all"
-            />
-            <div className="absolute right-2.5 flex items-center gap-1.5">
+        {/* Filter card */}
+        <div className="bg-white rounded-2xl border border-[#EEF1F7] shadow-sm p-4 sm:p-5 space-y-3.5">
+          {/* Search */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-[#9BA5BB] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleImmediateSearch(); }}
+                placeholder="Job title, skills, company or location..."
+                className="w-full h-11 bg-[#F7F9FD] text-[14px] text-[#0B1F4B] placeholder-[#9BA5BB] pl-10 pr-9 rounded-xl border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0] transition-all"
+              />
               {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm("")}
-                  className="p-1.5 rounded-full text-[#6B7694] hover:text-[#0B1F4B] hover:bg-[#E3E8F0] transition cursor-pointer"
-                  title="Clear search"
-                  aria-label="Clear search"
-                >
+                <button type="button" onClick={() => setSearchTerm("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9BA5BB] hover:text-[#0B1F4B] cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               )}
-              {isSearching ? (
-                <div className="px-3 py-1.5 bg-[#1E5BE0]/10 rounded-[8px] flex items-center gap-1 text-[12px] font-medium text-[#1E5BE0]">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span className="hidden sm:inline">Searching</span>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleImmediateSearch}
-                  className="px-3.5 py-1.5 bg-[#1E5BE0] hover:bg-[#1848B5] text-white text-[12px] font-semibold rounded-[8px] transition cursor-pointer shadow-xs flex items-center gap-1"
-                >
-                  <Search className="w-3.5 h-3.5" />
-                  <span>Search</span>
-                </button>
-              )}
             </div>
-          </div>
-
-          {/* Row of 5 Dropdowns (equal width, 48px height) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {/* Location */}
-            <div className="relative">
-              <MapPin className="w-4 h-4 text-[#6B7694] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full h-[48px] bg-[#F4F6FA] text-[13px] text-[#0B1F4B] pl-9 pr-7 rounded-[10px] border border-[#E3E8F0] appearance-none focus:outline-none focus:border-[#1E5BE0] cursor-pointer"
-              >
-                <option value="All">All Locations</option>
-                <option value="Chennai">Chennai</option>
-                <option value="Bangalore">Bangalore</option>
-                <option value="Pune">Pune</option>
-                <option value="Hyderabad">Hyderabad</option>
-                <option value="Remote">Remote</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-[#6B7694] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-
-            {/* Job Type */}
-            <div className="relative">
-              <Briefcase className="w-4 h-4 text-[#6B7694] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={selectedJobType}
-                onChange={(e) => setSelectedJobType(e.target.value)}
-                className="w-full h-[48px] bg-[#F4F6FA] text-[13px] text-[#0B1F4B] pl-9 pr-7 rounded-[10px] border border-[#E3E8F0] appearance-none focus:outline-none focus:border-[#1E5BE0] cursor-pointer"
-              >
-                <option value="All">Job Type: All</option>
-                <option value="Full Time">Full Time</option>
-                <option value="Internship">Internship</option>
-                <option value="Part Time">Part Time</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-[#6B7694] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-
-            {/* Experience */}
-            <div className="relative">
-              <Clock className="w-4 h-4 text-[#6B7694] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={selectedExperience}
-                onChange={(e) => setSelectedExperience(e.target.value)}
-                className="w-full h-[48px] bg-[#F4F6FA] text-[13px] text-[#0B1F4B] pl-9 pr-7 rounded-[10px] border border-[#E3E8F0] appearance-none focus:outline-none focus:border-[#1E5BE0] cursor-pointer"
-              >
-                <option value="All">Experience: All</option>
-                <option value="0-1 Years">0-1 Years</option>
-                <option value="0-2 Years">0-2 Years</option>
-                <option value="1-3 Years">1-3 Years</option>
-                <option value="3+ Years">3+ Years</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-[#6B7694] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-
-            {/* Work Mode */}
-            <div className="relative">
-              <Building2 className="w-4 h-4 text-[#6B7694] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={selectedWorkMode}
-                onChange={(e) => setSelectedWorkMode(e.target.value)}
-                className="w-full h-[48px] bg-[#F4F6FA] text-[13px] text-[#0B1F4B] pl-9 pr-7 rounded-[10px] border border-[#E3E8F0] appearance-none focus:outline-none focus:border-[#1E5BE0] cursor-pointer"
-              >
-                <option value="All">Work Mode: All</option>
-                <option value="On-site">On-site</option>
-                <option value="Hybrid">Hybrid</option>
-                <option value="Remote">Remote</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-[#6B7694] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-
-            {/* Salary Range */}
-            <div className="relative col-span-2 sm:col-span-1">
-              <IndianRupee className="w-4 h-4 text-[#6B7694] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={selectedSalary}
-                onChange={(e) => setSelectedSalary(e.target.value)}
-                className="w-full h-[48px] bg-[#F4F6FA] text-[13px] text-[#0B1F4B] pl-9 pr-7 rounded-[10px] border border-[#E3E8F0] appearance-none focus:outline-none focus:border-[#1E5BE0] cursor-pointer"
-              >
-                <option value="All">Salary Range</option>
-                <option value="3-6">Rs 3 - 6 LPA</option>
-                <option value="6-10">Rs 6 - 10 LPA</option>
-                <option value="10+">Rs 10+ LPA</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-[#6B7694] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          </div>
-        </div>
-
-        {/* 3. Quick Filters Row */}
-        <div className="flex items-center gap-3 overflow-x-auto pb-1 scrollbar-none">
-          <span className="text-[13px] font-bold text-[#0B1F4B] shrink-0">Quick Filters:</span>
-          <div className="flex items-center gap-2">
-            {quickFilters.map((qf) => {
-              const isActive = activeQuickFilter === qf;
-              return (
-                <button
-                  key={qf}
-                  type="button"
-                  onClick={() => setActiveQuickFilter(isActive ? "" : qf)}
-                  className={`h-[36px] px-4 rounded-full text-[13px] font-medium transition-all shrink-0 cursor-pointer ${
-                    isActive
-                      ? "bg-[#1E5BE0] text-white shadow-xs"
-                      : "bg-white text-[#1E5BE0] border border-[#E3E8F0] hover:border-[#1E5BE0]"
-                  }`}
-                >
-                  {qf}
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            className="w-8 h-8 rounded-full bg-white border border-[#E3E8F0] flex items-center justify-center shrink-0 text-[#6B7694] hover:text-[#0B1F4B] shadow-2xs"
-            aria-label="Scroll quick filters"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Active Removable Chips */}
-        {activeFilterChips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <span className="text-xs text-[#6B7694] font-medium">Applied Filters:</span>
-            {activeFilterChips.map((chip) => (
-              <span
-                key={chip.key}
-                className="inline-flex items-center gap-1.5 bg-[#E8F0FF] text-[#1E5BE0] text-xs font-semibold px-3 py-1 rounded-full"
-              >
-                <span>{chip.label}</span>
-                <button
-                  type="button"
-                  onClick={chip.onRemove}
-                  className="hover:text-red-500 cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </span>
-            ))}
             <button
               type="button"
-              onClick={() => {
-                setSelectedLocation("All");
-                setSelectedJobType("All");
-                setSelectedExperience("All");
-                setSelectedWorkMode("All");
-                setSelectedSalary("All");
-                setActiveQuickFilter("");
-                setSearchTerm("");
-              }}
-              className="text-xs text-[#EF4444] font-semibold hover:underline cursor-pointer ml-1"
+              onClick={handleImmediateSearch}
+              disabled={isSearching}
+              className="h-11 px-5 bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-[13px] font-semibold rounded-xl transition shadow-sm cursor-pointer flex items-center gap-1.5 shrink-0 disabled:opacity-60"
             >
-              Clear All
+              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              <span className="hidden sm:inline">Search</span>
             </button>
+          </div>
+
+          {/* Dropdowns */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {[
+              { icon: <MapPin className="w-3.5 h-3.5" />, val: selectedLocation, set: setSelectedLocation, opts: [["All","All Locations"],["Chennai","Chennai"],["Bangalore","Bangalore"],["Hyderabad","Hyderabad"],["Pune","Pune"],["Remote","Remote"]] },
+              { icon: <Briefcase className="w-3.5 h-3.5" />, val: selectedJobType, set: setSelectedJobType, opts: [["All","Job Type"],["Full Time","Full Time"],["Internship","Internship"],["Part Time","Part Time"]] },
+              { icon: <Clock className="w-3.5 h-3.5" />, val: selectedExperience, set: setSelectedExperience, opts: [["All","Experience"],["0-1 Years","0–1 Years"],["0-2 Years","0–2 Years"],["1-3 Years","1–3 Years"],["3+ Years","3+ Years"]] },
+              { icon: <Building2 className="w-3.5 h-3.5" />, val: selectedWorkMode, set: setSelectedWorkMode, opts: [["All","Work Mode"],["On-site","On-site"],["Remote","Remote"],["Hybrid","Hybrid"]] },
+              { icon: <IndianRupee className="w-3.5 h-3.5" />, val: selectedSalary, set: setSelectedSalary, opts: [["All","Salary"],["3-6","3–6 LPA"],["6-10","6–10 LPA"],["10+","10+ LPA"]], span: true },
+            ].map(({ icon, val, set, opts, span }, i) => (
+              <div key={i} className={`relative ${span ? "col-span-2 sm:col-span-1" : ""}`}>
+                <span className={`absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${val !== "All" ? "text-[#1E5BE0]" : "text-[#9BA5BB]"}`}>{icon}</span>
+                <select
+                  value={val}
+                  onChange={(e) => set(e.target.value)}
+                  className={`w-full h-10 text-[12px] font-medium pl-8 pr-5 rounded-xl border appearance-none focus:outline-none focus:border-[#1E5BE0] cursor-pointer transition-colors ${val !== "All" ? "bg-[#EEF4FF] border-[#1E5BE0] text-[#1E5BE0]" : "bg-[#F7F9FD] border-[#E3E8F0] text-[#0B1F4B]"}`}
+                >
+                  {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+                <ChevronDown className="w-3 h-3 text-[#9BA5BB] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            ))}
+          </div>
+
+          {/* Quick filters */}
+          <div className="flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            <Filter className="w-3.5 h-3.5 text-[#9BA5BB] shrink-0" />
+            {quickFilters.map((qf) => (
+              <button
+                key={qf}
+                type="button"
+                onClick={() => setActiveQuickFilter(activeQuickFilter === qf ? "" : qf)}
+                className={`text-[12px] font-semibold px-3 py-1 rounded-full whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                  activeQuickFilter === qf ? "bg-[#1E5BE0] text-white shadow-sm" : "bg-[#F4F6FA] text-[#6B7694] hover:bg-[#EEF4FF] hover:text-[#1E5BE0]"
+                }`}
+              >
+                {qf}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Active filter chips */}
+        {activeFilterChips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[12px] text-[#9BA5BB] font-medium">Filters:</span>
+            {activeFilterChips.map((chip) => (
+              <span key={chip.key} className="inline-flex items-center gap-1 bg-[#EEF4FF] text-[#1E5BE0] text-[12px] font-semibold px-2.5 py-1 rounded-full border border-[#C7D8FF]">
+                {chip.label}
+                <button type="button" onClick={chip.onRemove} className="ml-0.5 hover:text-red-500 cursor-pointer"><X className="w-3 h-3" /></button>
+              </span>
+            ))}
+            <button type="button" onClick={resetAllFilters} className="text-[12px] text-red-500 font-semibold hover:underline cursor-pointer">Clear all</button>
           </div>
         )}
 
-        {/* 4. Jobs Grid (3 Columns or List Rows) */}
+        {/* ─── Job cards ───────────────────────────────────────── */}
         {sortedFilteredJobs.length === 0 ? (
-          <div className="bg-white rounded-[14px] p-12 text-center border border-[#EEF1F7] shadow-sm">
-            <div className="w-16 h-16 rounded-full bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center mx-auto mb-4">
-              <Search className="w-8 h-8" />
+          /* Empty state */
+          <div className="bg-white rounded-2xl border border-[#EEF1F7] p-14 text-center shadow-sm">
+            <div className="w-14 h-14 rounded-full bg-[#EEF4FF] text-[#1E5BE0] flex items-center justify-center mx-auto mb-4">
+              <Search className="w-7 h-7" />
             </div>
-            <h3 className="text-lg font-bold text-[#0B1F4B]">
-              {searchTerm.trim() ? `No jobs found matching "${searchTerm}"` : "No matching jobs found"}
+            <h3 className="text-[17px] font-bold text-[#0B1F4B]">
+              {jobs.length === 0 ? "Loading opportunities…" : searchTerm.trim() ? `No results for "${searchTerm}"` : "No jobs match your filters"}
             </h3>
-            <p className="text-sm text-[#6B7694] mt-1 max-w-sm mx-auto">
-              Try adjusting your search keywords, location filters, or experience range to explore more opportunities.
+            <p className="text-[13px] text-[#6B7694] mt-1 max-w-xs mx-auto">
+              {jobs.length === 0 ? "Fresh listings are being fetched for you." : "Try adjusting filters or clearing the search to see more."}
             </p>
-            {(searchTerm.trim() || selectedLocation !== "All" || selectedJobType !== "All" || selectedWorkMode !== "All" || selectedExperience !== "All" || selectedSalary !== "All" || activeQuickFilter) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedLocation("All");
-                  setSelectedJobType("All");
-                  setSelectedExperience("All");
-                  setSelectedWorkMode("All");
-                  setSelectedSalary("All");
-                  setActiveQuickFilter("");
-                  setSearchTerm("");
-                }}
-                className="mt-4 px-5 py-2.5 bg-[#1E5BE0] hover:bg-[#1848B5] text-white text-xs font-semibold rounded-[10px] transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
-              >
-                <span>Clear Search & Reset All Filters</span>
+            {activeFilterChips.length > 0 && (
+              <button type="button" onClick={resetAllFilters} className="mt-4 px-5 py-2 bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-[13px] font-semibold rounded-xl transition shadow-sm cursor-pointer">
+                Reset Filters
               </button>
             )}
           </div>
         ) : (
-          <div
-            className={
-              viewMode === "grid"
-                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-                : "space-y-4"
-            }
-          >
-            {sortedFilteredJobs.map((job) => (
-              <div
-                key={job.id}
-                className={`bg-white rounded-[14px] p-[18px] border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:border-[#1E5BE0]/40 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between ${
-                  viewMode === "list" ? "sm:flex-row sm:items-center sm:gap-6" : ""
-                }`}
-              >
-                <div className={viewMode === "list" ? "flex-1" : ""}>
-                  {/* Top Row: Company logo (~60px wide) + Name + Verified + Bookmark */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-[54px] h-[54px] rounded-xl bg-white border border-[#EEF1F7] p-1 flex items-center justify-center font-bold text-xs text-[#1E5BE0] shrink-0 overflow-hidden shadow-2xs">
-                        {(job.company.logo || job.company.id) ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={getCompanyLogoUrl(job.company, job.company.id)}
-                              alt={job.company.name}
-                              className="w-full h-full object-contain p-0.5"
-                              onError={(e) => {
-                                const target = e.currentTarget as HTMLImageElement;
-                                const proxyUrl = job.company.id ? getCompanyLogoProxyUrl(job.company.id) : "";
-                                if (proxyUrl && !target.dataset.fallbackTried && target.src !== proxyUrl) {
-                                  target.dataset.fallbackTried = "true";
-                                  target.src = proxyUrl;
-                                  return;
-                                }
-                                target.style.display = "none";
-                                if (target.parentElement && !target.parentElement.querySelector(".logo-fallback-span")) {
-                                  const fallback = document.createElement("span");
-                                  fallback.textContent = job.company.initials || job.company.name.slice(0, 3).toUpperCase();
-                                  fallback.className = "font-bold text-xs text-[#1E5BE0] logo-fallback-span";
-                                  target.parentElement.appendChild(fallback);
-                                }
-                              }}
-                            />
-                          ) : (
-                            <span>{job.company.initials || job.company.name.slice(0, 3).toUpperCase()}</span>
-                          )}
+          <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4" : "space-y-3"}>
+            {sortedFilteredJobs.map((job) => {
+              const visibleSkills = (job.skills ?? []).slice(0, 3);
+              const extraSkills = Math.max(0, (job.skills ?? []).length - 3);
 
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-[600] text-[13px] text-[#0B1F4B]">
-                            {job.company.name}
-                          </span>
-                          {/* Green "Verified" pill with tick icon (bg #E5F8EE, text #1E9E63, 11px) */}
-                          {job.verified && (
-                            <span className="inline-flex items-center gap-1 bg-[#E5F8EE] text-[#1E9E63] text-[11px] font-semibold px-2 py-0.5 rounded-full">
-                              <CheckCircle2 className="w-3 h-3" />
-                              <span>Verified</span>
-                            </span>
-                          )}
-                          {job.hasApplied && (
-                            <span className="inline-flex items-center gap-1 bg-[#E5F8EE] text-[#1E9E63] text-[11px] font-semibold px-2 py-0.5 rounded-full">
-                              <CheckCircle2 className="w-3 h-3" />
-                              <span>Applied ✓</span>
-                            </span>
-                          )}
-                        </div>
-                        {/* Job title (Poppins 700, 18px, navy) */}
-                        <h3 className="font-[700] text-[18px] text-[#0B1F4B] leading-snug mt-1 hover:text-[#1E5BE0] transition-colors">
-                          <Link href={`/student/jobs/${job.id}`}>{job.title}</Link>
-                        </h3>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => toggleBookmark(job.id)}
-                      className="p-1.5 text-[#6B7694] hover:text-[#1E5BE0] transition cursor-pointer shrink-0"
-                      title="Bookmark job"
-                    >
-                      <Bookmark
-                        className={`w-4 h-4 ${
-                          bookmarks[job.id] ? "fill-[#1E5BE0] text-[#1E5BE0]" : ""
-                        }`}
-                      />
-                    </button>
-                  </div>
-
-                  {/* Two Meta Rows with small grey icons */}
-                  <div className="mt-3.5 space-y-1.5 text-[13px] text-[#6B7694]">
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-[#6B7694]" />
-                        <span>{job.location}</span>
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <Briefcase className="w-3.5 h-3.5 text-[#6B7694]" />
-                        <span>{job.jobType} • {job.workMode}</span>
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-[#6B7694]" />
-                        <span>{job.experience}</span>
-                      </span>
-                      <span className="flex items-center gap-1.5 font-semibold text-[#0B1F4B]">
-                        <IndianRupee className="w-3.5 h-3.5 text-[#22B573]" />
-                        <span>{job.salaryText}</span>
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Skill Chips Row (bg #E8F0FF, text #1E5BE0, 6px radius, 11-12px) */}
-                  <div className="mt-4 flex flex-wrap items-center gap-1.5">
-                    {job.skills.map((skill) => (
-                      <span
-                        key={skill}
-                        className="bg-[#E8F0FF] text-[#1E5BE0] text-[11px] sm:text-[12px] font-medium px-2.5 py-1 rounded-[6px]"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                    {job.overflowSkillsCount && job.overflowSkillsCount > 0 ? (
-                      <span className="text-[12px] text-[#6B7694] font-medium px-1">
-                        +{job.overflowSkillsCount}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-
-                {/* Footer: Clock icon + "2 days ago" + Solid Orange Apply Now button */}
+              return (
                 <div
-                  className={`mt-5 pt-4 border-t border-[#EEF1F7] flex items-center justify-between gap-3 ${
-                    viewMode === "list"
-                      ? "sm:mt-0 sm:pt-0 sm:border-t-0 sm:flex-col sm:items-end sm:justify-center"
-                      : ""
+                  key={job.id}
+                  className={`group bg-white border border-[#EEF1F7] rounded-2xl shadow-sm hover:shadow-md hover:border-[#1E5BE0]/30 transition-all duration-200 hover:-translate-y-0.5 flex flex-col ${
+                    viewMode === "list" ? "sm:flex-row sm:items-center p-4 sm:gap-5" : "p-5"
                   }`}
                 >
-                  <span className="text-[13px] text-[#6B7694] flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>{job.postedAgo}</span>
-                  </span>
+                  {/* Card body */}
+                  <div className={`flex flex-col gap-3 ${viewMode === "list" ? "flex-1 min-w-0" : ""}`}>
 
-                  {job.hasApplied ? (
-                    <button
-                      disabled
-                      className="inline-flex items-center gap-1.5 bg-[#E5F8EE] text-[#1E9E63] font-[600] text-[13px] px-[16px] py-[9px] rounded-[8px] border border-[#22B573]/30 cursor-not-allowed"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Already Applied ✓</span>
-                    </button>
-                  ) : (
-                    <Link
-                      href={`/student/jobs/${job.id}`}
-                      className="inline-flex items-center gap-1 bg-[#FF6B00] hover:bg-[#e66000] text-white font-[600] text-[14px] px-[18px] py-[10px] rounded-[8px] transition-all shadow-sm hover:shadow-[#FF6B00]/30 hover:shadow-md cursor-pointer"
-                    >
-                      <span>Apply Now</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
-                  )}
+                    {/* Top: logo + company + title + bookmark */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <CompanyLogo
+                          id={job.company.id}
+                          name={job.company.name}
+                          logo={job.company.logo}
+                          size={44}
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[12px] font-semibold text-[#6B7694] truncate">{job.company.name}</span>
+                            {job.verified && (
+                              <span className="inline-flex items-center gap-0.5 bg-[#E5F8EE] text-[#1E9E63] text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                <CheckCircle2 className="w-2.5 h-2.5" /> Verified
+                              </span>
+                            )}
+                            {job.hasApplied && (
+                              <span className="inline-flex items-center gap-0.5 bg-[#EEF4FF] text-[#1E5BE0] text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                <Check className="w-2.5 h-2.5" /> Applied
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-[700] text-[15px] text-[#0B1F4B] leading-snug mt-0.5 line-clamp-2 group-hover:text-[#1E5BE0] transition-colors">
+                            <Link href={`/student/jobs/${job.id}`}>{job.title}</Link>
+                          </h3>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleBookmark(job.id)}
+                        className="p-1.5 text-[#9BA5BB] hover:text-[#1E5BE0] transition cursor-pointer shrink-0 mt-0.5"
+                        aria-label="Bookmark"
+                      >
+                        <Bookmark className={`w-4 h-4 ${bookmarks[job.id] ? "fill-[#1E5BE0] text-[#1E5BE0]" : ""}`} />
+                      </button>
+                    </div>
+
+                    {/* Meta pills */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { icon: <MapPin className="w-3 h-3" />, label: job.location },
+                        { icon: <Briefcase className="w-3 h-3" />, label: job.jobType },
+                        { icon: <Building2 className="w-3 h-3" />, label: job.workMode },
+                        { icon: <Clock className="w-3 h-3" />, label: job.experience },
+                      ].filter(m => m.label).map((m, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 bg-[#F4F6FA] text-[#6B7694] text-[11px] font-medium px-2 py-1 rounded-full">
+                          {m.icon}{m.label}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Salary */}
+                    {job.salaryText && (
+                      <div className="flex items-center gap-1 text-[13px] font-bold text-[#0B1F4B]">
+                        <IndianRupee className="w-3.5 h-3.5 text-[#22B573]" />
+                        <span>{job.salaryText}</span>
+                      </div>
+                    )}
+
+                    {/* Skill chips (max 3) */}
+                    {visibleSkills.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {visibleSkills.map((skill) => (
+                          <span key={skill} className="bg-[#EEF4FF] text-[#1E5BE0] text-[11px] font-semibold px-2.5 py-1 rounded-lg">
+                            {skill}
+                          </span>
+                        ))}
+                        {extraSkills > 0 && (
+                          <span className="bg-[#F4F6FA] text-[#6B7694] text-[11px] font-semibold px-2.5 py-1 rounded-lg">
+                            +{extraSkills}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className={`flex items-center justify-between gap-3 ${viewMode === "list" ? "sm:flex-col sm:items-end sm:justify-center shrink-0 mt-3 sm:mt-0" : "mt-4 pt-3.5 border-t border-[#F0F2F8]"}`}>
+                    <span className="text-[12px] text-[#9BA5BB] flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> {job.postedAgo}
+                    </span>
+                    {job.hasApplied ? (
+                      <span className="inline-flex items-center gap-1 bg-[#E5F8EE] text-[#1E9E63] text-[12px] font-bold px-3 py-1.5 rounded-xl border border-[#22B573]/20">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Applied
+                      </span>
+                    ) : (
+                      <Link
+                        href={`/student/jobs/${job.id}`}
+                        className="inline-flex items-center gap-1.5 bg-[#FF6B00] hover:bg-[#e06000] text-white text-[13px] font-bold px-4 py-2 rounded-xl transition-all shadow-sm hover:shadow-[0_4px_12px_rgba(255,107,0,0.35)] cursor-pointer"
+                      >
+                        Apply Now <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {/* 5. Pagination / Load More button */}
-        <div className="pt-6 pb-2 text-center">
+        {/* Load more */}
+        <div className="pt-4 pb-2 text-center">
           <button
             type="button"
-            className="border-[1.5px] border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white transition-all text-sm font-semibold px-8 py-3 rounded-[10px] shadow-xs cursor-pointer inline-flex items-center gap-2"
+            className="border border-[#E3E8F0] text-[#6B7694] hover:border-[#1E5BE0] hover:text-[#1E5BE0] transition-all text-[13px] font-semibold px-8 py-2.5 rounded-xl inline-flex items-center gap-2 cursor-pointer"
           >
-            <span>Load More Opportunities</span>
-            <ChevronDown className="w-4 h-4" />
+            Load More Opportunities <ChevronDown className="w-4 h-4" />
           </button>
         </div>
       </main>
 
-      {/* ================= ZONE 3: RIGHT PANEL (~300px stacked cards, gap 20px) ================= */}
-      <aside className="w-full xl:w-[300px] shrink-0 space-y-5">
-        {/* 1. Profile Completion Card */}
-        <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-[16px] font-bold text-[#0B1F4B]">Profile Completion</h3>
-            <span className="text-[16px] font-bold text-[#1E5BE0]">
-              {profileCompletion.percentage}%
-            </span>
-          </div>
-          <p className="text-[12px] text-[#6B7694] mb-3">
-            Higher score increases shortlist chances by 3.4x
-          </p>
+      {/* ═══════════════════ RIGHT SIDEBAR ═══════════════════ */}
+      <aside className="w-full xl:w-[280px] shrink-0 space-y-4">
 
-          {/* Blue progress bar (8px, rounded) */}
-          <div className="w-full h-2 bg-[#F1F4F9] rounded-full overflow-hidden mb-5">
-            <div
-              className="h-full bg-[#1E5BE0] rounded-full transition-all duration-700"
-              style={{ width: `${profileCompletion.percentage}%` }}
-            />
+        {/* Profile Completion */}
+        <div className="bg-white rounded-2xl border border-[#EEF1F7] shadow-sm p-5">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-[15px] font-bold text-[#0B1F4B]">Profile Completion</h3>
+            <span className="text-[16px] font-bold text-[#1E5BE0]">{profileCompletion.percentage}%</span>
           </div>
-
-          {/* Checklist */}
-          <div className="space-y-3 mb-6">
-            {profileCompletion.checklist.map((item, idx) => (
-              <div key={idx} className="flex items-center gap-3 text-[13px]">
-                {item.done ? (
-                  <div className="w-5 h-5 rounded-full bg-[#22B573] text-white flex items-center justify-center shrink-0">
-                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                  </div>
-                ) : (
-                  <div className="w-5 h-5 rounded-full border-2 border-slate-300 shrink-0" />
-                )}
-                <span className={`font-medium ${item.done ? "text-[#0B1F4B]" : "text-[#6B7694]"}`}>
-                  {item.label}
-                </span>
+          <p className="text-[12px] text-[#9BA5BB] mb-3">Higher score increases shortlist chances by 3.4×</p>
+          <div className="w-full h-2 bg-[#F1F4F9] rounded-full overflow-hidden mb-4">
+            <div className="h-full bg-[#1E5BE0] rounded-full transition-all duration-700" style={{ width: `${profileCompletion.percentage}%` }} />
+          </div>
+          <div className="space-y-2.5 mb-5">
+            {profileCompletion.checklist.map((item, i) => (
+              <div key={i} className="flex items-center gap-2.5 text-[13px]">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${item.done ? "bg-[#22B573] text-white" : "border-2 border-[#E3E8F0]"}`}>
+                  {item.done && <Check className="w-3 h-3 stroke-[3]" />}
+                </div>
+                <span className={`font-medium ${item.done ? "text-[#0B1F4B]" : "text-[#9BA5BB]"}`}>{item.label}</span>
               </div>
             ))}
           </div>
-
-          {/* Full-width solid ORANGE button "Complete Your Profile →" (10px radius, 48px height) */}
           <Link
             href="/student/profile"
-            className="w-full h-[48px] bg-[#FF6B00] hover:bg-[#e66000] text-white text-[14px] font-[600] rounded-[10px] flex items-center justify-center transition-all shadow-sm hover:shadow-[#FF6B00]/30 hover:shadow-md"
+            className="w-full h-11 bg-[#FF6B00] hover:bg-[#e06000] text-white text-[13px] font-bold rounded-xl flex items-center justify-center transition-all shadow-sm hover:shadow-[0_4px_12px_rgba(255,107,0,0.3)]"
           >
             Complete Your Profile →
           </Link>
         </div>
 
-        {/* 2. Top Companies Hiring Card */}
-        <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[16px] font-bold text-[#0B1F4B]">Top Companies Hiring</h3>
-            <Link href="/companies" className="text-[13px] font-semibold text-[#1E5BE0] hover:underline">
-              View All
-            </Link>
-          </div>
-
-          <div className="divide-y divide-[#EEF1F7]">
-            {initialData.topCompanies.map((comp) => (
-              <div
-                key={comp.id}
-                className="py-3 flex items-center justify-between group cursor-pointer hover:bg-slate-50/60 rounded-lg px-1 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  {/* 48px tile */}
-                  <div
-                    className={`w-[48px] h-[48px] rounded-xl flex items-center justify-center font-bold text-xs border border-[#EEF1F7] bg-white p-1 shrink-0 overflow-hidden shadow-2xs ${
-                      comp.logoColor || "bg-[#F7F9FD] text-[#0B1F4B]"
-                    }`}
-                  >
-                    {comp.logo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={comp.logo}
-                        alt={comp.name}
-                        className="w-full h-full object-contain p-0.5"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLElement).style.display = "none";
-                          if (e.currentTarget.parentElement) {
-                            const fallback = document.createElement("span");
-                            fallback.textContent = comp.initials || comp.name.slice(0, 3);
-                            fallback.className = "font-bold text-xs text-[#0B1F4B]";
-                            e.currentTarget.parentElement.appendChild(fallback);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <span>{comp.initials || comp.name.slice(0, 3)}</span>
-                    )}
+        {/* Top Companies */}
+        {topCompanies.length > 0 && (
+          <div className="bg-white rounded-2xl border border-[#EEF1F7] shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[15px] font-bold text-[#0B1F4B]">Top Companies Hiring</h3>
+              <Link href="/companies" className="text-[12px] font-semibold text-[#1E5BE0] hover:underline">View All</Link>
+            </div>
+            <div className="space-y-3">
+              {topCompanies.map((comp) => (
+                <div key={comp.id} className="flex items-center justify-between gap-3 cursor-pointer hover:bg-[#F7F9FD] rounded-xl px-2 py-1.5 -mx-2 transition-colors group">
+                  <div className="flex items-center gap-2.5">
+                    <CompanyLogo id={comp.id} name={comp.name} logo={comp.logo} size={36} />
+                    <div>
+                      <p className="text-[13px] font-bold text-[#0B1F4B] group-hover:text-[#1E5BE0] transition-colors">{comp.name}</p>
+                      <p className="text-[11px] text-[#9BA5BB]">{comp.openings}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-[13px] text-[#0B1F4B] group-hover:text-[#1E5BE0] transition-colors">
-                      {comp.name}
-                    </h4>
-                    <p className="text-[12px] text-[#6B7694]">{comp.openings}</p>
-                  </div>
+                  <ChevronRight className="w-4 h-4 text-[#FF6B00] group-hover:translate-x-0.5 transition-transform shrink-0" />
                 </div>
-
-                <ChevronRight className="w-4 h-4 text-[#FF6B00] group-hover:translate-x-1 transition-transform" />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* 3. Latest Jobs Card */}
-        <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[16px] font-bold text-[#0B1F4B]">Latest Jobs</h3>
-            <Link href="/student/jobs" className="text-[13px] font-semibold text-[#1E5BE0] hover:underline">
-              View All
-            </Link>
-          </div>
-
-          <div className="space-y-3.5">
-            {initialData.latestJobs.map((lj) => (
-              <div key={lj.id} className="flex items-start justify-between gap-3 text-[13px]">
-                <div className="flex items-start gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-white border border-[#EEF1F7] text-[#1E5BE0] font-bold text-[11px] p-0.5 flex items-center justify-center shrink-0 mt-0.5 overflow-hidden shadow-2xs">
-                    {lj.logo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={lj.logo}
-                        alt={lj.title}
-                        className="w-full h-full object-contain"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLElement).style.display = "none";
-                          if (e.currentTarget.parentElement) {
-                            const fallback = document.createElement("span");
-                            fallback.textContent = lj.initials || "JB";
-                            fallback.className = "font-bold text-[11px] text-[#1E5BE0]";
-                            e.currentTarget.parentElement.appendChild(fallback);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <span>{lj.initials || "JB"}</span>
-                    )}
+        {/* Latest Jobs */}
+        {latestJobs.length > 0 && (
+          <div className="bg-white rounded-2xl border border-[#EEF1F7] shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[15px] font-bold text-[#0B1F4B]">Latest Jobs</h3>
+              <Link href="/student/jobs" className="text-[12px] font-semibold text-[#1E5BE0] hover:underline">View All</Link>
+            </div>
+            <div className="space-y-3">
+              {latestJobs.map((lj) => (
+                <div key={lj.id} className="flex items-center gap-2.5">
+                  <CompanyLogo id={lj.id} name={lj.title} logo={lj.logo} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/student/jobs/${lj.id}`}>
+                      <p className="text-[13px] font-bold text-[#0B1F4B] hover:text-[#1E5BE0] truncate transition-colors">{lj.title}</p>
+                    </Link>
+                    <p className="text-[11px] text-[#9BA5BB] truncate">{lj.companyCity}</p>
                   </div>
-                  <div className="min-w-0">
-                    <h4 className="font-bold text-[#0B1F4B] text-[13px] leading-snug truncate hover:text-[#1E5BE0] transition-colors">
-                      <Link href={`/student/jobs/${lj.id}`}>{lj.title}</Link>
-                    </h4>
-                    <p className="text-[12px] text-[#6B7694] truncate">{lj.companyCity}</p>
-                  </div>
+                  <span className="text-[11px] text-[#9BA5BB] shrink-0">{lj.timeAgo}</span>
                 </div>
-                <span className="text-[11px] text-[#6B7694] shrink-0 font-medium">{lj.timeAgo}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </aside>
     </div>
   );
