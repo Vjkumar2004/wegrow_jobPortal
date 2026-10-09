@@ -226,7 +226,7 @@ export const jobsService = {
 
   async getBrowseJobsPageData(params?: JobFilterParams): Promise<import("@/types").StudentBrowseJobsPageData> {
     try {
-      const jobs = await this.getJobs({ limit: 100, ...params });
+      const jobs = await this.getJobs({ limit: 50, ...params });
       const studentBrowseItems = jobs.map((j) => ({
         id: j.id,
         title: j.title,

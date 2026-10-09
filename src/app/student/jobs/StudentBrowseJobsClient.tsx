@@ -60,7 +60,7 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
   // Fetch fresh jobs and student profile in parallel, with caching
   const { data: freshJobsData } = useQuery({
     queryKey: ["browse-jobs"],
-    queryFn: () => jobsService.getBrowseJobsPageData({ limit: 100 }),
+    queryFn: () => jobsService.getBrowseJobsPageData({ limit: 50 }),
     staleTime: 60_000,
   });
 
@@ -127,7 +127,7 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
         setIsSearching(true);
         const res = await jobsService.getBrowseJobsPageData({
           search: searchTerm.trim(),
-          limit: 100,
+          limit: 50,
         });
         if (res?.jobs && res.jobs.length > 0) {
           setJobs((prev) => {
@@ -153,7 +153,7 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
       setIsSearching(true);
       const res = await jobsService.getBrowseJobsPageData({
         search: searchTerm.trim(),
-        limit: 100,
+        limit: 50,
       });
       if (res?.jobs && res.jobs.length > 0) {
         setJobs((prev) => {
