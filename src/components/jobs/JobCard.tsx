@@ -12,9 +12,10 @@ interface JobCardProps {
   job: Job;
   onSave?: (jobId: string) => void;
   isSaved?: boolean;
+  basePath?: string;
 }
 
-export const JobCard: React.FC<JobCardProps> = ({ job, onSave, isSaved = false }) => {
+export const JobCard: React.FC<JobCardProps> = ({ job, onSave, isSaved = false, basePath = "/student/jobs" }) => {
   const [saved, setSaved] = useState(isSaved);
 
   const handleToggleSave = () => {
@@ -56,7 +57,7 @@ export const JobCard: React.FC<JobCardProps> = ({ job, onSave, isSaved = false }
             </div>
             <div>
               <h4 className="font-bold text-slate-900 group-hover:text-[#0756A8] transition-colors line-clamp-1 text-base">
-                <Link href={`/jobs/${job.id}`}>{job.title}</Link>
+                <Link href={`${basePath}/${job.id}`}>{job.title}</Link>
               </h4>
               <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
                 <span>{job.company.name}</span>
@@ -71,7 +72,7 @@ export const JobCard: React.FC<JobCardProps> = ({ job, onSave, isSaved = false }
           <button
             type="button"
             onClick={handleToggleSave}
-            className={`p-2 rounded-lg border transition-colors ${
+            className={`p-2 rounded-lg border transition-colors cursor-pointer ${
               saved
                 ? "bg-amber-50 text-[#F79400] border-[#F79400]/30"
                 : "border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50"
@@ -120,11 +121,23 @@ export const JobCard: React.FC<JobCardProps> = ({ job, onSave, isSaved = false }
           Posted {formatDate(job.postedDate)}
         </span>
         <div className="flex items-center gap-2">
-          <Link href={`/jobs/${job.id}`}>
-            <Button variant="soft" size="sm">
+          <Link href={`${basePath}/${job.id}`}>
+            <Button variant="soft" size="sm" className="cursor-pointer">
               View Details
             </Button>
           </Link>
+          {job.hasApplied ? (
+            <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-emerald-200">
+              Applied ✓
+            </span>
+          ) : (
+            <Link
+              href={`${basePath}/${job.id}?apply=true`}
+              className="inline-flex items-center gap-1 bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition-colors cursor-pointer"
+            >
+              Apply Now
+            </Link>
+          )}
         </div>
       </div>
     </div>

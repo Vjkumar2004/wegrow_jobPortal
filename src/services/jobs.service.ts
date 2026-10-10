@@ -114,6 +114,7 @@ export function mapBackendJobToFrontend(bj: BackendPublicJob): Job {
         : 0,
     hasApplied: Boolean((bj as any).hasApplied),
     applicationId: (bj as any).applicationId || undefined,
+    hiringStages: Array.isArray((bj as any).hiringStages) ? (bj as any).hiringStages : undefined,
   };
 }
 

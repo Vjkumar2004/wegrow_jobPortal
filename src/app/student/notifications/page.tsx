@@ -15,49 +15,6 @@ import { studentService } from "@/services/student.service";
 import { StudentNotificationItem } from "@/types";
 import { getCompanyLogoProxyUrl } from "@/lib/utils";
 
-const DEMO_NOTIFICATIONS = [
-  {
-    id: "n-1",
-    title: "Application Shortlisted 🎉",
-    subtitle: "Zoho • Frontend Developer",
-    message: "Congratulations! The hiring manager has shortlisted your application for Frontend Developer.",
-    timeAgo: "2 hours ago",
-    type: "green",
-    companyName: "Zoho",
-    read: false,
-  },
-  {
-    id: "n-2",
-    title: "Interview Scheduled 📅",
-    subtitle: "TCS • Software Engineer",
-    message: "Your technical interview round has been set for Sep 25 at 10:00 AM IST via Google Meet.",
-    timeAgo: "1 day ago",
-    type: "blue",
-    companyName: "TCS",
-    read: false,
-  },
-  {
-    id: "n-3",
-    title: "New Job Match 🚀",
-    subtitle: "Freshworks • React Developer",
-    message: "New opening in Frontend Engineering posted this week matching your profile.",
-    timeAgo: "2 days ago",
-    type: "orange",
-    companyName: "Freshworks",
-    read: true,
-  },
-  {
-    id: "n-4",
-    title: "Application Under Review",
-    subtitle: "Infosys • React Developer",
-    message: "Your application has been received and screening is currently in progress.",
-    timeAgo: "3 days ago",
-    type: "purple",
-    companyName: "Infosys",
-    read: true,
-  },
-];
-
 type FilterTab = "ALL" | "UNREAD" | "INTERVIEW" | "APPLICATION";
 
 export default function StudentNotificationsPage() {
@@ -72,10 +29,7 @@ export default function StudentNotificationsPage() {
 
   const [localOverrides, setLocalOverrides] = useState<Record<string, boolean>>({});
 
-  const baseNotifications: StudentNotificationItem[] =
-    fetchedNotifications && fetchedNotifications.length > 0
-      ? fetchedNotifications
-      : (DEMO_NOTIFICATIONS as StudentNotificationItem[]);
+  const baseNotifications: StudentNotificationItem[] = fetchedNotifications ?? [];
 
   const notifications = baseNotifications.map((n) =>
     localOverrides[n.id] !== undefined ? { ...n, read: localOverrides[n.id] } : n

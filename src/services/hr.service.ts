@@ -70,6 +70,7 @@ export const hrService = {
         salaryCurrency: "INR",
         isSalaryDisclosed: true,
         benefits: jobData.benefits || [],
+        hiringStages: jobData.hiringStages || undefined,
         skills: formattedSkills,
         publish: (jobData as any).publish ?? true,
       };

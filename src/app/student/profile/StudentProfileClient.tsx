@@ -752,192 +752,195 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
         id="overview"
         className="bg-white rounded-xl sm:rounded-[16px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
       >
-        <div className="flex flex-col lg:flex-row items-center lg:items-start justify-between gap-4 sm:gap-6">
-          {/* Avatar Photo with file picker */}
-          <div className="relative shrink-0">
-            <input
-              type="file"
-              ref={photoFileInputRef}
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
+        <div className="flex flex-col lg:flex-row items-start justify-between gap-4 sm:gap-6">
+          {/* Left + Middle Combined: Avatar on Left, Details on Right (Mobile & Desktop) */}
+          <div className="flex flex-row items-start gap-3.5 sm:gap-5 lg:gap-6 min-w-0 flex-1 w-full">
+            {/* Avatar Photo with file picker */}
+            <div className="relative shrink-0">
+              <input
+                type="file"
+                ref={photoFileInputRef}
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
 
-                // Validate format: JPEG, PNG, WebP
-                const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-                if (!allowedTypes.includes(file.type)) {
-                  showToast("Please upload a valid image (JPEG, PNG, or WebP).", "error");
-                  return;
-                }
-
-                // Validate max size: 2MB
-                if (file.size > 2 * 1024 * 1024) {
-                  showToast("Image size must be less than 2 MB.", "error");
-                  return;
-                }
-
-                // Show local preview immediately before upload completes
-                const localPreviewUrl = URL.createObjectURL(file);
-                setProfile((prev) => ({
-                  ...prev,
-                  avatarUrl: localPreviewUrl,
-                  avatar: localPreviewUrl,
-                  photoUrl: localPreviewUrl,
-                }));
-                setImageError(false);
-                window.dispatchEvent(
-                  new CustomEvent("avatarUpdated", {
-                    detail: { avatarUrl: localPreviewUrl, avatar: localPreviewUrl, photoUrl: localPreviewUrl },
-                  })
-                );
-
-                try {
-                  showToast("Uploading avatar to storage...");
-                  const uploadResult = await studentService.uploadAvatar(file);
-                  console.log("[Avatar] uploadAvatar result:", uploadResult);
-
-                  // Extract avatarUrl or avatar according to backend response specs
-                  const finalUrl = uploadResult?.avatarUrl || uploadResult?.avatar || localPreviewUrl;
-
-                  // Update local profile state immediately
-                  setProfile((prev) => ({
-                    ...prev,
-                    avatarUrl: finalUrl,
-                    avatar: finalUrl,
-                    photoUrl: finalUrl,
-                  }));
-                  setImageError(false);
-
-                  // Update global auth user in localStorage & dispatch event to navbar/header
-                  if (typeof window !== "undefined") {
-                    try {
-                      const userStr = localStorage.getItem("auth_user");
-                      if (userStr) {
-                        const userObj = JSON.parse(userStr);
-                        userObj.avatarUrl = finalUrl;
-                        userObj.avatar = finalUrl;
-                        userObj.photoUrl = finalUrl;
-                        if (userObj.studentProfile) {
-                          userObj.studentProfile.avatarUrl = finalUrl;
-                          userObj.studentProfile.avatar = finalUrl;
-                          userObj.studentProfile.photoUrl = finalUrl;
-                        }
-                        localStorage.setItem("auth_user", JSON.stringify(userObj));
-                      }
-                    } catch (e) {
-                      console.warn(e);
-                    }
+                  // Validate format: JPEG, PNG, WebP
+                  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+                  if (!allowedTypes.includes(file.type)) {
+                    showToast("Please upload a valid image (JPEG, PNG, or WebP).", "error");
+                    return;
                   }
 
+                  // Validate max size: 2MB
+                  if (file.size > 2 * 1024 * 1024) {
+                    showToast("Image size must be less than 2 MB.", "error");
+                    return;
+                  }
+
+                  // Show local preview immediately before upload completes
+                  const localPreviewUrl = URL.createObjectURL(file);
+                  setProfile((prev) => ({
+                    ...prev,
+                    avatarUrl: localPreviewUrl,
+                    avatar: localPreviewUrl,
+                    photoUrl: localPreviewUrl,
+                  }));
+                  setImageError(false);
                   window.dispatchEvent(
                     new CustomEvent("avatarUpdated", {
-                      detail: { avatarUrl: finalUrl, avatar: finalUrl, photoUrl: finalUrl },
+                      detail: { avatarUrl: localPreviewUrl, avatar: localPreviewUrl, photoUrl: localPreviewUrl },
                     })
                   );
 
-                  showToast("Profile avatar uploaded successfully!");
-                } catch (err) {
-                  showToast(getErrorMessage(err, "Failed to upload avatar"), "error");
-                } finally {
-                  if (photoFileInputRef.current) photoFileInputRef.current.value = "";
-                }
-              }}
-            />
+                  try {
+                    showToast("Uploading avatar to storage...");
+                    const uploadResult = await studentService.uploadAvatar(file);
+                    console.log("[Avatar] uploadAvatar result:", uploadResult);
 
-            {/* Avatar Circle */}
-            {(() => {
-              const avatarSrc =
-                profile.avatarUrl ||
-                profile.avatar ||
-                profile.photoUrl ||
-                (profile.id ? `${API_BASE_URL}/media/avatar/${profile.id}` : "");
-              const showImg = Boolean(profile.avatarUrl || profile.avatar || profile.photoUrl) && !imageError;
+                    // Extract avatarUrl or avatar according to backend response specs
+                    const finalUrl = uploadResult?.avatarUrl || uploadResult?.avatar || localPreviewUrl;
 
-              return (
-                <div
-                  onClick={() => photoFileInputRef.current?.click()}
-                  className="w-[84px] h-[84px] sm:w-[110px] sm:h-[110px] lg:w-[136px] lg:h-[136px] rounded-full border-3 sm:border-4 border-white shadow-[0_4px_16px_rgba(11,31,75,0.12)] overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] flex items-center justify-center cursor-pointer group relative"
-                  title="Click to upload profile photo from your device"
-                >
-                  {showImg ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={avatarSrc}
-                      alt={profile.name || "Student Avatar"}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      onError={(e) => {
-                        const proxyUrl = profile.id ? `${API_BASE_URL}/media/avatar/${profile.id}` : "";
-                        if (proxyUrl && e.currentTarget.src !== proxyUrl) {
-                          e.currentTarget.src = proxyUrl;
-                          return;
+                    // Update local profile state immediately
+                    setProfile((prev) => ({
+                      ...prev,
+                      avatarUrl: finalUrl,
+                      avatar: finalUrl,
+                      photoUrl: finalUrl,
+                    }));
+                    setImageError(false);
+
+                    // Update global auth user in localStorage & dispatch event to navbar/header
+                    if (typeof window !== "undefined") {
+                      try {
+                        const userStr = localStorage.getItem("auth_user");
+                        if (userStr) {
+                          const userObj = JSON.parse(userStr);
+                          userObj.avatarUrl = finalUrl;
+                          userObj.avatar = finalUrl;
+                          userObj.photoUrl = finalUrl;
+                          if (userObj.studentProfile) {
+                            userObj.studentProfile.avatarUrl = finalUrl;
+                            userObj.studentProfile.avatar = finalUrl;
+                            userObj.studentProfile.photoUrl = finalUrl;
+                          }
+                          localStorage.setItem("auth_user", JSON.stringify(userObj));
                         }
-                        setImageError(true);
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] text-white font-extrabold text-[24px] sm:text-[32px] lg:text-[40px] flex items-center justify-center tracking-wider select-none shadow-inner">
-                      {getNameInitials(profile.name)}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+                      } catch (e) {
+                        console.warn(e);
+                      }
+                    }
 
-            {/* Blue camera button */}
-            <button
-              type="button"
-              onClick={() => photoFileInputRef.current?.click()}
-              className="absolute bottom-0 right-0 w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-full bg-[#1E5BE0] hover:bg-[#1548b8] text-white border-2 border-white shadow-md flex items-center justify-center transition-transform hover:scale-110 cursor-pointer"
-              title="Upload photo from your computer or phone"
-              aria-label="Upload photo"
-            >
-              <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-          </div>
+                    window.dispatchEvent(
+                      new CustomEvent("avatarUpdated", {
+                        detail: { avatarUrl: finalUrl, avatar: finalUrl, photoUrl: finalUrl },
+                      })
+                    );
 
-          {/* Middle: Details & Meta info */}
-          <div className="flex-1 text-center lg:text-left min-w-0">
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-1.5 sm:gap-2">
-              <h1 className="text-[18px] sm:text-[22px] lg:text-[26px] font-[800] text-[#0B1F4B] tracking-tight">
-                {profile.name || "Student"}
-              </h1>
-              <span className="inline-flex items-center text-[#1E5BE0]" title="Verified Student Profile">
-                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 fill-[#1E5BE0] text-white" />
-              </span>
+                    showToast("Profile avatar uploaded successfully!");
+                  } catch (err) {
+                    showToast(getErrorMessage(err, "Failed to upload avatar"), "error");
+                  } finally {
+                    if (photoFileInputRef.current) photoFileInputRef.current.value = "";
+                  }
+                }}
+              />
+
+              {/* Avatar Circle */}
+              {(() => {
+                const avatarSrc =
+                  profile.avatarUrl ||
+                  profile.avatar ||
+                  profile.photoUrl ||
+                  (profile.id ? `${API_BASE_URL}/media/avatar/${profile.id}` : "");
+                const showImg = Boolean(profile.avatarUrl || profile.avatar || profile.photoUrl) && !imageError;
+
+                return (
+                  <div
+                    onClick={() => photoFileInputRef.current?.click()}
+                    className="w-[76px] h-[76px] sm:w-[100px] sm:h-[100px] lg:w-[128px] lg:h-[128px] rounded-full border-3 sm:border-4 border-white shadow-[0_4px_16px_rgba(11,31,75,0.12)] overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] flex items-center justify-center cursor-pointer group relative"
+                    title="Click to upload profile photo from your device"
+                  >
+                    {showImg ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={avatarSrc}
+                        alt={profile.name || "Student Avatar"}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        onError={(e) => {
+                          const proxyUrl = profile.id ? `${API_BASE_URL}/media/avatar/${profile.id}` : "";
+                          if (proxyUrl && e.currentTarget.src !== proxyUrl) {
+                            e.currentTarget.src = proxyUrl;
+                            return;
+                          }
+                          setImageError(true);
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] text-white font-extrabold text-[22px] sm:text-[30px] lg:text-[38px] flex items-center justify-center tracking-wider select-none shadow-inner">
+                        {getNameInitials(profile.name)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Blue camera button */}
+              <button
+                type="button"
+                onClick={() => photoFileInputRef.current?.click()}
+                className="absolute bottom-0 right-0 w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 rounded-full bg-[#1E5BE0] hover:bg-[#1548b8] text-white border-2 border-white shadow-md flex items-center justify-center transition-transform hover:scale-110 cursor-pointer"
+                title="Upload photo from your computer or phone"
+                aria-label="Upload photo"
+              >
+                <Camera className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
+              </button>
             </div>
 
-            {/* Tagline / Headline */}
-            <p className="text-[12px] sm:text-[14px] lg:text-[15px] text-[#6B7694] font-[500] mt-0.5 sm:mt-1 leading-snug">
-              {profile.headline || "Job Seeker / Student"}
-            </p>
+            {/* Middle: Details & Meta info */}
+            <div className="flex-1 text-left min-w-0">
+              <div className="flex flex-wrap items-center justify-start gap-1.5 sm:gap-2">
+                <h1 className="text-[17px] sm:text-[22px] lg:text-[26px] font-[800] text-[#0B1F4B] tracking-tight">
+                  {profile.name || "Student"}
+                </h1>
+                <span className="inline-flex items-center text-[#1E5BE0]" title="Verified Student Profile">
+                  <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 fill-[#1E5BE0] text-white" />
+                </span>
+              </div>
 
-            {/* Meta Row 1 */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2.5 sm:gap-3 lg:gap-4 mt-2 sm:mt-3 text-[11px] sm:text-[12px] lg:text-[13px] text-[#6B7694]">
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-[#1E5BE0]" />
-                <span>{profile.location || "Location not specified"}</span>
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <GraduationCap className="w-3.5 h-3.5 text-[#1E5BE0]" />
-                <span>{profile.degreeName || profile.education?.[0]?.degree || "Candidate"}</span>
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <Briefcase className="w-3.5 h-3.5 text-[#1E5BE0]" />
-                <span>{profile.experienceLevel || "Fresher"}</span>
-              </span>
-            </div>
+              {/* Tagline / Headline */}
+              <p className="text-[12px] sm:text-[14px] lg:text-[15px] text-[#6B7694] font-[500] mt-0.5 sm:mt-1 leading-snug">
+                {profile.headline || "Job Seeker / Student"}
+              </p>
 
-            {/* Meta Row 2 */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2.5 sm:gap-3 lg:gap-4 mt-1.5 sm:mt-2 text-[11px] sm:text-[12px] lg:text-[13px] text-[#6B7694]">
-              <span className="inline-flex items-center gap-1">
-                <Mail className="w-3.5 h-3.5 text-[#1E5BE0]" />
-                <span className="truncate max-w-[180px] sm:max-w-none">{profile.email || "No email available"}</span>
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5 text-[#1E5BE0]" />
-                <span>{profile.phone || "No phone number added"}</span>
-              </span>
+              {/* Meta Row 1 */}
+              <div className="flex flex-wrap items-center justify-start gap-x-2.5 sm:gap-x-3.5 lg:gap-x-4 gap-y-1 mt-1.5 sm:mt-2.5 text-[11px] sm:text-[12px] lg:text-[13px] text-[#6B7694]">
+                <span className="inline-flex items-center gap-1 shrink-0">
+                  <MapPin className="w-3.5 h-3.5 text-[#1E5BE0] shrink-0" />
+                  <span>{profile.location || "Location not specified"}</span>
+                </span>
+                <span className="inline-flex items-center gap-1 shrink-0">
+                  <GraduationCap className="w-3.5 h-3.5 text-[#1E5BE0] shrink-0" />
+                  <span>{profile.degreeName || profile.education?.[0]?.degree || "Candidate"}</span>
+                </span>
+                <span className="inline-flex items-center gap-1 shrink-0">
+                  <Briefcase className="w-3.5 h-3.5 text-[#1E5BE0] shrink-0" />
+                  <span>{profile.experienceLevel || "Fresher"}</span>
+                </span>
+              </div>
+
+              {/* Meta Row 2 */}
+              <div className="flex flex-wrap items-center justify-start gap-x-3 lg:gap-x-4 gap-y-1 mt-1 sm:mt-1.5 text-[11px] sm:text-[12px] lg:text-[13px] text-[#6B7694]">
+                <span className="inline-flex items-center gap-1 min-w-0">
+                  <Mail className="w-3.5 h-3.5 text-[#1E5BE0] shrink-0" />
+                  <span className="truncate max-w-[170px] sm:max-w-none" title={profile.email}>{profile.email || "No email available"}</span>
+                </span>
+                <span className="inline-flex items-center gap-1 shrink-0">
+                  <Phone className="w-3.5 h-3.5 text-[#1E5BE0] shrink-0" />
+                  <span>{profile.phone || "No phone number added"}</span>
+                </span>
+              </div>
             </div>
           </div>
 

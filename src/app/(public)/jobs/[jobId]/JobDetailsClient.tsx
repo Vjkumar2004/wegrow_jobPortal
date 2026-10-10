@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Job } from "@/types";
 import { formatSalary, formatDate, getCompanyLogoUrl, getCompanyLogoProxyUrl } from "@/lib/utils";
@@ -41,13 +41,20 @@ export default function JobDetailsClient({ job }: { job: Job }) {
   const [phone, setPhone] = useState("+91 98765 43210");
   const [coverNote, setCoverNote] = useState("");
 
+  useEffect(() => {
+    const user = authService.getCurrentUser();
+    if (user && user.role === "STUDENT") {
+      router.replace(`/student/jobs/${job.id}`);
+    }
+  }, [job.id, router]);
+
   const handleApplyClick = () => {
     const user = authService.getCurrentUser();
     if (!user || user.role !== "STUDENT") {
-      router.push(`/student/login?redirect=/jobs/${job.id}`);
+      router.push(`/student/login?redirect=/student/jobs/${job.id}`);
       return;
     }
-    setApplyModalOpen(true);
+    router.push(`/student/jobs/${job.id}?apply=true`);
   };
 
   const handleApplySubmit = async (e: React.FormEvent) => {

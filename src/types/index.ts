@@ -15,6 +15,12 @@ export interface User {
   phone?: string;
 }
 
+export interface HiringStage {
+  step: string;
+  title: string;
+  desc: string;
+}
+
 export interface Job {
   id: string;
   title: string;
@@ -42,6 +48,7 @@ export interface Job {
   requirements: string[];
   qualifications?: string[];
   benefits?: string[];
+  hiringStages?: HiringStage[];
   postedDate: string;
   deadline?: string;
   openings?: number;

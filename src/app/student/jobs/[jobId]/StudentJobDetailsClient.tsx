@@ -138,6 +138,16 @@ export default function StudentJobDetailsClient({
     };
   }, [job.id]);
 
+  // Automatically trigger apply modal if navigated with ?apply=true
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("apply") === "true" && !isApplied) {
+        setApplyModalOpen(true);
+      }
+    }
+  }, [isApplied]);
+
   // Handle sticky header on scroll & scroll spy
   useEffect(() => {
     const handleScroll = () => {
@@ -145,7 +155,7 @@ export default function StudentJobDetailsClient({
       setIsStickyHeaderVisible(scrollPos > 320);
 
       // Scroll Spy for tabs
-      const sections = ["overview", "responsibilities", "requirements", "skills-perks", "company", "similar"];
+      const sections = ["overview", "responsibilities", "requirements", "skills-perks", "recruitment-workflow", "company", "similar"];
       for (const sectionId of sections) {
         const el = document.getElementById(sectionId);
         if (el) {
@@ -618,6 +628,7 @@ export default function StudentJobDetailsClient({
             { id: "responsibilities", label: "Responsibilities" },
             { id: "requirements", label: "Requirements" },
             { id: "skills-perks", label: "Skills & Perks" },
+            ...(job.hiringStages && job.hiringStages.length > 0 ? [{ id: "recruitment-workflow", label: "Hiring Workflow" }] : []),
             { id: "company", label: "About Company" },
             { id: "similar", label: `Similar Jobs (${displaySimilar.length})` },
           ].map((tab) => {
@@ -800,42 +811,42 @@ export default function StudentJobDetailsClient({
               )}
             </div>
 
-            {/* Section 5: Campus Hiring Process Timeline */}
-            <div className="bg-white rounded-2xl border border-[#EEF1F7] p-6 lg:p-7 shadow-[0_4px_16px_rgba(11,31,75,0.04)] space-y-5">
-              <div className="flex items-center gap-2.5 pb-3 border-b border-[#EEF1F7]">
-                <div className="w-9 h-9 rounded-xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center">
-                  <Layers className="w-5 h-5" strokeWidth={2} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-[#0B1F4B]">Recruitment Workflow</h2>
-                  <p className="text-xs text-[#8E9AAC]">Typical 4-stage evaluation flow for this role</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 relative">
-                {[
-                  { step: "01", title: "Apply Online", desc: "Profile & credentials submitted" },
-                  { step: "02", title: "Shortlisting", desc: "Recruiter screening & assessment" },
-                  { step: "03", title: "Interviews", desc: "Technical & problem solving round" },
-                  { step: "04", title: "Final Offer", desc: "HR discussion & onboarding" },
-                ].map((s, idx) => (
-                  <div
-                    key={idx}
-                    className="p-4 rounded-xl bg-[#F8FAFD] border border-[#EEF1F7] hover:border-[#1E5BE0] hover:bg-[#F0F5FF] transition-all relative group"
-                  >
-                    <span className="text-xs font-black text-[#1E5BE0] block mb-1">
-                      STEP {s.step}
-                    </span>
-                    <h4 className="text-sm font-bold text-[#0B1F4B] mb-1">
-                      {s.title}
-                    </h4>
-                    <p className="text-[11px] text-[#6B7694] leading-relaxed">
-                      {s.desc}
-                    </p>
+            {/* Section 5: Campus Hiring Process Timeline (Dynamic from DB) */}
+            {job.hiringStages && job.hiringStages.length > 0 && (
+              <div
+                id="recruitment-workflow"
+                className="bg-white rounded-2xl border border-[#EEF1F7] p-6 lg:p-7 shadow-[0_4px_16px_rgba(11,31,75,0.04)] space-y-5"
+              >
+                <div className="flex items-center gap-2.5 pb-3 border-b border-[#EEF1F7]">
+                  <div className="w-9 h-9 rounded-xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center">
+                    <Layers className="w-5 h-5" strokeWidth={2} />
                   </div>
-                ))}
+                  <div>
+                    <h2 className="text-lg font-bold text-[#0B1F4B]">Recruitment Workflow</h2>
+                    <p className="text-xs text-[#8E9AAC]">{job.hiringStages.length}-stage evaluation workflow defined by recruiter</p>
+                  </div>
+                </div>
+
+                <div className={`grid grid-cols-1 ${job.hiringStages.length <= 2 ? "sm:grid-cols-2" : job.hiringStages.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-4"} gap-3 relative`}>
+                  {job.hiringStages.map((s, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 rounded-xl bg-[#F8FAFD] border border-[#EEF1F7] hover:border-[#1E5BE0] hover:bg-[#F0F5FF] transition-all relative group"
+                    >
+                      <span className="text-xs font-black text-[#1E5BE0] block mb-1">
+                        STEP {s.step || String(idx + 1).padStart(2, "0")}
+                      </span>
+                      <h4 className="text-sm font-bold text-[#0B1F4B] mb-1">
+                        {s.title}
+                      </h4>
+                      <p className="text-[11px] text-[#6B7694] leading-relaxed">
+                        {s.desc}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* ================= RIGHT SIDEBAR COLUMN (4 cols) ================= */}

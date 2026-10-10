@@ -1031,13 +1031,14 @@ export const studentService = {
    */
   async getDashboardData(cachedStudentProfile?: StudentProfile): Promise<import("@/types").StudentDashboardData> {
     try {
-      const [profileRes, appsRes, interviewsRes, jobsRes] = await Promise.all([
+      const [profileRes, appsRes, interviewsRes, jobsRes, notifsRes] = await Promise.all([
         cachedStudentProfile
           ? Promise.resolve(null)
           : apiClient.get("/students/me").catch(() => null),
         apiClient.get<any>("/students/me/applications").catch(() => null),
         apiClient.get<any>("/students/me/interviews").catch(() => null),
         apiClient.get<any>("/jobs?limit=6").catch(() => null),
+        apiClient.get<any>("/students/me/notifications").catch(() => null),
       ]);
 
       const stu = cachedStudentProfile
@@ -1141,108 +1142,23 @@ export const studentService = {
         { name: "Rejected", value: rejectedCount, color: "#8B5CF6" },
       ];
 
-      // Build dynamic notifications from student's real applications & interviews & company jobs
-      const notifications: StudentNotificationItem[] = [];
-
-      for (const i of interviews.slice(0, 3)) {
-        const comp = i.application?.job?.company || i.company;
-        const compId = comp?.id || i.application?.job?.companyId;
-        const compName = comp?.name || "Hiring Partner";
-        const logo = getCompanyLogoUrl(comp, compId);
-        const d = new Date(i.scheduledStartAt);
-        notifications.push({
-          id: `notif-int-${i.id}`,
-          title: "Interview Scheduled 📅",
-          subtitle: `${compName} • ${i.application?.job?.title || i.title || "Assessment"}`,
-          message: `Your ${i.type === "HR_DISCUSSION" ? "HR Discussion" : "Technical"} round is set for ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} at ${d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}.`,
-          timeAgo: "Upcoming",
-          type: "blue",
-          companyName: compName,
-          companyLogo: logo || undefined,
-          companyId: compId || undefined,
-          read: false,
-        });
-      }
-
-      for (const a of apps.slice(0, 4)) {
-        const comp = a.job?.company;
-        const compId = comp?.id || a.job?.companyId;
-        const compName = comp?.name || "Company";
-        const logo = getCompanyLogoUrl(comp, compId);
-        const title = a.job?.title || "Role";
-
-        if (a.status === "SHORTLISTED") {
-          notifications.push({
-            id: `notif-app-${a.id}`,
-            title: "Application Shortlisted 🎉",
-            subtitle: `${compName} • ${title}`,
-            message: `Congratulations! ${compName} has shortlisted your profile for ${title}.`,
-            timeAgo: "Recently",
-            type: "green",
-            companyName: compName,
-            companyLogo: logo || undefined,
-            companyId: compId || undefined,
-            read: false,
-          });
-        } else if (a.status === "SELECTED" || a.status === "OFFERED") {
-          notifications.push({
-            id: `notif-app-${a.id}`,
-            title: "Offer Received! 🌟",
-            subtitle: `${compName} • ${title}`,
-            message: `${compName} has extended a job offer for ${title}.`,
-            timeAgo: "Recent",
-            type: "green",
-            companyName: compName,
-            companyLogo: logo || undefined,
-            companyId: compId || undefined,
-            read: false,
-          });
-        } else if (a.status === "REJECTED") {
-          notifications.push({
-            id: `notif-app-${a.id}`,
-            title: "Application Status Update",
-            subtitle: `${compName} • ${title}`,
-            message: `${compName} has updated the review status of your application.`,
-            timeAgo: "Recent",
-            type: "purple",
-            companyName: compName,
-            companyLogo: logo || undefined,
-            companyId: compId || undefined,
-            read: true,
-          });
-        } else {
-          notifications.push({
-            id: `notif-app-${a.id}`,
-            title: "Application Under Review",
-            subtitle: `${compName} • ${title}`,
-            message: `Your application has been received and screening is in progress at ${compName}.`,
-            timeAgo: "Recent",
-            type: "purple",
-            companyName: compName,
-            companyLogo: logo || undefined,
-            companyId: compId || undefined,
-            read: true,
-          });
-        }
-      }
-
-      for (const j of jobs.slice(0, 2)) {
-        const compId = j.company?.id || j.companyId;
-        const compName = j.company?.name || "Hiring Partner";
-        const logo = getCompanyLogoUrl(j.company, compId);
-        notifications.push({
-          id: `notif-job-${j.id}`,
-          title: "New Job Match 🚀",
-          subtitle: `${compName} • ${j.title}`,
-          message: `${compName} is actively hiring for ${j.title} in ${j.location || "India"}.`,
-          timeAgo: "New",
-          type: "orange",
-          companyName: compName,
-          companyLogo: logo || undefined,
-          companyId: compId || undefined,
-          read: true,
-        });
-      }
+      // Fetch real notifications directly from database
+      const _notifsRaw: any = notifsRes?.data?.data?.items || notifsRes?.data?.data;
+      const notifications: StudentNotificationItem[] = Array.isArray(_notifsRaw)
+        ? _notifsRaw.map((n: any) => ({
+            id: n.id || String(Math.random()),
+            title: n.title || "Notification",
+            subtitle: n.subtitle || n.companyName || "",
+            message: n.message || n.body || "",
+            timeAgo: n.timeAgo || "Recently",
+            type: n.type || "blue",
+            companyName: n.companyName || n.company?.name || undefined,
+            companyLogo: getCompanyLogoUrl(n.company, n.companyId || n.company?.id) || undefined,
+            companyId: n.companyId || n.company?.id || undefined,
+            read: Boolean(n.read || n.isRead),
+            linkUrl: n.linkUrl || undefined,
+          }))
+        : [];
 
       return {
         student: {
@@ -1351,7 +1267,7 @@ export const studentService = {
     try {
       const res = await apiClient.get<any>("/students/me/notifications");
       const items = res.data?.data?.items || res.data?.data;
-      if (Array.isArray(items) && items.length > 0) {
+      if (Array.isArray(items)) {
         return items.map((n: any) => ({
           id: n.id || String(Math.random()),
           title: n.title || "Notification",

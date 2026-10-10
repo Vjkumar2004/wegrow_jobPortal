@@ -17,8 +17,27 @@ import {
   Code,
   FileText,
   AlertCircle,
+  Plus,
+  Trash2,
+  Layers,
+  Gift,
+  Check,
+  X,
 } from "lucide-react";
 import { hrService } from "@/services/hr.service";
+import { HiringStage } from "@/types";
+
+const POPULAR_BENEFITS = [
+  "Health & Medical Insurance",
+  "Flexible Working Hours",
+  "Performance Bonus",
+  "Free Meals & Snacks",
+  "Remote / Hybrid Flexibility",
+  "Upskilling & Certification Allowance",
+  "PF & Gratuity",
+  "Paid Time Off (PTO)",
+  "Relocation Assistance",
+];
 
 export default function CreateJobPage() {
   const router = useRouter();
@@ -40,6 +59,62 @@ export default function CreateJobPage() {
   const [deadline, setDeadline] = useState("2026-11-30");
   const [openings, setOpenings] = useState("5");
 
+  // Dynamic Hiring Stages / Workflow builder
+  const [hiringStages, setHiringStages] = useState<HiringStage[]>([
+    { step: "01", title: "Apply Online", desc: "Profile & credentials submitted" },
+    { step: "02", title: "Shortlisting", desc: "Recruiter screening & assessment" },
+    { step: "03", title: "Interviews", desc: "Technical & problem solving round" },
+    { step: "04", title: "Final Offer", desc: "HR discussion & onboarding" },
+  ]);
+
+  // Benefits & Perks state
+  const [selectedBenefits, setSelectedBenefits] = useState<string[]>([
+    "Health & Medical Insurance",
+    "Flexible Working Hours",
+    "Performance Bonus",
+  ]);
+  const [customBenefitInput, setCustomBenefitInput] = useState("");
+
+  const handleAddStage = () => {
+    const nextStepNum = String(hiringStages.length + 1).padStart(2, "0");
+    setHiringStages([
+      ...hiringStages,
+      { step: nextStepNum, title: `Stage ${hiringStages.length + 1}`, desc: "Evaluation criteria for this round" },
+    ]);
+  };
+
+  const handleRemoveStage = (index: number) => {
+    const filtered = hiringStages.filter((_, idx) => idx !== index);
+    // Renumber steps
+    const renumbered = filtered.map((stage, idx) => ({
+      ...stage,
+      step: String(idx + 1).padStart(2, "0"),
+    }));
+    setHiringStages(renumbered);
+  };
+
+  const handleStageChange = (index: number, field: "title" | "desc", value: string) => {
+    const updated = [...hiringStages];
+    updated[index] = { ...updated[index], [field]: value };
+    setHiringStages(updated);
+  };
+
+  const handleToggleBenefit = (benefit: string) => {
+    if (selectedBenefits.includes(benefit)) {
+      setSelectedBenefits(selectedBenefits.filter((b) => b !== benefit));
+    } else {
+      setSelectedBenefits([...selectedBenefits, benefit]);
+    }
+  };
+
+  const handleAddCustomBenefit = () => {
+    const trimmed = customBenefitInput.trim();
+    if (trimmed && !selectedBenefits.includes(trimmed)) {
+      setSelectedBenefits([...selectedBenefits, trimmed]);
+      setCustomBenefitInput("");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -59,6 +134,8 @@ export default function CreateJobPage() {
         workMode: workMode as any,
         deadline,
         openings: Number(openings),
+        benefits: selectedBenefits,
+        hiringStages: hiringStages.length > 0 ? hiringStages : undefined,
         publish: true as any,
       });
 
@@ -93,6 +170,19 @@ export default function CreateJobPage() {
     setRequirements(
       "B.E / B.Tech / MCA in Computer Science, IT, or related technical disciplines.\nStrong conceptual understanding of data structures, algorithms, and OOP principles.\nHands-on experience with modern JavaScript, Git version control, and relational databases.\nExcellent analytical mindset and proactive communication skills."
     );
+    setSelectedBenefits([
+      "Health & Medical Insurance",
+      "Flexible Working Hours",
+      "Performance Bonus",
+      "Free Meals & Snacks",
+      "Learning & Upskilling Stipend",
+    ]);
+    setHiringStages([
+      { step: "01", title: "Apply Online", desc: "Profile & credentials submitted" },
+      { step: "02", title: "Shortlisting", desc: "Recruiter screening & assessment" },
+      { step: "03", title: "Interviews", desc: "Technical & problem solving round" },
+      { step: "04", title: "Final Offer", desc: "HR discussion & onboarding" },
+    ]);
   };
 
   return (
@@ -367,6 +457,175 @@ export default function CreateJobPage() {
               className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] text-sm p-3.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 resize-none leading-relaxed font-mono"
             />
           </div>
+        </div>
+
+        {/* Section 4: Recruitment Workflow / Hiring Stages */}
+        <div className="space-y-4 pt-4 border-t border-[#EEF1F7]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#EEF1F7] pb-2">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-[#1E5BE0] flex items-center gap-2">
+                <Layers className="w-4 h-4" />
+                4. Recruitment Workflow (Hiring Stages)
+              </h3>
+              <p className="text-[11px] text-[#6B7694] mt-0.5">
+                Define the interview rounds and evaluation steps for candidates applying to this role.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleAddStage}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1E5BE0] bg-[#E8F0FF] hover:bg-[#d8e6ff] px-3 py-1.5 rounded-lg transition cursor-pointer self-start sm:self-auto"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Stage</span>
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {hiringStages.map((stage, idx) => (
+              <div
+                key={idx}
+                className="p-3.5 sm:p-4 rounded-xl bg-[#F8FAFD] border border-[#EEF1F7] flex flex-col sm:flex-row items-start sm:items-center gap-3 relative group hover:border-[#D0E2FF] transition-all"
+              >
+                <div className="w-8 h-8 rounded-lg bg-[#1E5BE0] text-white flex items-center justify-center text-xs font-extrabold shrink-0">
+                  {stage.step}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 flex-1 w-full">
+                  <div className="sm:col-span-5">
+                    <label className="block text-[10px] font-bold text-[#6B7694] uppercase tracking-wider mb-1">
+                      Stage Title
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={stage.title}
+                      onChange={(e) => handleStageChange(idx, "title", e.target.value)}
+                      placeholder="e.g. Technical Interview"
+                      className="w-full bg-white border border-[#E3E8F0] text-[#0B1F4B] text-xs px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1E5BE0]"
+                    />
+                  </div>
+                  <div className="sm:col-span-7">
+                    <label className="block text-[10px] font-bold text-[#6B7694] uppercase tracking-wider mb-1">
+                      Description / Focus
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={stage.desc}
+                      onChange={(e) => handleStageChange(idx, "desc", e.target.value)}
+                      placeholder="e.g. Problem solving & coding round"
+                      className="w-full bg-white border border-[#E3E8F0] text-[#0B1F4B] text-xs px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1E5BE0]"
+                    />
+                  </div>
+                </div>
+
+                {hiringStages.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveStage(idx)}
+                    className="p-1.5 text-[#8E9AAC] hover:text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer self-end sm:self-center"
+                    title="Remove this stage"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Section 5: Perks & Benefits */}
+        <div className="space-y-4 pt-4 border-t border-[#EEF1F7]">
+          <div className="border-b border-[#EEF1F7] pb-2">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-[#1E5BE0] flex items-center gap-2">
+              <Gift className="w-4 h-4" />
+              5. Employee Benefits & Perks
+            </h3>
+            <p className="text-[11px] text-[#6B7694] mt-0.5">
+              Highlight company offerings, insurance, and work perks to attract top talent.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#0B1F4B] mb-2">
+              Select Popular Perks & Benefits:
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {POPULAR_BENEFITS.map((benefit) => {
+                const isSelected = selectedBenefits.includes(benefit);
+                return (
+                  <button
+                    key={benefit}
+                    type="button"
+                    onClick={() => handleToggleBenefit(benefit)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-[#E8F0FF] text-[#1E5BE0] border border-[#1E5BE0]/30 shadow-2xs font-bold"
+                        : "bg-[#F4F6FA] text-[#6B7694] border border-[#E3E8F0] hover:bg-[#EAEFF8] hover:text-[#0B1F4B]"
+                    }`}
+                  >
+                    {isSelected ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                    <span>{benefit}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#0B1F4B] mb-1.5">
+              Add Custom Benefit
+            </label>
+            <div className="flex items-center gap-2 max-w-md">
+              <input
+                type="text"
+                placeholder="e.g. Free Cab Facilities, Gym Membership"
+                value={customBenefitInput}
+                onChange={(e) => setCustomBenefitInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddCustomBenefit();
+                  }
+                }}
+                className="flex-1 bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] text-xs px-3.5 py-2.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20"
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomBenefit}
+                className="px-4 py-2.5 bg-[#1E5BE0] hover:bg-[#1546B0] text-white text-xs font-bold rounded-[10px] transition cursor-pointer shrink-0"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {selectedBenefits.length > 0 && (
+            <div className="p-3 rounded-xl bg-[#F8FAFD] border border-[#EEF1F7]">
+              <span className="text-[10px] font-bold text-[#8E9AAC] uppercase tracking-wider block mb-2">
+                Currently Selected ({selectedBenefits.length}):
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedBenefits.map((b) => (
+                  <span
+                    key={b}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#D0E2FF] text-[#1E5BE0] text-xs font-medium shadow-2xs"
+                  >
+                    <Check className="w-3 h-3 text-[#22B573]" />
+                    <span>{b}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleBenefit(b)}
+                      className="text-[#8E9AAC] hover:text-rose-500 cursor-pointer ml-1"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}

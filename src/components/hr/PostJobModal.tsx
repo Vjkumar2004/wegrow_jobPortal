@@ -15,9 +15,26 @@ import {
   FileText,
   AlertCircle,
   PlusCircle,
+  Plus,
+  Trash2,
+  Layers,
+  Gift,
+  Check,
 } from "lucide-react";
 import { hrService } from "@/services/hr.service";
-import { Job } from "@/types";
+import { Job, HiringStage } from "@/types";
+
+const POPULAR_BENEFITS = [
+  "Health & Medical Insurance",
+  "Flexible Working Hours",
+  "Performance Bonus",
+  "Free Meals & Snacks",
+  "Remote / Hybrid Flexibility",
+  "Upskilling & Certification Allowance",
+  "PF & Gratuity",
+  "Paid Time Off (PTO)",
+  "Relocation Assistance",
+];
 
 interface PostJobModalProps {
   isOpen: boolean;
@@ -45,6 +62,61 @@ export default function PostJobModal({ isOpen, onClose, onJobCreated }: PostJobM
   const [deadline, setDeadline] = useState("2026-11-30");
   const [openings, setOpenings] = useState("5");
 
+  // Dynamic Hiring Stages / Interview Rounds
+  const [hiringStages, setHiringStages] = useState<HiringStage[]>([
+    { step: "01", title: "Apply Online", desc: "Profile & credentials submitted" },
+    { step: "02", title: "Shortlisting", desc: "Recruiter screening & assessment" },
+    { step: "03", title: "Technical Interview", desc: "Technical problem solving & coding round" },
+    { step: "04", title: "HR Discussion & Offer", desc: "Culture fit, compensation & onboarding" },
+  ]);
+
+  // Benefits & Perks
+  const [selectedBenefits, setSelectedBenefits] = useState<string[]>([
+    "Health & Medical Insurance",
+    "Flexible Working Hours",
+    "Performance Bonus",
+  ]);
+  const [customBenefitInput, setCustomBenefitInput] = useState("");
+
+  const handleAddStage = () => {
+    const nextStepNum = String(hiringStages.length + 1).padStart(2, "0");
+    setHiringStages([
+      ...hiringStages,
+      { step: nextStepNum, title: `Round ${hiringStages.length + 1}`, desc: "Evaluation focus for this round" },
+    ]);
+  };
+
+  const handleRemoveStage = (index: number) => {
+    const filtered = hiringStages.filter((_, idx) => idx !== index);
+    const renumbered = filtered.map((stage, idx) => ({
+      ...stage,
+      step: String(idx + 1).padStart(2, "0"),
+    }));
+    setHiringStages(renumbered);
+  };
+
+  const handleStageChange = (index: number, field: "title" | "desc", value: string) => {
+    const updated = [...hiringStages];
+    updated[index] = { ...updated[index], [field]: value };
+    setHiringStages(updated);
+  };
+
+  const handleToggleBenefit = (benefit: string) => {
+    if (selectedBenefits.includes(benefit)) {
+      setSelectedBenefits(selectedBenefits.filter((b) => b !== benefit));
+    } else {
+      setSelectedBenefits([...selectedBenefits, benefit]);
+    }
+  };
+
+  const handleAddCustomBenefit = () => {
+    const trimmed = customBenefitInput.trim();
+    if (trimmed && !selectedBenefits.includes(trimmed)) {
+      setSelectedBenefits([...selectedBenefits, trimmed]);
+      setCustomBenefitInput("");
+    }
+  };
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,6 +139,8 @@ export default function PostJobModal({ isOpen, onClose, onJobCreated }: PostJobM
         workMode: workMode as any,
         deadline,
         openings: Number(openings),
+        benefits: selectedBenefits,
+        hiringStages: hiringStages.length > 0 ? hiringStages : undefined,
       });
 
       // Auto-publish so it appears on the student jobs page immediately
@@ -108,6 +182,19 @@ export default function PostJobModal({ isOpen, onClose, onJobCreated }: PostJobM
     setRequirements(
       "B.E / B.Tech / MCA in Computer Science, IT, or related technical disciplines.\nStrong conceptual understanding of data structures, algorithms, and OOP principles.\nHands-on experience with modern JavaScript, Git version control, and relational databases.\nExcellent analytical mindset and proactive communication skills."
     );
+    setSelectedBenefits([
+      "Health & Medical Insurance",
+      "Flexible Working Hours",
+      "Performance Bonus",
+      "Free Meals & Snacks",
+      "Learning & Upskilling Stipend",
+    ]);
+    setHiringStages([
+      { step: "01", title: "Apply Online", desc: "Profile & credentials submitted" },
+      { step: "02", title: "Technical Assessment", desc: "Online aptitude & coding round" },
+      { step: "03", title: "Technical Interview", desc: "Live system design & coding discussion" },
+      { step: "04", title: "HR Discussion & Offer", desc: "Culture fit & compensation discussion" },
+    ]);
   };
 
   return (
@@ -393,6 +480,167 @@ export default function PostJobModal({ isOpen, onClose, onJobCreated }: PostJobM
                 className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] text-xs p-3 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 resize-none font-mono"
               />
             </div>
+          </div>
+
+          {/* Section 4: Recruitment Workflow / Interview Rounds */}
+          <div className="space-y-3.5 pt-3 border-t border-[#EEF1F7]">
+            <div className="flex items-center justify-between border-b border-[#EEF1F7] pb-1.5">
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#1E5BE0] flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5" />
+                  4. Recruitment Workflow (Interview Rounds)
+                </h4>
+                <p className="text-[10px] text-[#6B7694]">
+                  Define the evaluation rounds & stages for this campus role
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddStage}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-[#1E5BE0] bg-[#E8F0FF] hover:bg-[#d8e6ff] px-2.5 py-1 rounded-lg transition cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add Round</span>
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {hiringStages.map((stage, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded-xl bg-[#F8FAFD] border border-[#EEF1F7] flex items-start sm:items-center gap-2.5 hover:border-[#D0E2FF] transition-all"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-[#1E5BE0] text-white flex items-center justify-center text-[10px] font-black shrink-0">
+                    {stage.step}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 flex-1 w-full">
+                    <div className="sm:col-span-5">
+                      <label className="block text-[9px] font-bold text-[#6B7694] uppercase tracking-wider mb-0.5">
+                        Round / Stage Title
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={stage.title}
+                        onChange={(e) => handleStageChange(idx, "title", e.target.value)}
+                        placeholder="e.g. Technical Interview"
+                        className="w-full bg-white border border-[#E3E8F0] text-[#0B1F4B] text-xs px-2.5 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1E5BE0]"
+                      />
+                    </div>
+                    <div className="sm:col-span-7">
+                      <label className="block text-[9px] font-bold text-[#6B7694] uppercase tracking-wider mb-0.5">
+                        Focus / Criteria Description
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={stage.desc}
+                        onChange={(e) => handleStageChange(idx, "desc", e.target.value)}
+                        placeholder="e.g. Problem solving & coding round"
+                        className="w-full bg-white border border-[#E3E8F0] text-[#0B1F4B] text-xs px-2.5 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1E5BE0]"
+                      />
+                    </div>
+                  </div>
+
+                  {hiringStages.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveStage(idx)}
+                      className="p-1 text-[#8E9AAC] hover:text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer self-center"
+                      title="Remove this round"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Section 5: Perks & Benefits */}
+          <div className="space-y-3.5 pt-3 border-t border-[#EEF1F7]">
+            <div className="border-b border-[#EEF1F7] pb-1.5">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#1E5BE0] flex items-center gap-1.5">
+                <Gift className="w-3.5 h-3.5" />
+                5. Perks & Benefits
+              </h4>
+              <p className="text-[10px] text-[#6B7694]">
+                Highlight company benefits & offerings to attract students
+              </p>
+            </div>
+
+            <div>
+              <div className="flex flex-wrap gap-1.5">
+                {POPULAR_BENEFITS.map((benefit) => {
+                  const isSelected = selectedBenefits.includes(benefit);
+                  return (
+                    <button
+                      key={benefit}
+                      type="button"
+                      onClick={() => handleToggleBenefit(benefit)}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-[#E8F0FF] text-[#1E5BE0] border border-[#1E5BE0]/30 shadow-2xs font-bold"
+                          : "bg-[#F4F6FA] text-[#6B7694] border border-[#E3E8F0] hover:bg-[#EAEFF8] hover:text-[#0B1F4B]"
+                      }`}
+                    >
+                      {isSelected ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                      <span>{benefit}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Add custom benefit (e.g. Free Cab, Gym)..."
+                value={customBenefitInput}
+                onChange={(e) => setCustomBenefitInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddCustomBenefit();
+                  }
+                }}
+                className="flex-1 bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] text-xs px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1E5BE0]"
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomBenefit}
+                className="px-3 py-2 bg-[#1E5BE0] hover:bg-[#1546B0] text-white text-xs font-bold rounded-lg transition cursor-pointer shrink-0"
+              >
+                Add
+              </button>
+            </div>
+
+            {selectedBenefits.length > 0 && (
+              <div className="p-2.5 rounded-lg bg-[#F8FAFD] border border-[#EEF1F7]">
+                <span className="text-[9px] font-bold text-[#8E9AAC] uppercase tracking-wider block mb-1.5">
+                  Selected Benefits ({selectedBenefits.length}):
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {selectedBenefits.map((b) => (
+                    <span
+                      key={b}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-[#D0E2FF] text-[#1E5BE0] text-[11px] font-medium shadow-2xs"
+                    >
+                      <Check className="w-2.5 h-2.5 text-[#22B573]" />
+                      <span>{b}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleBenefit(b)}
+                        className="text-[#8E9AAC] hover:text-rose-500 cursor-pointer ml-1"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Form Actions Footer */}
