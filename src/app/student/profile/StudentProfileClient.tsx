@@ -75,6 +75,20 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
     setImageError(false);
   }, [profile.avatarUrl, profile.avatar, profile.photoUrl]);
 
+  // Auto-scroll to section if hash provided in URL (e.g. #resume)
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      const hash = window.location.hash.replace("#", "");
+      const timer = setTimeout(() => {
+        const el = document.getElementById(hash);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   // Edit states for inline personal & bio sections
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [aboutForm, setAboutForm] = useState(profile.bio || "");
