@@ -723,7 +723,7 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#F7F9FD] p-4 sm:p-6 lg:p-7 space-y-5 max-w-[1440px] mx-auto text-[#0B1F4B] font-['Poppins',sans-serif]">
+    <div className="w-full min-h-screen bg-[#F7F9FD] p-2.5 sm:p-5 lg:p-7 space-y-3.5 sm:space-y-5 max-w-[1440px] mx-auto text-[#0B1F4B] font-['Poppins',sans-serif]">
       {/* Toast Notification */}
       {toast && (
         <div
@@ -750,9 +750,9 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
       {/* ================= 1. PROFILE HEADER CARD ================= */}
       <section
         id="overview"
-        className="bg-white rounded-[16px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+        className="bg-white rounded-xl sm:rounded-[16px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
       >
-        <div className="flex flex-col lg:flex-row items-center lg:items-start justify-between gap-6">
+        <div className="flex flex-col lg:flex-row items-center lg:items-start justify-between gap-4 sm:gap-6">
           {/* Avatar Photo with file picker */}
           <div className="relative shrink-0">
             <input
@@ -857,7 +857,7 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
               return (
                 <div
                   onClick={() => photoFileInputRef.current?.click()}
-                  className="w-[136px] h-[136px] sm:w-[140px] sm:h-[140px] rounded-full border-4 border-white shadow-[0_8px_24px_rgba(11,31,75,0.12)] overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] flex items-center justify-center cursor-pointer group relative"
+                  className="w-[84px] h-[84px] sm:w-[110px] sm:h-[110px] lg:w-[136px] lg:h-[136px] rounded-full border-3 sm:border-4 border-white shadow-[0_4px_16px_rgba(11,31,75,0.12)] overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] flex items-center justify-center cursor-pointer group relative"
                   title="Click to upload profile photo from your device"
                 >
                   {showImg ? (
@@ -876,7 +876,7 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                       }}
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] text-white font-extrabold text-[38px] sm:text-[44px] flex items-center justify-center tracking-wider select-none shadow-inner">
+                    <div className="w-full h-full bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] text-white font-extrabold text-[24px] sm:text-[32px] lg:text-[40px] flex items-center justify-center tracking-wider select-none shadow-inner">
                       {getNameInitials(profile.name)}
                     </div>
                   )}
@@ -888,77 +888,77 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
             <button
               type="button"
               onClick={() => photoFileInputRef.current?.click()}
-              className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-[#1E5BE0] hover:bg-[#1548b8] text-white border-2 border-white shadow-md flex items-center justify-center transition-transform hover:scale-110 cursor-pointer"
+              className="absolute bottom-0 right-0 w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-full bg-[#1E5BE0] hover:bg-[#1548b8] text-white border-2 border-white shadow-md flex items-center justify-center transition-transform hover:scale-110 cursor-pointer"
               title="Upload photo from your computer or phone"
               aria-label="Upload photo"
             >
-              <Camera className="w-4 h-4" />
+              <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           </div>
 
           {/* Middle: Details & Meta info */}
           <div className="flex-1 text-center lg:text-left min-w-0">
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
-              <h1 className="text-[24px] sm:text-[26px] font-[800] text-[#0B1F4B] tracking-tight">
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-1.5 sm:gap-2">
+              <h1 className="text-[18px] sm:text-[22px] lg:text-[26px] font-[800] text-[#0B1F4B] tracking-tight">
                 {profile.name || "Student"}
               </h1>
               <span className="inline-flex items-center text-[#1E5BE0]" title="Verified Student Profile">
-                <CheckCircle2 className="w-5 h-5 fill-[#1E5BE0] text-white" />
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 fill-[#1E5BE0] text-white" />
               </span>
             </div>
 
             {/* Tagline / Headline */}
-            <p className="text-[15px] sm:text-[16px] text-[#6B7694] font-[500] mt-1 leading-snug">
+            <p className="text-[12px] sm:text-[14px] lg:text-[15px] text-[#6B7694] font-[500] mt-0.5 sm:mt-1 leading-snug">
               {profile.headline || "Job Seeker / Student"}
             </p>
 
             {/* Meta Row 1 */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 mt-3 text-[13px] text-[#6B7694]">
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-[#1E5BE0]" />
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2.5 sm:gap-3 lg:gap-4 mt-2 sm:mt-3 text-[11px] sm:text-[12px] lg:text-[13px] text-[#6B7694]">
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-[#1E5BE0]" />
                 <span>{profile.location || "Location not specified"}</span>
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <GraduationCap className="w-4 h-4 text-[#1E5BE0]" />
+              <span className="inline-flex items-center gap-1">
+                <GraduationCap className="w-3.5 h-3.5 text-[#1E5BE0]" />
                 <span>{profile.degreeName || profile.education?.[0]?.degree || "Candidate"}</span>
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Briefcase className="w-4 h-4 text-[#1E5BE0]" />
+              <span className="inline-flex items-center gap-1">
+                <Briefcase className="w-3.5 h-3.5 text-[#1E5BE0]" />
                 <span>{profile.experienceLevel || "Fresher"}</span>
               </span>
             </div>
 
             {/* Meta Row 2 */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 mt-2 text-[13px] text-[#6B7694]">
-              <span className="inline-flex items-center gap-1.5">
-                <Mail className="w-4 h-4 text-[#1E5BE0]" />
-                <span>{profile.email || "No email available"}</span>
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2.5 sm:gap-3 lg:gap-4 mt-1.5 sm:mt-2 text-[11px] sm:text-[12px] lg:text-[13px] text-[#6B7694]">
+              <span className="inline-flex items-center gap-1">
+                <Mail className="w-3.5 h-3.5 text-[#1E5BE0]" />
+                <span className="truncate max-w-[180px] sm:max-w-none">{profile.email || "No email available"}</span>
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Phone className="w-4 h-4 text-[#1E5BE0]" />
+              <span className="inline-flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5 text-[#1E5BE0]" />
                 <span>{profile.phone || "No phone number added"}</span>
               </span>
             </div>
           </div>
 
           {/* Right: Profile Strength Mini Card */}
-          <div className="w-full lg:w-auto shrink-0 bg-[#FBFDFF] rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-2xs">
-            <div className="flex items-center justify-between gap-4 mb-3">
-              <span className="text-[13px] font-[600] text-[#1E5BE0]">Profile Strength</span>
+          <div className="w-full lg:w-auto shrink-0 bg-[#FBFDFF] rounded-xl sm:rounded-[14px] p-3 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs">
+            <div className="flex items-center justify-between gap-3 mb-2 sm:mb-3">
+              <span className="text-[12px] sm:text-[13px] font-[600] text-[#1E5BE0]">Profile Strength</span>
               <button
                 type="button"
                 onClick={() => setEditingSection("personal")}
-                className="inline-flex items-center gap-1.5 border-[1.5px] border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white px-3 py-1 rounded-[8px] text-[12px] font-[600] transition cursor-pointer"
+                className="inline-flex items-center gap-1 border-[1.5px] border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-[6px] sm:rounded-[8px] text-[11px] sm:text-[12px] font-[600] transition cursor-pointer"
               >
-                <Pencil className="w-3 h-3" />
+                <Pencil className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                 <span>Edit Profile</span>
               </button>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5">
+            <div className="flex items-center sm:flex-row gap-3 sm:gap-4 lg:gap-5">
               {/* Circular SVG Progress Ring */}
-              <div className="relative w-[84px] h-[84px] flex items-center justify-center shrink-0">
-                <svg className="w-[84px] h-[84px] -rotate-90 transform" viewBox="0 0 84 84">
+              <div className="relative w-[64px] h-[64px] sm:w-[84px] sm:h-[84px] flex items-center justify-center shrink-0">
+                <svg className="w-[64px] h-[64px] sm:w-[84px] sm:h-[84px] -rotate-90 transform" viewBox="0 0 84 84">
                   <circle
                     cx="42"
                     cy="42"
@@ -981,14 +981,14 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-[18px] font-[700] text-[#0B1F4B]">
+                  <span className="text-[15px] sm:text-[18px] font-[700] text-[#0B1F4B]">
                     {animatedPercent}%
                   </span>
                 </div>
               </div>
 
               {/* Checklist */}
-              <div className="space-y-1.5 text-[12px]">
+              <div className="space-y-1 sm:space-y-1.5 text-[11px] sm:text-[12px] min-w-0">
                 {(profile.checklist && profile.checklist.length > 0 ? profile.checklist : [
                   { label: "Personal Information", done: Boolean(profile.name && profile.phone) },
                   { label: "Education Details", done: Boolean(profile.education?.length) },
@@ -996,15 +996,15 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                   { label: "Add Projects", done: Boolean(profile.projects?.length) },
                   { label: "Upload Resume", done: Boolean(profile.resumeName) },
                 ]).map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
+                  <div key={idx} className="flex items-center gap-1.5">
                     {item.done ? (
-                      <div className="w-4 h-4 rounded-full bg-[#E8F8EF] text-[#22B573] flex items-center justify-center shrink-0">
-                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-[#E8F8EF] text-[#22B573] flex items-center justify-center shrink-0">
+                        <Check className="w-2 h-2 sm:w-2.5 sm:h-2.5 stroke-[3]" />
                       </div>
                     ) : (
-                      <div className="w-4 h-4 rounded-full border-2 border-slate-300 shrink-0" />
+                      <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 border-slate-300 shrink-0" />
                     )}
-                    <span className={`font-medium ${item.done ? "text-[#0B1F4B]" : "text-[#6B7694]"}`}>
+                    <span className={`font-medium truncate ${item.done ? "text-[#0B1F4B]" : "text-[#6B7694]"}`}>
                       {item.label} {item.countText ? `(${item.countText})` : ""}
                     </span>
                   </div>
@@ -1018,7 +1018,7 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                 const el = document.getElementById("skills");
                 el?.scrollIntoView({ behavior: "smooth" });
               }}
-              className="w-full mt-3.5 bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-[14px] font-[600] py-[10px] px-[18px] rounded-[8px] transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full mt-2.5 sm:mt-3.5 bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-[12px] sm:text-[14px] font-[600] py-2 sm:py-[10px] px-3 sm:px-[18px] rounded-[8px] transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Improve Profile →</span>
             </button>
@@ -1027,8 +1027,27 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
       </section>
 
       {/* ================= 2. TABS ROW ================= */}
-      <nav className="bg-white rounded-[14px] px-3 sm:px-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] overflow-x-auto scrollbar-none sticky top-[66px] z-30">
-        <div className="flex items-center justify-between min-w-[760px] h-[52px]">
+      <nav className="bg-white rounded-xl sm:rounded-[14px] px-2.5 sm:px-5 border border-[#EEF1F7] shadow-xs overflow-x-auto scrollbar-none sticky top-[54px] sm:top-[66px] z-30">
+        <div className="flex items-center justify-between min-w-[640px] sm:min-w-[760px] h-[42px] sm:h-[52px]">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.label;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleTabClick(tab.id, tab.label)}
+                className={`h-full flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 text-[12px] sm:text-[14px] font-[500] border-b-2 transition-all cursor-pointer ${
+                  isActive
+                    ? "border-[#1E5BE0] text-[#1E5BE0] font-[600]"
+                    : "border-transparent text-[#0B1F4B] hover:text-[#1E5BE0]"
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isActive ? "text-[#1E5BE0]" : "text-[#6B7694]"}`} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.label;

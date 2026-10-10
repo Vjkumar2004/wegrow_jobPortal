@@ -8,6 +8,14 @@ html {
   scroll-padding-top: 80px;
 }
 
+@media (max-width: 640px) {
+  html {
+    /* Scale root font-size down to 14px on mobile so all rem-based units fit compact mobile screens */
+    font-size: 14px;
+    scroll-padding-top: 54px;
+  }
+}
+
 
 :root {
   --background: 40 33% 98%;
@@ -58,6 +66,8 @@ html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     line-height: 1.5;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 

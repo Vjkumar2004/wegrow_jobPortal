@@ -202,14 +202,14 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
   ];
 
   return (
-    <div className="flex-1 flex flex-col xl:flex-row min-w-0 p-4 sm:p-6 lg:p-7 gap-5 overflow-hidden">
-      {/* ================= ZONE 2: CENTER CONTENT (flexible, gap 20px) ================= */}
-          <main className="flex-1 min-w-0 space-y-5">
+    <div className="flex-1 flex flex-col xl:flex-row min-w-0 p-3 sm:p-5 lg:p-7 gap-3.5 sm:gap-5 overflow-hidden">
+      {/* ================= ZONE 2: CENTER CONTENT (flexible, gap 14px-20px) ================= */}
+          <main className="flex-1 min-w-0 space-y-4 sm:space-y-5">
             {/* 1. Welcome Banner: Soft peach-to-blue gradient card */}
-            <div className="relative overflow-hidden rounded-2xl p-4 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md">
-              <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="relative overflow-hidden rounded-2xl p-3 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex items-center gap-3 sm:gap-4">
                 <Link href="/student/profile" className="relative group shrink-0" title="View profile">
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-white shadow-md overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] flex items-center justify-center">
+                  <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-full border-2 border-white shadow-md overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] flex items-center justify-center">
                     {student.avatarUrl && !avatarError ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -228,24 +228,24 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                         }}
                       />
                     ) : (
-                      <span className="text-white font-extrabold text-base sm:text-xl tracking-wider select-none">
+                      <span className="text-white font-extrabold text-sm sm:text-xl tracking-wider select-none">
                         {getNameInitials(student.name)}
                       </span>
                     )}
                   </div>
                 </Link>
                 <div className="min-w-0">
-                  <h1 className="text-[18px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight flex items-center gap-1.5 truncate">
+                  <h1 className="text-[17px] sm:text-[22px] lg:text-[26px] font-bold text-[#0B1F4B] tracking-tight flex items-center gap-1.5 truncate">
                     Good Morning, {student.name.split(" ")[0]}! 👋
                   </h1>
-                  <p className="text-[12px] sm:text-[14px] text-[#6B7694] mt-0.5 truncate">
+                  <p className="text-[11px] sm:text-[14px] text-[#6B7694] mt-0.5 truncate">
                     {student.course} • {student.college}
                   </p>
                 </div>
               </div>
 
               {/* White quote card with orange quote mark */}
-              <div className="bg-white/90 backdrop-blur-xs rounded-xl p-3 sm:p-4 border border-[#EEF1F7] shadow-xs max-w-sm flex items-start gap-2.5 shrink-0">
+              <div className="hidden sm:flex bg-white/90 backdrop-blur-xs rounded-xl p-2.5 sm:p-4 border border-[#EEF1F7] shadow-xs max-w-sm items-start gap-2.5 shrink-0">
                 <span className="text-[#FF6B00] text-2xl sm:text-3xl font-serif font-black leading-none shrink-0">
                   “
                 </span>
@@ -259,113 +259,113 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
             <div className="grid grid-cols-4 gap-2 sm:gap-3">
               <Link
                 href="/student/jobs"
-                className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#1E5BE0]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+                className="flex flex-col items-center justify-center p-2 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#1E5BE0]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
               >
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
-                  <Briefcase className="w-5 h-5" strokeWidth={2} />
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+                  <Briefcase className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={2} />
                 </div>
-                <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+                <span className="text-[10px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
                   Browse Jobs
                 </span>
               </Link>
               <Link
                 href="/student/applications"
-                className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#22B573]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+                className="flex flex-col items-center justify-center p-2 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#22B573]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
               >
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
-                  <FileCheck className="w-5 h-5" strokeWidth={2} />
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+                  <FileCheck className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={2} />
                 </div>
-                <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+                <span className="text-[10px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
                   Applications
                 </span>
               </Link>
               <Link
                 href="/student/interviews"
-                className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#FF6B00]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+                className="flex flex-col items-center justify-center p-2 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#FF6B00]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
               >
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
-                  <Calendar className="w-5 h-5" strokeWidth={2} />
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+                  <Calendar className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={2} />
                 </div>
-                <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+                <span className="text-[10px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
                   Interviews
                 </span>
               </Link>
               <Link
                 href="/student/resume"
-                className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#8B5CF6]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+                className="flex flex-col items-center justify-center p-2 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#8B5CF6]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
               >
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
-                  <FileText className="w-5 h-5" strokeWidth={2} />
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+                  <FileText className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={2} />
                 </div>
-                <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+                <span className="text-[10px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
                   ATS Resume
                 </span>
               </Link>
             </div>
 
             {/* 2. Four Stat Cards in a row (Mobile optimized 2x2 grid) */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
               {/* Blue tint: Jobs Applied */}
-              <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-blue-50/40 to-white">
-                <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
-                  <FileText className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+              <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-blue-50/40 to-white">
+                <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
+                  <FileText className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.jobsApplied}</div>
-                  <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Jobs Applied</div>
-                  <div className="text-[10px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
-                    <TrendingUp className="w-3 h-3" /> {stats.jobsAppliedTrend}
+                  <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.jobsApplied}</div>
+                  <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Jobs Applied</div>
+                  <div className="text-[9px] sm:text-[11px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
+                    <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {stats.jobsAppliedTrend}
                   </div>
                 </div>
               </div>
 
               {/* Orange tint: Interviews */}
-              <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-orange-50/40 to-white">
-                <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
-                  <Calendar className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+              <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-orange-50/40 to-white">
+                <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
+                  <Calendar className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.interviews}</div>
-                  <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Interviews</div>
-                  <div className="text-[10px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
-                    <TrendingUp className="w-3 h-3" /> {stats.interviewsTrend}
+                  <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.interviews}</div>
+                  <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Interviews</div>
+                  <div className="text-[9px] sm:text-[11px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
+                    <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {stats.interviewsTrend}
                   </div>
                 </div>
               </div>
 
               {/* Green tint: Shortlisted */}
-              <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
-                <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+              <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
+                <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.shortlisted}</div>
-                  <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Shortlisted</div>
-                  <div className="text-[10px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
-                    <TrendingUp className="w-3 h-3" /> {stats.shortlistedTrend}
+                  <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.shortlisted}</div>
+                  <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Shortlisted</div>
+                  <div className="text-[9px] sm:text-[11px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
+                    <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {stats.shortlistedTrend}
                   </div>
                 </div>
               </div>
 
               {/* Purple tint: Offers */}
-              <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-purple-50/40 to-white">
-                <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
-                  <Briefcase className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+              <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-purple-50/40 to-white">
+                <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
+                  <Briefcase className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.offers}</div>
-                  <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Offers</div>
-                  <div className="text-[10px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
-                    <TrendingUp className="w-3 h-3" /> {stats.offersTrend}
+                  <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.offers}</div>
+                  <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Offers</div>
+                  <div className="text-[9px] sm:text-[11px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
+                    <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {stats.offersTrend}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* 3. Two Cards Side by Side (Application Status Donut + Application Trend Bar Chart) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-5">
               {/* Card 1: Application Status (Donut Chart) */}
-              <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between">
+              <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between">
                 <div>
                   <h3 className="text-[16px] font-bold text-[#0B1F4B]">Application Status</h3>
                   <p className="text-[12px] text-[#6B7694] mt-0.5">Track your journey so far</p>
@@ -427,7 +427,7 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
               </div>
 
               {/* Card 2: Application Trend (Vertical Bar Chart) */}
-              <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between">
+              <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-[16px] font-bold text-[#0B1F4B]">Application Trend</h3>
@@ -853,10 +853,10 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
           {/* ================= ZONE 3: RIGHT PANEL (~320px stacked cards, gap 20px) ================= */}
           <aside className="w-full xl:w-[320px] shrink-0 space-y-5">
             {/* 1. Profile Completion Card */}
-            <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-[16px] font-bold text-[#0B1F4B]">Profile Completion</h3>
-                <span className="text-[16px] font-bold text-[#1E5BE0]">{profileCompletion.percentage}%</span>
+                <h3 className="text-[15px] sm:text-[16px] font-bold text-[#0B1F4B]">Profile Completion</h3>
+                <span className="text-[15px] sm:text-[16px] font-bold text-[#1E5BE0]">{profileCompletion.percentage}%</span>
               </div>
               <p className="text-[12px] text-[#6B7694] mb-3">
                 Complete your details to boost candidate ranking
@@ -902,12 +902,12 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
             </div>
 
             {/* 2. Upcoming Interviews Card */}
-            <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[16px] font-bold text-[#0B1F4B]">Upcoming Interviews</h3>
+                <h3 className="text-[15px] sm:text-[16px] font-bold text-[#0B1F4B]">Upcoming Interviews</h3>
                 <Link
                   href="/student/interviews"
-                  className="text-[13px] font-semibold text-[#1E5BE0] hover:underline"
+                  className="text-[12px] sm:text-[13px] font-semibold text-[#1E5BE0] hover:underline"
                 >
                   View All
                 </Link>
@@ -978,9 +978,9 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
             </div>
 
             {/* 3. Latest Notifications Card */}
-            <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[16px] font-bold text-[#0B1F4B]">Latest Notifications</h3>
+                <h3 className="text-[15px] sm:text-[16px] font-bold text-[#0B1F4B]">Latest Notifications</h3>
                 <Link
                   href="/student/notifications"
                   className="text-[13px] font-semibold text-[#1E5BE0] hover:underline"

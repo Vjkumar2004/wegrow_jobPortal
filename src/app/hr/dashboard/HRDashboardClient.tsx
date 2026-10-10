@@ -430,7 +430,7 @@ export default function HRDashboardClient({
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-7 space-y-6 max-w-7xl mx-auto w-full font-['Poppins',sans-serif]">
+    <div className="p-3 sm:p-5 lg:p-7 space-y-4 sm:space-y-6 max-w-7xl mx-auto w-full font-['Poppins',sans-serif]">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#0B1F4B] text-white px-5 py-3 rounded-xl shadow-xl border border-blue-400/20 text-xs font-semibold flex items-center gap-2 animate-bounce">
@@ -448,38 +448,38 @@ export default function HRDashboardClient({
 
       {/* Pending / Rejected Moderation Alert Banner */}
       {companyApprovalStatus === "Pending" && (
-        <div className="p-4 sm:p-5 bg-amber-50 rounded-[16px] border border-amber-200/90 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="p-3.5 sm:p-5 bg-amber-50 rounded-[16px] border border-amber-200/90 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-start gap-3">
             <Clock className="w-5 h-5 text-[#FF6B00] shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900">
                 Company Profile Awaiting Admin Approval
               </h3>
-              <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+              <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5 leading-relaxed">
                 Your company {companyName ? <span className="font-semibold text-slate-900">&quot;{companyName}&quot;</span> : ""} is currently in the moderation review queue. Active job posting will be enabled once our administration team verifies your corporate profile.
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 shrink-0 self-start sm:self-auto">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-bold bg-amber-100 text-amber-800 shrink-0 self-start sm:self-auto">
             Pending Moderation
           </span>
         </div>
       )}
 
       {companyApprovalStatus === "Rejected" && (
-        <div className="p-4 sm:p-5 bg-rose-50 rounded-[16px] border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="p-3.5 sm:p-5 bg-rose-50 rounded-[16px] border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900">
                 Company Registration Rejected
               </h3>
-              <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+              <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5 leading-relaxed">
                 Your company registration was not approved. Please review your company profile or contact support for assistance.
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 shrink-0 self-start sm:self-auto">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-bold bg-rose-100 text-rose-800 shrink-0 self-start sm:self-auto">
             Registration Rejected
           </span>
         </div>
@@ -488,13 +488,13 @@ export default function HRDashboardClient({
       {/* ============================================================== */}
       {/* 1. PREMIUM RECRUITER HERO BANNER                               */}
       {/* ============================================================== */}
-      <div className="relative overflow-hidden rounded-2xl border border-[#EEF1F7] shadow-[0_4px_20px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F8FAFD] to-[#EDF4FF] p-4 sm:p-6 lg:p-7 transition-all duration-200 hover:shadow-md">
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5 sm:gap-6">
+      <div className="relative overflow-hidden rounded-2xl border border-[#EEF1F7] shadow-[0_4px_20px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F8FAFD] to-[#EDF4FF] p-3.5 sm:p-5 lg:p-7 transition-all duration-200 hover:shadow-md">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
           {/* Left: Avatar + Recruiter Details + Status */}
-          <div className="flex items-start sm:items-center gap-3.5 sm:gap-4.5 min-w-0">
-            {/* Avatar / Brand Icon Frame (strictly sized 48px mobile, 64px desktop) */}
-            <div className="relative w-12 h-12 sm:w-16 sm:h-16 shrink-0">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl border-2 border-white shadow-md overflow-hidden bg-gradient-to-tr from-[#FF6B00] via-[#FF8533] to-amber-400 flex items-center justify-center text-white font-extrabold text-sm sm:text-xl select-none ring-2 ring-orange-100">
+          <div className="flex items-start sm:items-center gap-3 sm:gap-4.5 min-w-0">
+            {/* Avatar / Brand Icon Frame (strictly sized 44px mobile, 64px desktop) */}
+            <div className="relative w-11 h-11 sm:w-16 sm:h-16 shrink-0">
+              <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-2xl border-2 border-white shadow-md overflow-hidden bg-gradient-to-tr from-[#FF6B00] via-[#FF8533] to-amber-400 flex items-center justify-center text-white font-extrabold text-sm sm:text-xl select-none ring-2 ring-orange-100">
                 {hrAvatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -526,19 +526,19 @@ export default function HRDashboardClient({
 
             {/* Recruiter info & heading */}
             <div className="min-w-0 space-y-1">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/90 border border-[#E2E8F0] text-[11px] font-semibold text-[#0B1F4B] shadow-2xs">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/90 border border-[#E2E8F0] text-[10px] sm:text-[11px] font-semibold text-[#0B1F4B] shadow-2xs">
                 <Building2 className="w-3.5 h-3.5 text-[#FF6B00]" />
-                <span className="truncate max-w-[200px] sm:max-w-xs">{companyName || "WeGrow Partner"}</span>
+                <span className="truncate max-w-[180px] sm:max-w-xs">{companyName || "WeGrow Partner"}</span>
                 {companyApprovalStatus === "Approved" && (
                   <CheckCircle2 className="w-3 h-3 text-[#1E5BE0] shrink-0" />
                 )}
               </div>
 
-              <h1 className="text-[20px] sm:text-[26px] font-extrabold text-[#0B1F4B] tracking-tight truncate">
+              <h1 className="text-[18px] sm:text-[24px] lg:text-[26px] font-extrabold text-[#0B1F4B] tracking-tight truncate">
                 {getGreeting()}, {hrUserName ? hrUserName.split(" ")[0] : "Recruiter"}! 👋
               </h1>
 
-              <p className="text-[12px] sm:text-[13px] text-[#6B7694] leading-relaxed">
+              <p className="text-[11px] sm:text-[13px] text-[#6B7694] leading-relaxed">
                 You have <span className="font-bold text-[#1E5BE0]">{applicants.length} candidate application{applicants.length === 1 ? "" : "s"}</span> across <span className="font-bold text-[#0B1F4B]">{activeJobs.length} active opening{activeJobs.length === 1 ? "" : "s"}</span>.
               </p>
             </div>
@@ -601,45 +601,45 @@ export default function HRDashboardClient({
         <button
           type="button"
           onClick={() => setIsPostJobModalOpen(true)}
-          className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#FF6B00]/40 hover:shadow-xs active:scale-95 transition-all text-center group cursor-pointer"
+          className="flex flex-col items-center justify-center p-2 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#FF6B00]/40 hover:shadow-xs active:scale-95 transition-all text-center group cursor-pointer"
         >
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
-            <PlusCircle className="w-5 h-5" strokeWidth={2} />
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+            <PlusCircle className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={2} />
           </div>
-          <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+          <span className="text-[10px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
             + Post Job
           </span>
         </button>
         <Link
           href="/hr/applicants"
-          className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#1E5BE0]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+          className="flex flex-col items-center justify-center p-2 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#1E5BE0]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
         >
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
-            <Users className="w-5 h-5" strokeWidth={2} />
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+            <Users className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={2} />
           </div>
-          <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+          <span className="text-[10px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
             Applicants
           </span>
         </Link>
         <Link
           href="/hr/interviews"
-          className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#22B573]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+          className="flex flex-col items-center justify-center p-2 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#22B573]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
         >
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
-            <Calendar className="w-5 h-5" strokeWidth={2} />
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+            <Calendar className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={2} />
           </div>
-          <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+          <span className="text-[10px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
             Interviews
           </span>
         </Link>
         <Link
           href="/hr/jobs"
-          className="flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#8B5CF6]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
+          className="flex flex-col items-center justify-center p-2 sm:p-3.5 rounded-2xl bg-white border border-[#EEF1F7] shadow-2xs hover:border-[#8B5CF6]/40 hover:shadow-xs active:scale-95 transition-all text-center group"
         >
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
-            <Briefcase className="w-5 h-5" strokeWidth={2} />
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center mb-1 sm:mb-1.5 group-hover:scale-105 transition-transform shadow-2xs">
+            <Briefcase className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={2} />
           </div>
-          <span className="text-[11px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
+          <span className="text-[10px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
             My Jobs
           </span>
         </Link>
@@ -652,26 +652,26 @@ export default function HRDashboardClient({
         <button
           type="button"
           onClick={() => setActiveDashboardTab("overview")}
-          className={`flex-1 sm:flex-initial px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
+          className={`flex-1 sm:flex-initial px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer active:scale-98 ${
             activeDashboardTab === "overview"
               ? "bg-[#1E5BE0] text-white shadow-xs"
               : "text-[#6B7694] hover:bg-[#F7F9FD] hover:text-[#0B1F4B]"
           }`}
         >
-          <Briefcase className="w-4 h-4" />
+          <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span>Dashboard Overview</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveDashboardTab("company-profile")}
-          className={`flex-1 sm:flex-initial px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
+          className={`flex-1 sm:flex-initial px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer active:scale-98 ${
             activeDashboardTab === "company-profile"
               ? "bg-[#1E5BE0] text-white shadow-xs"
               : "text-[#6B7694] hover:bg-[#F7F9FD] hover:text-[#0B1F4B]"
           }`}
         >
-          <Building2 className="w-4 h-4" />
+          <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span>Company Profile & Branding</span>
         </button>
       </div>
@@ -685,59 +685,59 @@ export default function HRDashboardClient({
       {/* ============================================================== */}
       {/* 2. STATS ROW (4 High Aesthetic Cards: Blue, Orange, Green, Purple) */}
       {/* ============================================================== */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {/* Blue tint: Active Jobs */}
-        <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-blue-50/40 to-white">
-          <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
-            <Briefcase className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+        <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-blue-50/40 to-white">
+          <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
+            <Briefcase className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
           </div>
           <div className="min-w-0">
-            <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{activeJobs.length}</div>
-            <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Active Jobs</div>
-            <div className="text-[10px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
-              <TrendingUp className="w-3 h-3" /> {activeJobs.length} live
+            <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none">{activeJobs.length}</div>
+            <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Active Jobs</div>
+            <div className="text-[9px] sm:text-[11px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
+              <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {activeJobs.length} live
             </div>
           </div>
         </div>
 
         {/* Orange tint: Total Applicants */}
-        <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-orange-50/40 to-white">
-          <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
-            <Users className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+        <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-orange-50/40 to-white">
+          <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
+            <Users className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
           </div>
           <div className="min-w-0">
-            <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{applicants.length}</div>
-            <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Total Applicants</div>
-            <div className="text-[10px] sm:text-[12px] font-semibold text-[#FF6B00] flex items-center gap-1 mt-0.5 truncate">
-              <TrendingUp className="w-3 h-3" /> {applicants.length} total
+            <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none">{applicants.length}</div>
+            <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Total Applicants</div>
+            <div className="text-[9px] sm:text-[11px] font-semibold text-[#FF6B00] flex items-center gap-1 mt-0.5 truncate">
+              <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {applicants.length} total
             </div>
           </div>
         </div>
 
         {/* Green tint: Shortlisted */}
-        <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
-          <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl sm:rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+        <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
+          <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
           </div>
           <div className="min-w-0">
-            <div className="text-[20px] sm:text-[26px] font-bold text-[#0B1F4B] leading-none">{shortlistedCount}</div>
-            <div className="text-[11px] sm:text-[14px] text-[#6B7694] mt-1 font-medium truncate">Shortlisted</div>
-            <div className="text-[10px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
-              <TrendingUp className="w-3 h-3" /> {shortlistedCount} verified
+            <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none">{shortlistedCount}</div>
+            <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Shortlisted</div>
+            <div className="text-[9px] sm:text-[11px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
+              <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {shortlistedCount} verified
             </div>
           </div>
         </div>
 
         {/* Purple tint: Live Interviews */}
-        <div className="bg-white rounded-[14px] p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-4 bg-gradient-to-br from-purple-50/40 to-white">
-          <div className="w-[56px] h-[56px] rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
-            <Calendar className="w-6 h-6" strokeWidth={1.75} />
+        <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-purple-50/40 to-white">
+          <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
+            <Calendar className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
           </div>
-          <div>
-            <div className="text-[26px] font-bold text-[#0B1F4B] leading-none">{interviews.length}</div>
-            <div className="text-[14px] text-[#6B7694] mt-1">Interviews</div>
-            <div className="text-[12px] font-semibold text-[#8B5CF6] flex items-center gap-1 mt-1">
-              <Clock className="w-3.5 h-3.5" /> {interviews.length} rounds
+          <div className="min-w-0">
+            <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none">{interviews.length}</div>
+            <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Interviews</div>
+            <div className="text-[9px] sm:text-[11px] font-semibold text-[#8B5CF6] flex items-center gap-1 mt-0.5 truncate">
+              <Clock className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" /> {interviews.length} rounds
             </div>
           </div>
         </div>
@@ -746,9 +746,9 @@ export default function HRDashboardClient({
       {/* ============================================================== */}
       {/* 3. CHARTS ROW (Donut Funnel Pipeline + Monthly Applications Bar Chart) */}
       {/* ============================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-5">
         {/* Card 1: Pipeline Breakdown (Donut Chart) */}
-        <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between">
+        <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-[16px] font-bold text-[#0B1F4B]">Candidate Pipeline Status</h3>
@@ -823,7 +823,7 @@ export default function HRDashboardClient({
         </div>
 
         {/* Card 2: Candidate Sourcing & Applications Bar Chart */}
-        <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between">
+        <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-[16px] font-bold text-[#0B1F4B]">Application Inflow Trend</h3>
@@ -905,9 +905,9 @@ export default function HRDashboardClient({
       {/* ============================================================== */}
       {/* 4. RECENT APPLICANTS TABLE & ACTIVE JOBS SECTION              */}
       {/* ============================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Left 2 Cols: Recent Candidate Applications Table */}
-        <div className="lg:col-span-2 bg-white rounded-[14px] border border-[#EEF1F7] p-5 sm:p-6 shadow-[0_4px_14px_rgba(11,31,75,0.05)] space-y-4">
+        <div className="lg:col-span-2 bg-white rounded-[14px] border border-[#EEF1F7] p-3.5 sm:p-5 lg:p-6 shadow-[0_4px_14px_rgba(11,31,75,0.05)] space-y-4">
           <div className="flex items-center justify-between border-b border-[#EEF1F7] pb-3">
             <div>
               <h3 className="text-base font-bold text-[#0B1F4B]">Recent Candidate Submissions</h3>
@@ -1145,7 +1145,7 @@ export default function HRDashboardClient({
         </div>
 
         {/* Right 1 Col: Active Job Openings List */}
-        <div className="bg-white rounded-[14px] border border-[#EEF1F7] p-5 sm:p-6 shadow-[0_4px_14px_rgba(11,31,75,0.05)] space-y-4 flex flex-col justify-between">
+        <div className="bg-white rounded-[14px] border border-[#EEF1F7] p-3.5 sm:p-5 lg:p-6 shadow-[0_4px_14px_rgba(11,31,75,0.05)] space-y-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-[#EEF1F7] pb-3">
               <div>

@@ -164,21 +164,21 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
     <AuthGuard allowedRoles={["ADMIN"]} loginRoute="/admin/login">
       <div className="min-h-screen bg-[#F7F9FD] text-[#0B1F4B] font-['Poppins',sans-serif] flex flex-col">
       {/* ============================================================== */}
-      {/* 1. TOP BAR (~66px height, white, sticky top, matching Student layout) */}
+      {/* 1. TOP BAR (~52px mobile, ~66px desktop, white, sticky top) */}
       {/* ============================================================== */}
-      <header className="h-[66px] bg-white border-b border-[#EEF1F7] sticky top-0 z-40 px-4 lg:px-6 flex items-center justify-between gap-4">
+      <header className="h-[52px] sm:h-[66px] bg-white border-b border-[#EEF1F7] sticky top-0 z-40 px-2.5 sm:px-4 lg:px-6 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Brand Logo within sidebar width ~240px */}
-        <div className="flex items-center gap-3 w-auto lg:w-[240px] shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 w-auto lg:w-[240px] shrink-0">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 rounded-lg text-[#0B1F4B] hover:bg-[#F1F4F9]"
+            className="lg:hidden p-1.5 rounded-lg text-[#0B1F4B] hover:bg-[#F1F4F9]"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
 
           <Link href="/admin/dashboard" className="inline-block" aria-label="WeGrow Admin Control">
-            <div className="relative w-36 sm:w-40 h-10">
+            <div className="relative w-28 sm:w-40 h-7 sm:h-10">
               <Image
                 src="/image.png"
                 alt="WeGrow Skill Campus"
@@ -203,7 +203,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         </div>
 
         {/* Right: Badge, Notification, Profile */}
-        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
           {/* Super Admin Pill Badge */}
           <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[#0756A8] text-xs font-bold border border-blue-100">
             <ShieldCheck className="w-3.5 h-3.5 text-[#0756A8]" />
@@ -213,16 +213,16 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           {/* Audit Notification Icon */}
           <Link
             href="/admin/audit-logs"
-            className="relative p-2 rounded-xl text-[#0B1F4B] hover:bg-[#F1F4F9] transition"
+            className="relative p-1.5 sm:p-2 rounded-xl text-[#0B1F4B] hover:bg-[#F1F4F9] transition"
             aria-label="Audit Notifications"
             title="Recent Audit Logs"
           >
-            <Bell className="w-5 h-5 text-[#0B1F4B]" strokeWidth={1.75} />
+            <Bell className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#0B1F4B]" strokeWidth={1.75} />
           </Link>
 
           {/* Admin profile capsule */}
-          <div className="flex items-center gap-3 pl-2 sm:pl-3 border-l border-[#EEF1F7]">
-            <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-tr from-[#0756A8] to-blue-500 text-white font-bold text-sm flex items-center justify-center shadow-sm shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 pl-1 sm:pl-3 border-l border-[#EEF1F7]">
+            <div className="relative w-7 h-7 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gradient-to-tr from-[#0756A8] to-blue-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center shadow-sm shrink-0">
               AD
             </div>
             <div className="hidden sm:block text-left">
@@ -235,7 +235,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             </div>
             <button
               onClick={() => handleLogout()}
-              className="p-1.5 text-slate-400 hover:text-rose-600 transition ml-1"
+              className="p-1 sm:p-1.5 text-slate-400 hover:text-rose-600 transition ml-0.5 sm:ml-1"
               title="Sign Out"
             >
               <LogOut className="w-4 h-4" />
@@ -351,7 +351,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         </aside>
 
         {/* Dynamic Content Area */}
-        <div className="flex-1 flex flex-col min-w-0 min-h-[calc(100vh-66px)] overflow-x-hidden">
+        <div className="flex-1 flex flex-col min-w-0 min-h-[calc(100vh-52px)] sm:min-h-[calc(100vh-66px)] overflow-x-hidden">
           <main className="flex-1 min-w-0 w-full pb-20 lg:pb-0">{children}</main>
         </div>
 

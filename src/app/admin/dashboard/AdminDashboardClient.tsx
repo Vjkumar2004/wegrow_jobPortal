@@ -115,19 +115,19 @@ export default function AdminDashboardClient() {
   }
 
   return (
-    <div className="flex-1 flex flex-col xl:flex-row min-w-0 p-4 sm:p-6 lg:p-7 gap-5">
+    <div className="flex-1 flex flex-col xl:flex-row min-w-0 p-3 sm:p-5 lg:p-7 gap-3.5 sm:gap-5">
       {/* ================= ZONE 2: CENTER CONTENT (flexible, matching Student Dashboard) ================= */}
-      <div className="flex-1 min-w-0 space-y-5">
+      <div className="flex-1 min-w-0 space-y-4 sm:space-y-5">
         {/* 1. Welcome Banner: Soft peach-to-blue gradient card */}
-        <div className="relative overflow-hidden rounded-[14px] p-4 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <div className="relative overflow-hidden rounded-2xl p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-[#0756A8] text-xs font-bold uppercase tracking-wider mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#0756A8]" /> Super Admin Command Center
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100 text-[#0756A8] text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2">
+              <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#0756A8]" /> Super Admin Command Center
             </div>
-            <h1 className="text-[22px] sm:text-[26px] font-bold text-[#0B1F4B] tracking-tight flex items-center gap-2">
+            <h1 className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] tracking-tight flex items-center gap-1.5 sm:gap-2">
               Welcome back, Super Admin! 🛡️
             </h1>
-            <p className="text-[14px] text-[#6B7694] mt-1">
+            <p className="text-[11px] sm:text-[14px] text-[#6B7694] mt-0.5 sm:mt-1">
               Campus placement operations and partner compliance monitoring.
             </p>
           </div>
@@ -136,24 +136,24 @@ export default function AdminDashboardClient() {
           {pendingCompanies.length > 0 ? (
             <Link
               href="/admin/hr-management"
-              className="bg-white rounded-[12px] p-3.5 sm:p-4 border border-amber-200/80 shadow-sm flex items-center gap-3 shrink-0 hover:bg-amber-50/50 transition"
+              className="bg-white rounded-[12px] p-2.5 sm:p-4 border border-amber-200/80 shadow-sm flex items-center gap-2.5 sm:gap-3 shrink-0 hover:bg-amber-50/50 transition"
             >
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-[#FF6B00] flex items-center justify-center shrink-0">
-                <AlertCircle className="w-5 h-5 text-[#FF6B00]" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 text-[#FF6B00] flex items-center justify-center shrink-0">
+                <AlertCircle className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#FF6B00]" />
               </div>
               <div>
-                <div className="text-[13px] font-bold text-[#0B1F4B]">
+                <div className="text-[12px] sm:text-[13px] font-bold text-[#0B1F4B]">
                   {pendingCompanies.length} Corporate Partners
                 </div>
-                <div className="text-[11px] text-[#6B7694]">Pending KYC Approval →</div>
+                <div className="text-[10px] sm:text-[11px] text-[#6B7694]">Pending KYC Approval →</div>
               </div>
             </Link>
           ) : (
-            <div className="bg-white rounded-[12px] p-3.5 sm:p-4 border border-[#EEF1F7] shadow-sm max-w-sm flex items-start gap-3 shrink-0">
-              <span className="text-[#22B573] text-2xl font-black leading-none shrink-0">
+            <div className="bg-white rounded-[12px] p-2.5 sm:p-4 border border-[#EEF1F7] shadow-sm max-w-sm flex items-start gap-2.5 sm:gap-3 shrink-0">
+              <span className="text-[#22B573] text-xl sm:text-2xl font-black leading-none shrink-0">
                 ✓
               </span>
-              <p className="text-[12px] sm:text-[13px] text-[#0B1F4B] font-medium leading-snug">
+              <p className="text-[11px] sm:text-[13px] text-[#0B1F4B] font-medium leading-snug">
                 All employer verification requests are currently up to date.
               </p>
             </div>
@@ -161,66 +161,66 @@ export default function AdminDashboardClient() {
         </div>
 
         {/* 2. Four Stat Cards in a row (Matching Student Dashboard aesthetic) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {/* Card 1: Total Students (Blue) */}
-          <div className="bg-white rounded-[14px] p-3.5 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-blue-50/40 to-white">
-            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
-              <Users className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-blue-50/40 to-white">
+            <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
+              <Users className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
             <div className="min-w-0">
-              <div className="text-xl sm:text-[26px] font-bold text-[#0B1F4B] leading-none truncate">
+              <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none truncate">
                 {(students.length || reports.totalStudents).toLocaleString()}
               </div>
-              <div className="text-xs sm:text-[14px] text-[#6B7694] mt-1 truncate">Total Students</div>
-              <div className="text-[11px] sm:text-[12px] font-semibold text-[#1E5BE0] flex items-center gap-1 mt-0.5 sm:mt-1 truncate">
+              <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Total Students</div>
+              <div className="text-[9px] sm:text-[11px] font-semibold text-[#1E5BE0] flex items-center gap-1 mt-0.5 truncate">
                 <span>Registered</span>
               </div>
             </div>
           </div>
 
           {/* Card 2: Partner Companies (Orange) */}
-          <div className="bg-white rounded-[14px] p-3.5 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-orange-50/40 to-white">
-            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
-              <Building2 className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-orange-50/40 to-white">
+            <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
+              <Building2 className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
             <div className="min-w-0">
-              <div className="text-xl sm:text-[26px] font-bold text-[#0B1F4B] leading-none truncate">
+              <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none truncate">
                 {(companies.length || reports.totalCompanies).toLocaleString()}
               </div>
-              <div className="text-xs sm:text-[14px] text-[#6B7694] mt-1 truncate">Partners</div>
-              <div className="text-[11px] sm:text-[12px] font-semibold text-[#FF6B00] flex items-center gap-1 mt-0.5 sm:mt-1 truncate">
+              <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Partners</div>
+              <div className="text-[9px] sm:text-[11px] font-semibold text-[#FF6B00] flex items-center gap-1 mt-0.5 truncate">
                 <span>{approvedCompanies.length} Verified</span>
               </div>
             </div>
           </div>
 
           {/* Card 3: Active Jobs (Emerald) */}
-          <div className="bg-white rounded-[14px] p-3.5 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
-            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
-              <Briefcase className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
+            <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
+              <Briefcase className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
             <div className="min-w-0">
-              <div className="text-xl sm:text-[26px] font-bold text-[#0B1F4B] leading-none truncate">
+              <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none truncate">
                 {reports.totalJobs.toLocaleString()}
               </div>
-              <div className="text-xs sm:text-[14px] text-[#6B7694] mt-1 truncate">Live Jobs</div>
-              <div className="text-[11px] sm:text-[12px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 sm:mt-1 truncate">
+              <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Live Jobs</div>
+              <div className="text-[9px] sm:text-[11px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
                 <span>Active Listings</span>
               </div>
             </div>
           </div>
 
           {/* Card 4: Placements Rolled (Purple) */}
-          <div className="bg-white rounded-[14px] p-3.5 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-purple-50/40 to-white">
-            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
-              <Award className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+          <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-purple-50/40 to-white">
+            <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
+              <Award className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
             </div>
             <div className="min-w-0">
-              <div className="text-xl sm:text-[26px] font-bold text-[#0B1F4B] leading-none truncate">
+              <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none truncate">
                 {reports.totalPlacements.toLocaleString()}
               </div>
-              <div className="text-xs sm:text-[14px] text-[#6B7694] mt-1 truncate">Placements</div>
-              <div className="text-[11px] sm:text-[12px] font-semibold text-[#8B5CF6] flex items-center gap-1 mt-0.5 sm:mt-1 truncate">
+              <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Placements</div>
+              <div className="text-[9px] sm:text-[11px] font-semibold text-[#8B5CF6] flex items-center gap-1 mt-0.5 truncate">
                 <span>Offers Confirmed</span>
               </div>
             </div>
@@ -228,9 +228,9 @@ export default function AdminDashboardClient() {
         </div>
 
         {/* 3. Two Charts Side by Side (Partner Verification Donut + Monthly Placement Growth Bar Chart) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-5">
           {/* Card 1: Partner Moderation Status (Donut Chart) */}
-          <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between">
+          <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between">
             <div>
               <h3 className="text-[16px] font-bold text-[#0B1F4B]">Employer Verification Status</h3>
               <p className="text-[12px] text-[#6B7694] mt-0.5">Corporate onboarding compliance</p>
@@ -293,7 +293,7 @@ export default function AdminDashboardClient() {
           </div>
 
           {/* Card 2: Placement Growth Trend (Bar Chart) */}
-          <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between">
+          <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-[16px] font-bold text-[#0B1F4B]">Campus Placements Trend</h3>
@@ -367,7 +367,7 @@ export default function AdminDashboardClient() {
         </div>
 
         {/* 4. Partner Companies Queue Card with Responsive Table + Mobile Cards */}
-        <div className="bg-white rounded-[14px] p-4 sm:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)]">
+        <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)]">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
             <div>
               <h3 className="text-[15px] sm:text-[16px] font-bold text-[#0B1F4B]">Employer Partner Verification Queue</h3>
@@ -537,14 +537,14 @@ export default function AdminDashboardClient() {
       </div>
 
       {/* ================= ZONE 3: RIGHT PANEL (~320px stacked cards, matching Student Dashboard) ================= */}
-      <div className="w-full xl:w-[320px] shrink-0 space-y-5">
+      <div className="w-full xl:w-[320px] shrink-0 space-y-4 sm:space-y-5">
         {/* 1. System Health & Platform Status Card */}
-        <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-[16px] font-bold text-[#0B1F4B]">Campus Governance</h3>
-            <span className="text-[14px] font-bold text-[#22B573]">Active</span>
+            <h3 className="text-[15px] sm:text-[16px] font-bold text-[#0B1F4B]">Campus Governance</h3>
+            <span className="text-[13px] sm:text-[14px] font-bold text-[#22B573]">Active</span>
           </div>
-          <p className="text-[12px] text-[#6B7694] mb-3">
+          <p className="text-[11px] sm:text-[12px] text-[#6B7694] mb-3">
             Core infrastructure security metrics
           </p>
 
@@ -584,12 +584,12 @@ export default function AdminDashboardClient() {
         </div>
 
         {/* 2. Recent Audit Logs Trail */}
-        <div className="bg-white rounded-[14px] p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[16px] font-bold text-[#0B1F4B]">Live Audit Stream</h3>
+            <h3 className="text-[15px] sm:text-[16px] font-bold text-[#0B1F4B]">Live Audit Stream</h3>
             <Link
               href="/admin/audit-logs"
-              className="text-[13px] font-semibold text-[#1E5BE0] hover:underline"
+              className="text-[12px] sm:text-[13px] font-semibold text-[#1E5BE0] hover:underline"
             >
               View All
             </Link>
@@ -627,7 +627,7 @@ export default function AdminDashboardClient() {
         </div>
 
         {/* 3. Quick Dispatcher Shortcut */}
-        <div className="bg-gradient-to-br from-[#0756A8] to-[#0A1A2F] rounded-[14px] p-6 text-white shadow-md relative overflow-hidden">
+        <div className="bg-gradient-to-br from-[#0756A8] to-[#0A1A2F] rounded-[14px] p-3.5 sm:p-5 lg:p-6 text-white shadow-md relative overflow-hidden">
           <div className="relative z-10">
             <div className="w-9 h-9 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center mb-3">
               <Mail className="w-5 h-5 text-white" />

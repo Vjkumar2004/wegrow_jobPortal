@@ -269,19 +269,19 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
         {/* ============================================================== */}
         {/* 1. TOP APP BAR (Native Mobile App Header on mobile, desktop navbar on lg) */}
         {/* ============================================================== */}
-        <header className="h-[60px] sm:h-[66px] bg-white/95 backdrop-blur-md border-b border-[#EEF1F7] sticky top-0 z-40 px-3 sm:px-6 flex items-center justify-between gap-3 shadow-2xs">
+        <header className="h-[52px] sm:h-[66px] bg-white/95 backdrop-blur-md border-b border-[#EEF1F7] sticky top-0 z-40 px-2.5 sm:px-6 flex items-center justify-between gap-2.5 sm:gap-3 shadow-2xs">
           {/* Left: Mobile Drawer Trigger + Brand Logo */}
-          <div className="flex items-center gap-2.5 sm:gap-3 w-auto lg:w-[240px] shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 w-auto lg:w-[240px] shrink-0">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-[#0B1F4B] hover:bg-[#F1F4F9] active:scale-95 transition-all cursor-pointer focus:outline-none"
+              className="lg:hidden p-1.5 rounded-xl text-[#0B1F4B] hover:bg-[#F1F4F9] active:scale-95 transition-all cursor-pointer focus:outline-none"
               aria-label="Open navigation menu"
             >
               <Menu className="w-5 h-5" />
             </button>
 
             <Link href="/student/dashboard" className="inline-flex items-center gap-2" aria-label="WeGrow Skill Campus Home">
-              <div className="relative w-32 sm:w-40 h-8 sm:h-10">
+              <div className="relative w-28 sm:w-40 h-7 sm:h-10">
                 <Image
                   src="/image.png"
                   alt="WeGrow Skill Campus"
@@ -294,16 +294,16 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
           </div>
 
           {/* Right: Quick Notifications + Profile */}
-          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
             {/* Bell Icon with badge */}
             <Link
               href="/student/notifications"
-              className="relative p-2 rounded-xl text-[#0B1F4B] hover:bg-[#F1F4F9] active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+              className="relative p-1.5 sm:p-2 rounded-xl text-[#0B1F4B] hover:bg-[#F1F4F9] active:scale-95 transition-all flex items-center justify-center cursor-pointer"
               aria-label="Notifications"
             >
-              <Bell className="w-5 h-5 text-[#0B1F4B]" strokeWidth={1.75} />
+              <Bell className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#0B1F4B]" strokeWidth={1.75} />
               {unreadNotifCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-[#EF4444] text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-xs animate-pulse">
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] px-1 bg-[#EF4444] text-white text-[9px] sm:text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-xs animate-pulse">
                   {unreadNotifCount > 99 ? "99+" : unreadNotifCount}
                 </span>
               )}
@@ -315,9 +315,9 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
                 type="button"
                 onClick={() => setProfileDropdownOpen((prev) => !prev)}
                 aria-expanded={profileDropdownOpen}
-                className="flex items-center gap-2 sm:gap-3 pl-1.5 sm:pl-3 border-l border-[#EEF1F7] hover:opacity-90 transition cursor-pointer select-none py-1 focus:outline-none active:scale-98"
+                className="flex items-center gap-1.5 sm:gap-3 pl-1 sm:pl-3 border-l border-[#EEF1F7] hover:opacity-90 transition cursor-pointer select-none py-0.5 sm:py-1 focus:outline-none active:scale-98"
               >
-                <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-xs sm:text-sm flex items-center justify-center shadow-xs shrink-0 ring-2 ring-white">
+                <div className="relative w-7 h-7 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-xs sm:text-sm flex items-center justify-center shadow-xs shrink-0 ring-2 ring-white">
                   {navAvatar && !navImgError ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -585,7 +585,7 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
           </aside>
 
           {/* ================= RIGHT SIDE CONTENT AREA (with clearance for bottom nav on mobile) ================= */}
-          <div className="flex-1 flex flex-col min-w-0 min-h-[calc(100vh-60px)] sm:min-h-[calc(100vh-66px)] overflow-x-hidden pb-24 lg:pb-0">
+          <div className="flex-1 flex flex-col min-w-0 min-h-[calc(100vh-52px)] sm:min-h-[calc(100vh-66px)] overflow-x-hidden pb-20 lg:pb-0">
             {children}
           </div>
         </div>
