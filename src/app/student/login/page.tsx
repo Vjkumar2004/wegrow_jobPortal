@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/common/Button";
 import { authService } from "@/services/auth.service";
 import { PageLoader } from "@/components/common/PageLoader";
+import { getAvatarUrl } from "@/lib/utils";
 
 function StudentLoginContent() {
   const router = useRouter();
@@ -50,7 +51,25 @@ function StudentLoginContent() {
         role: "STUDENT",
       });
 
-      const userRole = res.data?.user?.role;
+      const loggedUser = res.data?.user;
+      const studentProf = loggedUser?.studentProfile;
+      const resolvedAvatar =
+        loggedUser?.avatarUrl ||
+        loggedUser?.avatar ||
+        studentProf?.avatarUrl ||
+        studentProf?.avatar ||
+        studentProf?.photoUrl ||
+        (studentProf?.id ? getAvatarUrl(studentProf.id) : undefined);
+
+      if (resolvedAvatar && typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("avatarUpdated", {
+            detail: { avatarUrl: resolvedAvatar },
+          })
+        );
+      }
+
+      const userRole = loggedUser?.role;
       if (userRole === "ADMIN") {
         router.push("/admin/dashboard");
       } else if (userRole === "HR") {

@@ -24,7 +24,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
 import { studentService } from "@/services/student.service";
-import { getNameInitials } from "@/lib/utils";
+import { getNameInitials, getAvatarUrl } from "@/lib/utils";
 
 interface SidebarItem {
   label: string;
@@ -46,6 +46,8 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
   const [navImgError, setNavImgError] = useState(false);
   const [showBottomNav, setShowBottomNav] = useState(true);
   const lastScrollYRef = React.useRef(0);
+
+  const isAuthPage = pathname.includes("/login") || pathname.includes("/register");
 
   // Auto-hide bottom navbar on scroll down, show on scroll up (native app pattern)
   React.useEffect(() => {
@@ -84,6 +86,37 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
     setShowBottomNav(true);
   }, [pathname]);
 
+  const getInitialProfile = React.useCallback(() => {
+    if (typeof window !== "undefined") {
+      const u = authService.getCurrentUser();
+      if (u) {
+        const student = (u as any).studentProfile;
+        const savedAvatar =
+          (u as any).avatarUrl ||
+          (u as any).avatar ||
+          student?.avatarUrl ||
+          student?.avatar ||
+          student?.photoUrl ||
+          (u.id ? localStorage.getItem(`wegrow_student_avatar_${u.id}`) : null) ||
+          localStorage.getItem("wegrow_student_avatar") ||
+          (student?.id ? getAvatarUrl(student.id) : undefined);
+
+        return {
+          id: student?.id || u.id,
+          name: student?.fullName || (u as any).fullName || u.name || "Student",
+          headline: student?.branch || student?.college || (u as any).headline || "Candidate",
+          avatarUrl: savedAvatar,
+          avatar: savedAvatar,
+          photoUrl: savedAvatar,
+        };
+      }
+    }
+    return {
+      name: "Student",
+      headline: "Candidate",
+    };
+  }, []);
+
   const [studentProfile, setStudentProfile] = useState<{
     id?: string;
     name: string;
@@ -91,26 +124,42 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
     avatarUrl?: string;
     avatar?: string;
     photoUrl?: string;
-  }>({
-    name: "Student",
-    headline: "Candidate",
-  });
+  }>(getInitialProfile);
 
   const { data: profileQuery } = useQuery({
     queryKey: ["student-profile"],
     queryFn: () => studentService.getProfile(),
     staleTime: 60_000,
+    enabled: !isAuthPage && !isInsideShell,
   });
 
   const { data: unreadNotifCount = 0 } = useQuery({
     queryKey: ["student-unread-notifs"],
     queryFn: () => studentService.getUnreadCount(),
     staleTime: 30_000,
+    enabled: !isAuthPage && !isInsideShell,
   });
 
   React.useEffect(() => {
     setNavImgError(false);
   }, [studentProfile.avatarUrl, studentProfile.avatar, studentProfile.photoUrl]);
+
+  // Re-hydrate profile and invalidate query when navigating from login to dashboard
+  React.useEffect(() => {
+    if (!isAuthPage) {
+      const local = getInitialProfile();
+      if (local.id || local.avatarUrl) {
+        setNavImgError(false);
+        setStudentProfile((prev) => ({
+          ...prev,
+          ...local,
+          avatarUrl: local.avatarUrl || prev.avatarUrl,
+        }));
+      }
+      queryClient.invalidateQueries({ queryKey: ["student-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["student-unread-notifs"] });
+    }
+  }, [pathname, isAuthPage, queryClient, getInitialProfile]);
 
   React.useEffect(() => {
     if (profileQuery) {
@@ -180,7 +229,6 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
   }
 
   // If this is login or register page, do not render student app shell
-  const isAuthPage = pathname.includes("/login") || pathname.includes("/register");
   if (isAuthPage) {
     return <>{children}</>;
   }

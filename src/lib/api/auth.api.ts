@@ -111,12 +111,18 @@ export const authApi = {
     if (data?.tokens?.accessToken) {
       setAuthTokens(data.tokens.accessToken, data.tokens.refreshToken);
       if (typeof window !== "undefined") {
+        const student = data.user?.studentProfile;
+        const hr = data.user?.hrProfile;
         const avatarUrl =
           data.user?.avatarUrl ||
           data.user?.avatar ||
-          data.user?.hrProfile?.avatarUrl ||
-          data.user?.hrProfile?.avatar ||
-          (data.user?.id ? `${API_BASE_URL}/media/hr-avatar/${data.user.id}` : null);
+          student?.avatarUrl ||
+          student?.avatar ||
+          student?.photoUrl ||
+          hr?.avatarUrl ||
+          hr?.avatar ||
+          (data.user?.role === "HR" && data.user?.id ? `${API_BASE_URL}/media/hr-avatar/${data.user.id}` : null) ||
+          (data.user?.role === "STUDENT" && (student?.id || data.user?.id) ? `${API_BASE_URL}/media/avatar/${student?.id || data.user.id}` : null);
 
         const userWithRole = {
           ...data.user,
@@ -129,8 +135,14 @@ export const authApi = {
         }
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userWithRole));
         if (avatarUrl && data.user?.id) {
-          localStorage.setItem(`wegrow_hr_avatar_${data.user.id}`, avatarUrl);
-          localStorage.setItem("wegrow_hr_avatar", avatarUrl);
+          if (data.user.role === "STUDENT") {
+            localStorage.setItem(`wegrow_student_avatar_${data.user.id}`, avatarUrl);
+            localStorage.setItem("wegrow_student_avatar", avatarUrl);
+          } else {
+            localStorage.setItem(`wegrow_hr_avatar_${data.user.id}`, avatarUrl);
+            localStorage.setItem("wegrow_hr_avatar", avatarUrl);
+          }
+          window.dispatchEvent(new CustomEvent("avatarUpdated", { detail: { avatarUrl } }));
         }
       }
     }
@@ -176,17 +188,28 @@ export const authApi = {
       if (user.hrProfile?.company?.id) {
         user.hrProfile.company.logoUrl = `${API_BASE_URL}/media/company-logo/${user.hrProfile.company.id}`;
       }
+      const student = user.studentProfile;
+      const hr = user.hrProfile;
       const avatarUrl =
         user.avatarUrl ||
         user.avatar ||
-        user.hrProfile?.avatarUrl ||
-        user.hrProfile?.avatar ||
-        (user.id ? `${API_BASE_URL}/media/hr-avatar/${user.id}` : null);
+        student?.avatarUrl ||
+        student?.avatar ||
+        student?.photoUrl ||
+        hr?.avatarUrl ||
+        hr?.avatar ||
+        (user.role === "HR" && user.id ? `${API_BASE_URL}/media/hr-avatar/${user.id}` : null) ||
+        (user.role === "STUDENT" && (student?.id || user.id) ? `${API_BASE_URL}/media/avatar/${student?.id || user.id}` : null);
 
       if (avatarUrl && typeof window !== "undefined") {
         if (user.id) {
-          localStorage.setItem(`wegrow_hr_avatar_${user.id}`, avatarUrl);
-          localStorage.setItem("wegrow_hr_avatar", avatarUrl);
+          if (user.role === "STUDENT") {
+            localStorage.setItem(`wegrow_student_avatar_${user.id}`, avatarUrl);
+            localStorage.setItem("wegrow_student_avatar", avatarUrl);
+          } else {
+            localStorage.setItem(`wegrow_hr_avatar_${user.id}`, avatarUrl);
+            localStorage.setItem("wegrow_hr_avatar", avatarUrl);
+          }
         }
         const userStr = localStorage.getItem(AUTH_USER_KEY);
         if (userStr) {
@@ -195,9 +218,11 @@ export const authApi = {
             parsed.avatarUrl = avatarUrl;
             parsed.avatar = avatarUrl;
             if (user.hrProfile) parsed.hrProfile = user.hrProfile;
+            if (user.studentProfile) parsed.studentProfile = user.studentProfile;
             localStorage.setItem(AUTH_USER_KEY, JSON.stringify(parsed));
           } catch {}
         }
+        window.dispatchEvent(new CustomEvent("avatarUpdated", { detail: { avatarUrl } }));
       }
     }
     return response.data;
