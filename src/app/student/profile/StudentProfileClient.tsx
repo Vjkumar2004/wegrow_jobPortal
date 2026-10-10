@@ -1051,25 +1051,6 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
               </button>
             );
           })}
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.label;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => handleTabClick(tab.id, tab.label)}
-                className={`h-full flex items-center gap-2 px-3 text-[14px] font-[500] border-b-2 transition-all cursor-pointer ${
-                  isActive
-                    ? "border-[#1E5BE0] text-[#1E5BE0] font-[600]"
-                    : "border-transparent text-[#0B1F4B] hover:text-[#1E5BE0]"
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? "text-[#1E5BE0]" : "text-[#6B7694]"}`} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
         </div>
       </nav>
 
