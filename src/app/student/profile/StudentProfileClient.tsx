@@ -445,22 +445,27 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
 
   const handleViewResume = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (profile.resumeId) {
-      try {
-        const result = await studentService.getResumeDownloadUrl(profile.resumeId);
-        if (result?.downloadUrl) {
-          window.open(result.downloadUrl, "_blank", "noopener,noreferrer");
-          return;
-        }
-      } catch (err) {
-        showToast(getErrorMessage(err, "Failed to fetch secure resume download link"), "error");
+    const hasValidResume = Boolean(
+      profile.resumeId &&
+      profile.resumeName &&
+      profile.resumeName !== "Student_Resume_2026.pdf" &&
+      !profile.resumeUrl?.includes("example.com")
+    );
+
+    if (!hasValidResume || !profile.resumeId) {
+      showToast("No uploaded resume found. Please upload your PDF resume first.", "error");
+      return;
+    }
+
+    try {
+      const result = await studentService.getResumeDownloadUrl(profile.resumeId);
+      if (result?.downloadUrl) {
+        window.open(result.downloadUrl, "_blank", "noopener,noreferrer");
         return;
       }
-    }
-    if (profile.resumeUrl) {
-      window.open(profile.resumeUrl, "_blank", "noopener,noreferrer");
-    } else {
-      showToast("Please upload a resume first.", "error");
+      showToast("Unable to generate resume link. Please re-upload your resume.", "error");
+    } catch (err) {
+      showToast(getErrorMessage(err, "Failed to fetch secure resume download link"), "error");
     }
   };
 
@@ -1661,82 +1666,97 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
               className="hidden"
             />
 
-            {/* File Row */}
-            <div className="bg-[#F7F9FC] rounded-[12px] p-3.5 flex items-center gap-3 border border-[#EEF1F7]">
-              <div className="w-10 h-10 rounded-lg bg-[#FFEBEB] text-[#EF4444] flex items-center justify-center shrink-0">
-                <FileText className="w-5 h-5 stroke-[2]" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h4 className="font-[600] text-[14px] text-[#0B1F4B] truncate">
-                  {profile.resumeName || "No resume uploaded yet"}
-                </h4>
-                <p className="text-[12px] text-[#6B7694] mt-0.5">
-                  {profile.resumeUploadDate || "Upload your resume in PDF format (max 5MB)"}
-                </p>
-              </div>
-            </div>
+            {(() => {
+              const hasRealResume = Boolean(
+                profile.resumeId &&
+                profile.resumeName &&
+                profile.resumeName !== "Student_Resume_2026.pdf" &&
+                !profile.resumeUrl?.includes("example.com")
+              );
 
-            {/* Upload progress indicator */}
-            {uploadProgress !== null && (
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs text-[#6B7694]">
-                  <span>Uploading PDF & scanning ATS keywords...</span>
-                  <span className="font-bold text-[#1E5BE0]">{uploadProgress}%</span>
-                </div>
-                <div className="w-full h-1.5 bg-[#EAF1FF] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#1E5BE0] transition-all duration-200"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Action buttons */}
-            <div className="flex gap-3">
-              {Boolean(profile.resumeId || profile.resumeUrl || profile.resumeName) ? (
+              return (
                 <>
-                  <button
-                    type="button"
-                    onClick={handleViewResume}
-                    className="flex-1 h-[44px] rounded-[10px] border-[1.5px] border-[#1E5BE0] font-[600] text-[13px] text-[#1E5BE0] hover:bg-blue-50 cursor-pointer flex items-center justify-center transition"
-                  >
-                    View Resume
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => resumeFileInputRef.current?.click()}
-                    className="flex-1 h-[44px] rounded-[10px] bg-[#1E5BE0] hover:bg-[#1548b8] text-white font-[600] text-[13px] flex items-center justify-center transition shadow-xs cursor-pointer"
-                  >
-                    Replace
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => resumeFileInputRef.current?.click()}
-                  className="w-full h-[44px] rounded-[10px] bg-[#1E5BE0] hover:bg-[#1548b8] text-white font-[600] text-[13px] flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>Upload Resume (PDF)</span>
-                </button>
-              )}
-            </div>
+                  {/* File Row */}
+                  <div className="bg-[#F7F9FC] rounded-[12px] p-3.5 flex items-center gap-3 border border-[#EEF1F7]">
+                    <div className="w-10 h-10 rounded-lg bg-[#FFEBEB] text-[#EF4444] flex items-center justify-center shrink-0">
+                      <FileText className="w-5 h-5 stroke-[2]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-[600] text-[14px] text-[#0B1F4B] truncate">
+                        {hasRealResume ? profile.resumeName : "No resume uploaded yet"}
+                      </h4>
+                      <p className="text-[12px] text-[#6B7694] mt-0.5">
+                        {hasRealResume
+                          ? profile.resumeUploadDate || "Uploaded"
+                          : "Upload your resume in PDF format (max 5MB)"}
+                      </p>
+                    </div>
+                  </div>
 
-            {/* ATS notice - Only show when resume is actually uploaded */}
-            {Boolean(profile.resumeId || profile.resumeUrl || profile.resumeName) ? (
-              <div className="bg-[#E8F8EF] text-[#1E9E63] text-[13px] rounded-[10px] p-3 flex items-center gap-2.5 font-medium border border-[#22B573]/20">
-                <div className="w-5 h-5 rounded-full bg-[#22B573] text-white flex items-center justify-center shrink-0">
-                  <Check className="w-3 h-3 stroke-[2.5]" />
-                </div>
-                <span>Your resume is indexed and searchable by recruiters</span>
-              </div>
-            ) : (
-              <div className="bg-[#F8FAFC] text-[#64748B] text-[12px] rounded-[10px] p-3 flex items-center gap-2 border border-slate-200">
-                <AlertCircle className="w-4 h-4 text-slate-400 shrink-0" />
-                <span>Upload a PDF resume to get discovered and apply to jobs</span>
-              </div>
-            )}
+                  {/* Upload progress indicator */}
+                  {uploadProgress !== null && (
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs text-[#6B7694]">
+                        <span>Uploading PDF & scanning ATS keywords...</span>
+                        <span className="font-bold text-[#1E5BE0]">{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-[#EAF1FF] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#1E5BE0] transition-all duration-200"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex gap-3">
+                    {hasRealResume ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleViewResume}
+                          className="flex-1 h-[44px] rounded-[10px] border-[1.5px] border-[#1E5BE0] font-[600] text-[13px] text-[#1E5BE0] hover:bg-blue-50 cursor-pointer flex items-center justify-center transition"
+                        >
+                          View Resume
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => resumeFileInputRef.current?.click()}
+                          className="flex-1 h-[44px] rounded-[10px] bg-[#1E5BE0] hover:bg-[#1548b8] text-white font-[600] text-[13px] flex items-center justify-center transition shadow-xs cursor-pointer"
+                        >
+                          Replace
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => resumeFileInputRef.current?.click()}
+                        className="w-full h-[44px] rounded-[10px] bg-[#1E5BE0] hover:bg-[#1548b8] text-white font-[600] text-[13px] flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
+                      >
+                        <FileText className="w-4 h-4" />
+                        <span>Upload Resume (PDF)</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* ATS notice */}
+                  {hasRealResume ? (
+                    <div className="bg-[#E8F8EF] text-[#1E9E63] text-[13px] rounded-[10px] p-3 flex items-center gap-2.5 font-medium border border-[#22B573]/20">
+                      <div className="w-5 h-5 rounded-full bg-[#22B573] text-white flex items-center justify-center shrink-0">
+                        <Check className="w-3 h-3 stroke-[2.5]" />
+                      </div>
+                      <span>Your resume is indexed and searchable by recruiters</span>
+                    </div>
+                  ) : (
+                    <div className="bg-[#F8FAFC] text-[#64748B] text-[12px] rounded-[10px] p-3 flex items-center gap-2 border border-slate-200">
+                      <AlertCircle className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span>Upload a PDF resume to get discovered and apply to jobs</span>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {/* Card 2: Skills */}

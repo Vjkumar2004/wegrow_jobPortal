@@ -92,9 +92,12 @@ export const studentService = {
           .map((s: any) => (typeof s === "string" ? s : s.name || s.skill?.name))
           .filter(Boolean);
 
-        let activeResume = data.resumes?.[0] || data.resume;
+        const validResumes = (Array.isArray(data.resumes) ? data.resumes : []).filter(
+          (r: any) => r && r.fileName !== "Student_Resume_2026.pdf" && !r.fileUrl?.includes("example.com")
+        );
+        let activeResume = validResumes[0] || (data.resume && data.resume.fileName !== "Student_Resume_2026.pdf" && !data.resume.fileUrl?.includes("example.com") ? data.resume : null);
 
-        const hasResume = Boolean(activeResume?.id || activeResume?.fileUrl || activeResume?.fileName);
+        const hasResume = Boolean(activeResume && (activeResume.id || activeResume.storageKey));
         const checklist = [
           { label: "Personal Information", done: Boolean(data.fullName && data.phone), countText: "" },
           { label: "Education Details", done: Boolean(eduList.length > 0), countText: "" },
@@ -149,10 +152,10 @@ export const studentService = {
           skills: skillsList,
           projects: projList,
           internships: expList,
-          resumeId: activeResume?.id || undefined,
-          resumeName: activeResume?.fileName || activeResume?.name || "",
-          resumeUrl: activeResume?.fileUrl || "",
-          resumeUploadDate: activeResume?.createdAt ? `Uploaded on ${new Date(activeResume.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : "",
+          resumeId: hasResume ? activeResume?.id || undefined : undefined,
+          resumeName: hasResume ? activeResume?.fileName || activeResume?.name || "" : "",
+          resumeUrl: hasResume ? activeResume?.fileUrl || "" : "",
+          resumeUploadDate: hasResume && activeResume?.createdAt ? `Uploaded on ${new Date(activeResume.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : "",
           linkedin: data.linkedInUrl || data.linkedinUrl || data.linkedin || "",
           github: data.githubUrl || data.github || "",
           portfolio: data.portfolioUrl || data.portfolio || "",

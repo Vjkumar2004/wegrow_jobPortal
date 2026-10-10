@@ -75,24 +75,13 @@ export const applicationsService = {
     try {
       let activeResumeId = payload?.resumeId;
 
-      // If no resumeId provided, look up or create an active resume for this student
+      // If no resumeId provided, look up the student's active resume
       if (!activeResumeId) {
         try {
-          const resumesRes = await apiClient.get<{ success: boolean; data: { resumes: Array<{ id: string }> } }>("/students/me/resumes");
+          const resumesRes = await apiClient.get<{ success: boolean; data: { resumes?: Array<{ id: string }> } }>("/students/me/resumes");
           const userResumes = resumesRes.data?.data?.resumes;
           if (Array.isArray(userResumes) && userResumes.length > 0) {
             activeResumeId = userResumes[0].id;
-          } else {
-            // Register an initial verified resume metadata so the student can apply smoothly
-            const createdResumeRes = await apiClient.post<{ success: boolean; data: { resume: { id: string } } }>("/students/me/resumes", {
-              fileName: "Student_Resume_2026.pdf",
-              storageKey: `resumes/student_${Date.now()}.pdf`,
-              fileUrl: "https://example.com/resumes/student.pdf",
-              mimeType: "application/pdf",
-              fileSize: 1024 * 150,
-              isPrimary: true,
-            });
-            activeResumeId = createdResumeRes.data?.data?.resume?.id;
           }
         } catch {
           // Continue
@@ -100,8 +89,10 @@ export const applicationsService = {
       }
 
       if (!activeResumeId) {
-        // Fallback dummy UUID if endpoint failed, backend validates UUID
-        activeResumeId = "00000000-0000-0000-0000-000000000000";
+        return {
+          success: false,
+          message: "Please upload your resume in your profile before applying for jobs.",
+        };
       }
 
       const response = await apiClient.post(`/jobs/${jobId}/apply`, {

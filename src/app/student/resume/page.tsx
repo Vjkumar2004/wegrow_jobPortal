@@ -24,8 +24,11 @@ interface ResumeItem {
 
 async function fetchResumeData(): Promise<ResumeItem | null> {
   const list = await studentService.getResumes();
-  if (Array.isArray(list) && list.length > 0) {
-    const top = list[0];
+  const validList = (Array.isArray(list) ? list : []).filter(
+    (top) => top && top.fileName !== "Student_Resume_2026.pdf" && !top.fileUrl?.includes("example.com")
+  );
+  if (validList.length > 0) {
+    const top = validList[0];
     return {
       id: top.id,
       fileName: top.fileName || "Resume.pdf",
@@ -35,7 +38,7 @@ async function fetchResumeData(): Promise<ResumeItem | null> {
     };
   }
   const profile = await studentService.getProfile();
-  if (profile.resumeName || profile.resumeUrl || profile.resumeId) {
+  if (profile.resumeName && profile.resumeName !== "Student_Resume_2026.pdf" && profile.resumeId) {
     return {
       id: profile.resumeId,
       fileName: profile.resumeName || "Resume.pdf",
