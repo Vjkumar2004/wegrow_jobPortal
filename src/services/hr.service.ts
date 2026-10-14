@@ -181,8 +181,30 @@ export const hrService = {
         appliedDate: new Date(app.appliedAt).toLocaleDateString(),
         appliedAt: app.appliedAt,
         status: mapHRStatus(app.status),
-        resumeId: app.resumeId || app.resume?.id || undefined,
-        resumeUrl: app.resume?.fileUrl || undefined,
+        resumeId:
+          app.resumeId ||
+          app.resume?.id ||
+          app.student?.resumeId ||
+          app.student?.resume?.id ||
+          app.student?.resumes?.[0]?.id ||
+          undefined,
+        resumeName:
+          app.resume?.fileName ||
+          app.resume?.name ||
+          app.student?.resume?.fileName ||
+          app.student?.resumes?.[0]?.fileName ||
+          undefined,
+        resumeUrl: (() => {
+          const rawUrl =
+            app.resume?.fileUrl ||
+            app.resume?.url ||
+            app.resumeUrl ||
+            app.student?.resume?.fileUrl ||
+            app.student?.resumes?.[0]?.fileUrl;
+          return rawUrl && rawUrl !== "#" && !rawUrl.includes("example.com")
+            ? resolveMediaUrl(rawUrl)
+            : undefined;
+        })(),
       }));
     } catch {
       return [];
@@ -658,15 +680,27 @@ export const hrService = {
     expiresIn: number;
     fileName: string;
   }> {
-    const response = await apiClient.get<{
-      success: boolean;
-      data: {
-        downloadUrl: string;
-        expiresIn: number;
-        fileName: string;
-      };
-    }>(`/hr/resumes/${resumeId}/download`);
-    return response.data.data;
+    try {
+      const response = await apiClient.get<{
+        success: boolean;
+        data: {
+          downloadUrl: string;
+          expiresIn: number;
+          fileName: string;
+        };
+      }>(`/hr/resumes/${resumeId}/download`);
+      return response.data.data;
+    } catch (err: any) {
+      try {
+        const fallbackRes = await apiClient.get<any>(`/students/me/resumes/${resumeId}/download`);
+        if (fallbackRes.data?.data?.downloadUrl) {
+          return fallbackRes.data.data;
+        }
+      } catch {
+        // Fallback failed, throw original error
+      }
+      throw err;
+    }
   },
 };
 

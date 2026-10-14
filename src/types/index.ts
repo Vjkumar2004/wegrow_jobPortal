@@ -76,6 +76,7 @@ export interface Application {
   appliedAt?: string;
   status: ApplicationStatus;
   resumeId?: string;
+  resumeName?: string;
   resumeUrl?: string;
   notes?: string;
 }

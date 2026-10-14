@@ -24,6 +24,7 @@ import {
   Video,
   FileText,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { applicationsService } from "@/services/applications.service";
@@ -72,8 +73,16 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
   }, [interviewsQuery]);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
+
+  // Resume download & preview state
+  const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(null);
+  const [previewResume, setPreviewResume] = useState<{
+    url: string;
+    fileName: string;
+    candidateName: string;
+  } | null>(null);
 
   // Candidate detail / Status update modal
   const [selectedApplicant, setSelectedApplicant] = useState<Application | null>(null);
@@ -91,9 +100,94 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
   const [meetingLink, setMeetingLink] = useState("https://meet.google.com/wegrow-interview");
   const [interviewNotes, setInterviewNotes] = useState("");
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const handleDownloadResume = async (app: Application) => {
+    const resumeId = app.resumeId;
+    const directUrl = app.resumeUrl && app.resumeUrl !== "#" ? app.resumeUrl : null;
+
+    if (!resumeId && !directUrl) {
+      showToast("No resume on file for this candidate.", "error");
+      return;
+    }
+
+    setDownloadingResumeId(app.id);
+
+    // Synchronously open a blank window before async calls to bypass browser popup blockers
+    let targetTab: Window | null = null;
+    try {
+      targetTab = window.open("", "_blank");
+      if (targetTab) {
+        targetTab.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head><title>Opening Candidate Resume — WeGrow</title></head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc;">
+              <div style="text-align: center; color: #0B1F4B;">
+                <div style="width: 38px; height: 38px; border: 3px solid #E3E8F0; border-top-color: #1E5BE0; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;"></div>
+                <h3 style="font-size: 16px; font-weight: 700; margin: 0 0 6px;">Opening Candidate CV...</h3>
+                <p style="font-size: 13px; color: #6B7694; margin: 0;">${app.applicantName} • Cloudflare R2</p>
+              </div>
+              <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+            </body>
+          </html>
+        `);
+      }
+    } catch {
+      // Browser popup blocked
+    }
+
+    try {
+      let finalUrl = directUrl;
+      let fileName = app.resumeName || `${app.applicantName.replace(/\\s+/g, "_")}_Resume.pdf`;
+
+      if (resumeId) {
+        const dl = await hrService.getCandidateResumeDownloadUrl(resumeId);
+        if (dl?.downloadUrl) {
+          finalUrl = dl.downloadUrl;
+          if (dl.fileName) fileName = dl.fileName;
+        }
+      }
+
+      if (!finalUrl) {
+        if (targetTab && !targetTab.closed) targetTab.close();
+        showToast("Unable to generate resume download link.", "error");
+        return;
+      }
+
+      // 1. If tab was successfully created, redirect it to the download URL
+      if (targetTab && !targetTab.closed) {
+        targetTab.location.href = finalUrl;
+      } else {
+        // 2. Direct fallback trigger via hidden anchor
+        const a = document.createElement("a");
+        a.href = finalUrl;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      // 3. Also open in-page preview modal for interactive review
+      setPreviewResume({
+        url: finalUrl,
+        fileName,
+        candidateName: app.applicantName,
+      });
+
+      showToast(`Opened resume for ${app.applicantName}!`, "success");
+    } catch (err: any) {
+      if (targetTab && !targetTab.closed) targetTab.close();
+      const msg = err?.response?.data?.message || err?.message || "Failed to download candidate resume";
+      showToast(msg, "error");
+    } finally {
+      setDownloadingResumeId(null);
+    }
   };
 
   const updateStatus = async (appId: string, newStatus: any) => {
@@ -221,10 +315,20 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
   return (
     <div className="p-4 sm:p-6 lg:p-7 space-y-6 max-w-7xl mx-auto w-full font-['Poppins',sans-serif]">
       {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#0B1F4B] text-white px-5 py-3 rounded-xl shadow-xl border border-blue-400/20 text-xs font-semibold flex items-center gap-2 animate-bounce">
-          <CheckCircle2 className="w-4 h-4 text-[#22B573]" />
-          <span>{toastMessage}</span>
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-xl border text-xs font-semibold flex items-center gap-2 animate-bounce ${
+            toast.type === "success"
+              ? "bg-[#0B1F4B] text-white border-blue-400/20"
+              : "bg-rose-600 text-white border-rose-300/30"
+          }`}
+        >
+          {toast.type === "success" ? (
+            <CheckCircle2 className="w-4 h-4 text-[#22B573]" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-white" />
+          )}
+          <span>{toast.message}</span>
         </div>
       )}
 
@@ -412,30 +516,17 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                         {/* Download / View Candidate Resume from Cloudflare R2 */}
                         <button
                           type="button"
-                          onClick={async () => {
-                            if (app.resumeId) {
-                              try {
-                                const dl = await hrService.getCandidateResumeDownloadUrl(app.resumeId);
-                                if (dl?.downloadUrl) {
-                                  window.open(dl.downloadUrl, "_blank", "noopener,noreferrer");
-                                  return;
-                                }
-                              } catch (err: any) {
-                                showToast(err.response?.data?.message || "Failed to download candidate resume");
-                                return;
-                              }
-                            }
-                            if (app.resumeUrl) {
-                              window.open(app.resumeUrl, "_blank", "noopener,noreferrer");
-                            } else {
-                              showToast("No resume on file for this candidate.");
-                            }
-                          }}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#F1F4F9] text-[#1E5BE0] hover:bg-[#E3EEFF] rounded-[8px] text-xs font-semibold transition cursor-pointer"
-                          title="Download Candidate CV (Cloudflare R2)"
+                          onClick={() => handleDownloadResume(app)}
+                          disabled={downloadingResumeId === app.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F1F4F9] text-[#1E5BE0] hover:bg-[#E3EEFF] active:scale-95 disabled:opacity-60 rounded-[8px] text-xs font-semibold transition cursor-pointer"
+                          title="View / Download Candidate CV (Cloudflare R2)"
                         >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">CV</span>
+                          {downloadingResumeId === app.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1E5BE0]" />
+                          ) : (
+                            <FileText className="w-3.5 h-3.5" />
+                          )}
+                          <span>{downloadingResumeId === app.id ? "Opening..." : "CV"}</span>
                         </button>
 
                         {/* Schedule Button or Scheduled Badge */}
@@ -575,29 +666,16 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                   {/* CV Download / View */}
                   <button
                     type="button"
-                    onClick={async () => {
-                      if (app.resumeId) {
-                        try {
-                          const dl = await hrService.getCandidateResumeDownloadUrl(app.resumeId);
-                          if (dl?.downloadUrl) {
-                            window.open(dl.downloadUrl, "_blank", "noopener,noreferrer");
-                            return;
-                          }
-                        } catch (err: any) {
-                          showToast(err.response?.data?.message || "Failed to download candidate resume");
-                          return;
-                        }
-                      }
-                      if (app.resumeUrl) {
-                        window.open(app.resumeUrl, "_blank", "noopener,noreferrer");
-                      } else {
-                        showToast("No resume on file for this candidate.");
-                      }
-                    }}
-                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-[#D8E2EE] text-[#1E5BE0] active:bg-[#F1F4F9] rounded-xl text-xs font-bold shadow-2xs"
+                    onClick={() => handleDownloadResume(app)}
+                    disabled={downloadingResumeId === app.id}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-[#D8E2EE] text-[#1E5BE0] active:bg-[#F1F4F9] disabled:opacity-60 rounded-xl text-xs font-bold shadow-2xs cursor-pointer"
                   >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>View CV</span>
+                    {downloadingResumeId === app.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1E5BE0]" />
+                    ) : (
+                      <FileText className="w-3.5 h-3.5" />
+                    )}
+                    <span>{downloadingResumeId === app.id ? "Opening..." : "View CV"}</span>
                   </button>
 
                   {/* Schedule or Scheduled */}
@@ -754,6 +832,86 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 5. MODAL: CANDIDATE RESUME / CV PREVIEW DIALOG                 */}
+      {/* ============================================================== */}
+      {previewResume && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-[#0B1F4B]/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-[20px] max-w-4xl w-full h-[88vh] flex flex-col shadow-2xl border border-[#EEF1F7] overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[#EEF1F7] px-5 sm:px-6 py-4 bg-[#F8FAFC]">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-bold text-[#0B1F4B] flex items-center gap-2 truncate">
+                    <span>{previewResume.candidateName}’s Resume</span>
+                    <span className="text-[10px] sm:text-[11px] font-semibold bg-[#E8F8EF] text-[#22B573] border border-[#C6F0D8] px-2 py-0.5 rounded-full shrink-0">
+                      Verified
+                    </span>
+                  </h3>
+                  <p className="text-[11px] sm:text-xs text-[#6B7694] truncate">
+                    {previewResume.fileName}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={previewResume.url}
+                  download={previewResume.fileName}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#1E5BE0] hover:bg-[#1546B0] text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  title="Download Resume PDF"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Download</span>
+                </a>
+                <a
+                  href={previewResume.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#F1F4F9] hover:bg-[#E3EEFF] text-[#1E5BE0] rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                  title="Open in new window"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">New Tab</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewResume(null)}
+                  className="p-2 rounded-xl text-[#6B7694] hover:bg-[#F1F4F9] hover:text-[#0B1F4B] transition-colors cursor-pointer"
+                  title="Close preview"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body: Embedded PDF Viewer */}
+            <div className="flex-1 bg-neutral-100 p-2 sm:p-4 overflow-hidden relative flex flex-col">
+              <iframe
+                src={`${previewResume.url}#toolbar=1&navpanes=0`}
+                className="w-full flex-1 rounded-xl border border-neutral-200 bg-white"
+                title={`${previewResume.candidateName} Resume`}
+              />
+              <div className="text-center pt-2 text-[11px] text-[#6B7694]">
+                PDF preview not rendering in your browser?{" "}
+                <a
+                  href={previewResume.url}
+                  download={previewResume.fileName}
+                  className="text-[#1E5BE0] font-semibold underline underline-offset-2 hover:text-[#1546B0]"
+                >
+                  Click here to download directly
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -101,7 +101,22 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
+    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean; _fallbackRetried?: boolean }) | undefined;
+
+    // Smart fallback: If local backend (localhost:5000) is unreachable (network error / connection refused),
+    // automatically fall back to the live backend so user operations never fail silently.
+    if (
+      !error.response &&
+      originalRequest &&
+      !(originalRequest as any)._fallbackRetried &&
+      ((originalRequest.baseURL && originalRequest.baseURL.includes("localhost:5000")) ||
+        (apiClient.defaults.baseURL && apiClient.defaults.baseURL.includes("localhost:5000")))
+    ) {
+      (originalRequest as any)._fallbackRetried = true;
+      originalRequest.baseURL = LIVE_API_URL;
+      apiClient.defaults.baseURL = LIVE_API_URL;
+      return apiClient(originalRequest);
+    }
 
     // Handle Active Session Suspension: 403 ACCOUNT_SUSPENDED
     const errData = error.response?.data as { error?: { code?: string }; message?: string } | undefined;
