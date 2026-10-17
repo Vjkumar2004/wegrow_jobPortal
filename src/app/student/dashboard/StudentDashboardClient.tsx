@@ -206,8 +206,8 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
       {/* ================= ZONE 2: CENTER CONTENT (flexible, gap 14px-20px) ================= */}
           <main className="flex-1 min-w-0 space-y-4 sm:space-y-5">
             {/* 1. Welcome Banner: Soft peach-to-blue gradient card */}
-            <div className="relative overflow-hidden rounded-2xl p-3 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-5 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md">
-              <div className="flex items-center gap-3 sm:gap-4">
+            <div className="relative overflow-hidden rounded-2xl p-3 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                 <Link href="/student/profile" className="relative group shrink-0" title="View profile">
                   <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-full border-2 border-white shadow-md overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-[#3B82F6] flex items-center justify-center">
                     {student.avatarUrl && !avatarError ? (
@@ -234,18 +234,18 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                     )}
                   </div>
                 </Link>
-                <div className="min-w-0">
-                  <h1 className="text-[17px] sm:text-[22px] lg:text-[26px] font-bold text-[#0B1F4B] tracking-tight flex items-center gap-1.5 truncate">
-                    Good Morning, {student.name.split(" ")[0]}! 👋
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-[17px] sm:text-[22px] lg:text-[26px] font-bold text-[#0B1F4B] tracking-tight flex items-center gap-1.5 flex-wrap leading-snug">
+                    {(() => { const h = new Date().getHours(); return h < 12 ? "Good Morning" : h < 17 ? "Good Afternoon" : "Good Evening"; })()}, {student.name.split(" ")[0]}! 👋
                   </h1>
-                  <p className="text-[11px] sm:text-[14px] text-[#6B7694] mt-0.5 truncate">
+                  <p className="text-[11px] sm:text-[14px] text-[#6B7694] mt-0.5 line-clamp-1">
                     {student.course} • {student.college}
                   </p>
                 </div>
               </div>
 
               {/* White quote card with orange quote mark */}
-              <div className="hidden sm:flex bg-white/90 backdrop-blur-xs rounded-xl p-2.5 sm:p-4 border border-[#EEF1F7] shadow-xs max-w-sm items-start gap-2.5 shrink-0">
+              <div className="hidden lg:flex bg-white/90 backdrop-blur-xs rounded-xl p-2.5 sm:p-4 border border-[#EEF1F7] shadow-xs max-w-[280px] xl:max-w-sm items-start gap-2.5 shrink">
                 <span className="text-[#FF6B00] text-2xl sm:text-3xl font-serif font-black leading-none shrink-0">
                   “
                 </span>
@@ -643,7 +643,19 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
 
                       {/* Footer */}
                       <div className="mt-5 pt-4 border-t border-[#EEF1F7] flex items-center justify-between">
-                        <span className="text-[12px] text-[#6B7694]">{job.postedDate}</span>
+                        <div className="flex flex-col text-[11px]">
+                          {job.deadline ? (
+                            <span className="inline-flex items-center gap-1 font-semibold text-[#FF6B00]">
+                              <Clock className="w-3 h-3 text-[#FF6B00]" />
+                              Apply by {new Date(job.deadline).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[#6B7694]">
+                              <Clock className="w-3 h-3" />
+                              {(job as any).postedAgo || (job.postedDate ? new Date(job.postedDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "Recently Posted")}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"

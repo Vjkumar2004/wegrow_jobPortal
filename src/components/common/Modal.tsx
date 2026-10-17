@@ -1,7 +1,8 @@
 "use client";
 
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect } from "react";
 import { X } from "lucide-react";
+import Portal from "@/components/common/Portal";
 
 interface ModalProps {
   isOpen: boolean;
@@ -20,6 +21,20 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   maxWidth = "md",
 }) => {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") onClose();
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "unset";
+      };
+    }
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const maxWidthClasses = {
@@ -30,23 +45,28 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div
-        className={`w-full ${maxWidthClasses[maxWidth]} bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 relative transition-all animate-in fade-in zoom-in-95 duration-150`}
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition-colors"
-          aria-label="Close"
+    <Portal>
+      <div className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        {/* Backdrop click to dismiss */}
+        <div className="absolute inset-0" onClick={onClose} />
+
+        <div
+          className={`w-full ${maxWidthClasses[maxWidth]} bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 relative z-10 transition-all animate-in fade-in zoom-in-95 duration-150`}
         >
-          <X className="w-5 h-5" />
-        </button>
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition-colors cursor-pointer"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
 
-        {title && <h3 className="text-lg font-bold text-slate-900 pr-8">{title}</h3>}
-        {description && <p className="text-xs text-slate-500 mt-1 mb-4">{description}</p>}
+          {title && <h3 className="text-lg font-bold text-slate-900 pr-8">{title}</h3>}
+          {description && <p className="text-xs text-slate-500 mt-1 mb-4">{description}</p>}
 
-        <div className="mt-4">{children}</div>
+          <div className="mt-4">{children}</div>
+        </div>
       </div>
-    </div>
+    </Portal>
   );
 };

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Application } from "@/types";
-import { formatDate, getNameInitials } from "@/lib/utils";
+import { formatDate, getNameInitials, getAvatarUrl } from "@/lib/utils";
 import {
   Users,
   Search,
@@ -29,6 +29,8 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { applicationsService } from "@/services/applications.service";
 import { hrService } from "@/services/hr.service";
+import { buildIsoInterviewTime } from "@/lib/utils";
+import Portal from "@/components/common/Portal";
 
 const STATUS_TABS = [
   { label: "All Applicants", key: "All" },
@@ -38,6 +40,34 @@ const STATUS_TABS = [
   { label: "Selected", key: "Selected" },
   { label: "Rejected", key: "Rejected" },
 ];
+
+export function normalizeApplicantStatus(status?: string): "Under Review" | "Shortlisted" | "Interview" | "Selected" | "Rejected" {
+  const s = (status || "").trim().toUpperCase();
+  switch (s) {
+    case "SHORTLISTED":
+      return "Shortlisted";
+    case "INTERVIEW":
+    case "INTERVIEWING":
+    case "SCHEDULED":
+      return "Interview";
+    case "SELECTED":
+    case "OFFERED":
+    case "HIRED":
+    case "ACCEPTED":
+      return "Selected";
+    case "REJECTED":
+    case "WITHDRAWN":
+    case "DECLINED":
+      return "Rejected";
+    case "UNDER REVIEW":
+    case "UNDER_REVIEW":
+    case "APPLIED":
+    case "SCREENING":
+    case "IN_REVIEW":
+    default:
+      return "Under Review";
+  }
+}
 
 export default function HRApplicantsClient({ initialApplicants }: { initialApplicants: Application[] }) {
   const queryClient = useQueryClient();
@@ -55,8 +85,15 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
     staleTime: 20_000,
   });
 
+  const { data: myJobs = [] } = useQuery({
+    queryKey: ["hr-jobs"],
+    queryFn: () => hrService.getMyJobs(),
+    staleTime: 30_000,
+  });
+
   const [applicants, setApplicants] = useState<Application[]>(applicantsQuery);
   const [activeTab, setActiveTab] = useState("All");
+  const [selectedJobId, setSelectedJobId] = useState<string>("All");
 
   const [scheduledAppIds, setScheduledAppIds] = useState<Set<string>>(() => {
     return new Set(interviewsQuery.map((i: any) => i.applicationId).filter(Boolean));
@@ -71,6 +108,26 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
       setScheduledAppIds(new Set(interviewsQuery.map((i: any) => i.applicationId).filter(Boolean)));
     }
   }, [interviewsQuery]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlStatus = params.get("status");
+      if (urlStatus) {
+        const foundTab = STATUS_TABS.find(
+          (t) => t.key.toLowerCase() === urlStatus.toLowerCase()
+        );
+        if (foundTab) {
+          setActiveTab(foundTab.key);
+        }
+      }
+
+      const urlJobId = params.get("jobId") || params.get("job");
+      if (urlJobId) {
+        setSelectedJobId(urlJobId);
+      }
+    }
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -104,6 +161,17 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
+
+  useEffect(() => {
+    if (scheduleModalOpen || previewResume) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [scheduleModalOpen, previewResume]);
 
   const handleDownloadResume = async (app: Application) => {
     const resumeId = app.resumeId;
@@ -240,23 +308,7 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
 
     try {
       setIsSubmittingSchedule(true);
-      let startIso = new Date(Date.now() + 86400000).toISOString();
-      let endIso = new Date(Date.now() + 86400000 + 3600000).toISOString();
-      if (interviewDate) {
-        let hours = 11, minutes = 30;
-        const match = interviewTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-        if (match) {
-          hours = parseInt(match[1], 10);
-          minutes = parseInt(match[2], 10);
-          const meridiem = match[3]?.toUpperCase();
-          if (meridiem === "PM" && hours < 12) hours += 12;
-          if (meridiem === "AM" && hours === 12) hours = 0;
-        }
-        const d = new Date(interviewDate);
-        d.setHours(hours, minutes, 0, 0);
-        startIso = d.toISOString();
-        endIso = new Date(d.getTime() + 60 * 60 * 1000).toISOString();
-      }
+      const { startIso, endIso } = buildIsoInterviewTime(interviewDate, interviewTime);
 
       await hrService.scheduleInterview({
         applicationId: selectedApplicant.id,
@@ -266,14 +318,21 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
         date: interviewDate,
         time: interviewTime,
         type: interviewType,
-        meetingLink,
+        meetingLink: meetingLink?.trim() || "https://meet.google.com/wegrow-interview",
         notes: interviewNotes,
         scheduledStartAt: startIso,
         scheduledEndAt: endIso,
       });
 
       setScheduledAppIds((prev) => new Set([...prev, selectedApplicant.id]));
-      await updateStatus(selectedApplicant.id, "Interview");
+      setApplicants((prev) =>
+        prev.map((a) => (a.id === selectedApplicant.id ? { ...a, status: "Interview" } : a))
+      );
+      try {
+        await updateStatus(selectedApplicant.id, "Interview");
+      } catch {
+        // Status may already be transitioned by backend scheduleInterview
+      }
       queryClient.invalidateQueries({ queryKey: ["hr-interviews"] });
       queryClient.invalidateQueries({ queryKey: ["hr-applications"] });
       setScheduleModalOpen(false);
@@ -285,11 +344,72 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
     }
   };
 
-  // Filter logic
-  const filteredApplicants = applicants.filter((app) => {
-    const matchesTab = activeTab === "All" || app.status.toLowerCase() === activeTab.toLowerCase();
-    const query = searchTerm.toLowerCase();
+  const uniqueJobs = React.useMemo(() => {
+    const jobMap = new Map<string, string>();
+    if (Array.isArray(myJobs)) {
+      myJobs.forEach((j: any) => {
+        if (j.id && j.title) jobMap.set(String(j.id), j.title);
+      });
+    }
+    applicants.forEach((a) => {
+      if (a.jobId && a.jobTitle) {
+        if (!jobMap.has(String(a.jobId))) {
+          jobMap.set(String(a.jobId), a.jobTitle);
+        }
+      }
+    });
+    return Array.from(jobMap.entries()).map(([id, title]) => ({ id, title }));
+  }, [myJobs, applicants]);
+
+  const matchesJob = (app: Application, targetJobId: string) => {
+    if (!targetJobId || targetJobId === "All") return true;
+    const cleanTarget = String(targetJobId).trim().toLowerCase();
+    // 1. Exact jobId match
+    if (app.jobId && String(app.jobId).trim().toLowerCase() === cleanTarget) return true;
+    // 2. Exact jobTitle match
+    if (app.jobTitle && app.jobTitle.trim().toLowerCase() === cleanTarget) return true;
+    // 3. Match via myJobs item
+    const matchedJob = myJobs.find(
+      (j: any) => String(j.id).trim().toLowerCase() === cleanTarget
+    );
+    if (matchedJob && app.jobTitle && app.jobTitle.trim().toLowerCase() === matchedJob.title.trim().toLowerCase()) {
+      return true;
+    }
+    return false;
+  };
+
+  const activeJobTitle = React.useMemo(() => {
+    if (selectedJobId === "All") return null;
+    const found = uniqueJobs.find((j) => j.id === selectedJobId);
+    if (found) return found.title;
+    const fromApp = applicants.find((a) => a.jobId === selectedJobId);
+    if (fromApp) return fromApp.jobTitle;
+    return selectedJobId;
+  }, [selectedJobId, uniqueJobs, applicants]);
+
+  // 1. Filter applicants by selected job first
+  const jobFilteredApplicants = React.useMemo(() => {
+    if (selectedJobId === "All") return applicants;
+    return applicants.filter((app) => matchesJob(app, selectedJobId));
+  }, [applicants, selectedJobId, myJobs]);
+
+  // 2. Metrics counts reflect the current active job context
+  const counts = {
+    all: jobFilteredApplicants.length,
+    underReview: jobFilteredApplicants.filter((a) => normalizeApplicantStatus(a.status) === "Under Review").length,
+    shortlisted: jobFilteredApplicants.filter((a) => normalizeApplicantStatus(a.status) === "Shortlisted").length,
+    interview: jobFilteredApplicants.filter((a) => normalizeApplicantStatus(a.status) === "Interview").length,
+    selected: jobFilteredApplicants.filter((a) => normalizeApplicantStatus(a.status) === "Selected").length,
+    rejected: jobFilteredApplicants.filter((a) => normalizeApplicantStatus(a.status) === "Rejected").length,
+  };
+
+  // 3. Final filtered applicants combines job selection, status tab, and search term
+  const filteredApplicants = jobFilteredApplicants.filter((app) => {
+    const normalized = normalizeApplicantStatus(app.status);
+    const matchesTab = activeTab === "All" || normalized.toLowerCase() === activeTab.toLowerCase();
+    const query = searchTerm.toLowerCase().trim();
     const matchesSearch =
+      !query ||
       app.applicantName.toLowerCase().includes(query) ||
       app.jobTitle.toLowerCase().includes(query) ||
       (app.applicantCollege && app.applicantCollege.toLowerCase().includes(query)) ||
@@ -298,7 +418,8 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
   });
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    const normalized = normalizeApplicantStatus(status);
+    switch (normalized) {
       case "Shortlisted":
         return "bg-[#FFF0E6] text-[#FF6B00] border border-[#FFE0CC]";
       case "Interview":
@@ -311,6 +432,69 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
         return "bg-[#F1F4F9] text-[#6B7694] border border-[#E3E8F0]";
     }
   };
+
+  const COUNT_METRICS = [
+    {
+      key: "All",
+      label: "Total Applicants",
+      count: counts.all,
+      sub: "Entire candidate pool",
+      icon: Users,
+      color: "text-[#1E5BE0]",
+      bg: "bg-[#E8F0FF]",
+      activeStyle: "border-[#1E5BE0] ring-2 ring-[#1E5BE0]/20 bg-blue-50/50 shadow-sm",
+    },
+    {
+      key: "Under Review",
+      label: "Under Review",
+      count: counts.underReview,
+      sub: "Screening stage",
+      icon: Clock,
+      color: "text-[#F59E0B]",
+      bg: "bg-[#FEF3C7]",
+      activeStyle: "border-[#F59E0B] ring-2 ring-[#F59E0B]/20 bg-amber-50/50 shadow-sm",
+    },
+    {
+      key: "Shortlisted",
+      label: "Shortlisted",
+      count: counts.shortlisted,
+      sub: "High match profiles",
+      icon: Sparkles,
+      color: "text-[#FF6B00]",
+      bg: "bg-[#FFF0E6]",
+      activeStyle: "border-[#FF6B00] ring-2 ring-[#FF6B00]/20 bg-orange-50/50 shadow-sm",
+    },
+    {
+      key: "Interview",
+      label: "Interview",
+      count: counts.interview,
+      sub: "Live video rounds",
+      icon: Video,
+      color: "text-[#6366F1]",
+      bg: "bg-[#EEF2FF]",
+      activeStyle: "border-[#6366F1] ring-2 ring-[#6366F1]/20 bg-indigo-50/50 shadow-sm",
+    },
+    {
+      key: "Selected",
+      label: "Selected / Hired",
+      count: counts.selected,
+      sub: "Job offers issued",
+      icon: CheckCircle2,
+      color: "text-[#22B573]",
+      bg: "bg-[#E8F8EF]",
+      activeStyle: "border-[#22B573] ring-2 ring-[#22B573]/20 bg-emerald-50/50 shadow-sm",
+    },
+    {
+      key: "Rejected",
+      label: "Rejected",
+      count: counts.rejected,
+      sub: "Archived & not moving",
+      icon: X,
+      color: "text-[#EF4444]",
+      bg: "bg-rose-50",
+      activeStyle: "border-rose-400 ring-2 ring-rose-400/20 bg-rose-50/50 shadow-sm",
+    },
+  ];
 
   return (
     <div className="p-4 sm:p-6 lg:p-7 space-y-6 max-w-7xl mx-auto w-full font-['Poppins',sans-serif]">
@@ -332,7 +516,7 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
         </div>
       )}
 
-      {/* 1. Header with Search & Quick Metrics */}
+      {/* 1. Header with Search, Job Filter Dropdown & Quick Metrics */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E8F0FF] text-[#1E5BE0] text-xs font-bold uppercase tracking-wider mb-2">
@@ -342,30 +526,146 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
             Candidate Pipeline & Screening
           </h1>
           <p className="text-sm text-[#6B7694] mt-1">
-            Change statuses directly (Under Review, Shortlisted, Interview, Selected, Rejected) and schedule interviews.
+            Filter by job opening, search candidates, or click any metric count card to drill into specific stages.
           </p>
         </div>
 
-        {/* Search input */}
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-[#6B7694] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search by student, role, college..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white text-xs text-[#0B1F4B] placeholder-[#6B7694] pl-10 pr-4 py-2.5 rounded-[10px] border border-[#EEF1F7] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 shadow-xs"
-          />
+        {/* Search input & Job selector */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+          {/* Job Filter Selector */}
+          <div className="relative min-w-[210px]">
+            <select
+              value={selectedJobId}
+              onChange={(e) => {
+                const newJobId = e.target.value;
+                setSelectedJobId(newJobId);
+                if (typeof window !== "undefined") {
+                  const url = new URL(window.location.href);
+                  if (newJobId === "All") {
+                    url.searchParams.delete("jobId");
+                    url.searchParams.delete("job");
+                  } else {
+                    url.searchParams.set("jobId", newJobId);
+                  }
+                  window.history.replaceState({}, "", url.toString());
+                }
+              }}
+              className="w-full bg-white text-xs font-semibold text-[#0B1F4B] pl-3 pr-8 py-2.5 rounded-[10px] border border-[#EEF1F7] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 shadow-xs cursor-pointer appearance-none truncate"
+            >
+              <option value="All">All Job Openings ({applicants.length})</option>
+              {uniqueJobs.map((j) => {
+                const jobCount = applicants.filter((a) => matchesJob(a, j.id)).length;
+                return (
+                  <option key={j.id} value={j.id}>
+                    {j.title} ({jobCount})
+                  </option>
+                );
+              })}
+            </select>
+            <ChevronDown className="w-4 h-4 text-[#6B7694] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+
+          {/* Search input */}
+          <div className="relative w-full sm:w-64 md:w-72">
+            <Search className="w-4 h-4 text-[#6B7694] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search student, college..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white text-xs text-[#0B1F4B] placeholder-[#6B7694] pl-10 pr-4 py-2.5 rounded-[10px] border border-[#EEF1F7] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 shadow-xs"
+            />
+          </div>
         </div>
       </div>
 
-      {/* 2. Interactive Status Tabs */}
+      {/* Active Job Filter Indicator Banner */}
+      {selectedJobId !== "All" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-[#E8F0FF] via-blue-50/50 to-white border border-[#CDE0FF] rounded-2xl shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#1E5BE0] text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Briefcase className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-[#6B7694] uppercase tracking-wider">Filtered by Job:</span>
+                <span className="text-sm font-extrabold text-[#0B1F4B]">
+                  {activeJobTitle || "Selected Opening"}
+                </span>
+              </div>
+              <p className="text-[11px] text-[#6B7694]">
+                Showing only candidates who applied for this role ({jobFilteredApplicants.length} applicant{jobFilteredApplicants.length === 1 ? "" : "s"})
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedJobId("All");
+              if (typeof window !== "undefined") {
+                const url = new URL(window.location.href);
+                url.searchParams.delete("jobId");
+                url.searchParams.delete("job");
+                window.history.replaceState({}, "", url.toString());
+              }
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-[#6B7694] hover:text-[#EF4444] border border-[#D5E3FF] hover:border-rose-200 text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95"
+          >
+            <X className="w-3.5 h-3.5" />
+            <span>Show All Jobs ({applicants.length})</span>
+          </button>
+        </div>
+      )}
+
+      {/* 2. Interactive Applicants Counts Cards Section (Clickable Quick Filter Tiles) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
+        {COUNT_METRICS.map((metric) => {
+          const isSelected = activeTab === metric.key;
+          const Icon = metric.icon;
+          return (
+            <button
+              type="button"
+              key={metric.key}
+              onClick={() => setActiveTab(metric.key)}
+              className={`text-left p-3 sm:p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer group active:scale-97 ${
+                isSelected
+                  ? `${metric.activeStyle} -translate-y-0.5`
+                  : "bg-white border-[#EEF1F7] hover:border-slate-300 hover:shadow-2xs"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div
+                  className={`w-8 h-8 rounded-xl ${metric.bg} ${metric.color} flex items-center justify-center transition-transform group-hover:scale-105`}
+                >
+                  <Icon className="w-4 h-4" />
+                </div>
+                {isSelected && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#0B1F4B] text-white">
+                    Active
+                  </span>
+                )}
+              </div>
+              <div className="text-xl sm:text-2xl font-extrabold text-[#0B1F4B] tracking-tight">
+                {metric.count}
+              </div>
+              <div className="text-xs font-bold text-[#0B1F4B] truncate mt-0.5">
+                {metric.label}
+              </div>
+              <div className="text-[10px] text-[#6B7694] truncate">
+                {metric.sub}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 3. Interactive Status Tabs */}
       <div className="bg-white rounded-[14px] border border-[#EEF1F7] p-1.5 shadow-[0_4px_14px_rgba(11,31,75,0.05)] flex items-center gap-2 overflow-x-auto">
         {STATUS_TABS.map((tab) => {
           const count =
             tab.key === "All"
-              ? applicants.length
-              : applicants.filter((a) => a.status.toLowerCase() === tab.key.toLowerCase()).length;
+              ? jobFilteredApplicants.length
+              : jobFilteredApplicants.filter((a) => normalizeApplicantStatus(a.status) === tab.key).length;
           const isActive = activeTab === tab.key;
 
           return (
@@ -410,8 +710,48 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
             <tbody className="divide-y divide-[#EEF1F7]">
               {filteredApplicants.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-[#6B7694]">
-                    No candidates found for this status tab or search filter.
+                  <td colSpan={7} className="py-12 text-center text-[#6B7694]">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-12 h-12 rounded-2xl bg-[#F1F4F9] flex items-center justify-center text-[#6B7694] mb-3">
+                        <Users className="w-6 h-6" />
+                      </div>
+                      <p className="font-bold text-sm text-[#0B1F4B]">No candidates found</p>
+                      <p className="text-xs mt-1 text-[#6B7694]">
+                        {selectedJobId !== "All"
+                          ? `No candidates found for "${activeJobTitle}" with status "${activeTab}".`
+                          : activeTab !== "All"
+                          ? `No candidates currently under "${activeTab}" stage.`
+                          : "No candidates match your search filter."}
+                      </p>
+                      <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+                        {activeTab !== "All" && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("All")}
+                            className="px-3.5 py-1.5 rounded-xl bg-[#E8F0FF] text-[#1E5BE0] text-xs font-bold hover:bg-[#D5E3FF] transition cursor-pointer"
+                          >
+                            View All Stages ({jobFilteredApplicants.length})
+                          </button>
+                        )}
+                        {selectedJobId !== "All" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedJobId("All");
+                              if (typeof window !== "undefined") {
+                                const url = new URL(window.location.href);
+                                url.searchParams.delete("jobId");
+                                url.searchParams.delete("job");
+                                window.history.replaceState({}, "", url.toString());
+                              }
+                            }}
+                            className="px-3.5 py-1.5 rounded-xl bg-white border border-[#D5E3FF] text-[#0B1F4B] text-xs font-bold hover:bg-slate-50 transition cursor-pointer"
+                          >
+                            Show All Jobs ({applicants.length})
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -428,9 +768,7 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                               alt={app.applicantName}
                               className="w-full h-full object-cover"
                               onError={(e) => {
-                                const fallbackUrl = app.applicantId
-                                  ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${app.applicantId}`
-                                  : "";
+                                const fallbackUrl = app.applicantId ? getAvatarUrl(app.applicantId) : "";
                                 if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
                                   e.currentTarget.src = fallbackUrl;
                                   return;
@@ -482,14 +820,14 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                     </td>
 
                     {/* Applied Date */}
-                    <td className="py-4 px-4 text-[#6B7694]">
-                      {formatDate(app.appliedDate)}
+                    <td className="py-4 px-4 text-[#6B7694] font-medium whitespace-nowrap">
+                      {formatDate(app.appliedDate || app.appliedAt)}
                     </td>
 
                     {/* Current Status Pill */}
                     <td className="py-4 px-4">
                       <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${getStatusBadge(app.status)}`}>
-                        {app.status}
+                        {normalizeApplicantStatus(app.status)}
                       </span>
                     </td>
 
@@ -497,7 +835,7 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                     <td className="py-4 px-4 text-center">
                       <div className="inline-block relative">
                         <select
-                          value={app.status}
+                          value={normalizeApplicantStatus(app.status)}
                           onChange={(e) => handleStatusChange(app, e.target.value)}
                           className="bg-[#F1F4F9] hover:bg-[#E3EEFF] text-[#0B1F4B] text-xs font-semibold px-3 py-1.5 rounded-[8px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 cursor-pointer transition-colors"
                         >
@@ -575,7 +913,45 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
         <div className="md:hidden divide-y divide-[#EEF1F7] p-3 space-y-3">
           {filteredApplicants.length === 0 ? (
             <div className="py-10 text-center text-xs text-[#6B7694]">
-              No candidates found for this status tab or search filter.
+              <div className="w-10 h-10 rounded-xl bg-[#F1F4F9] flex items-center justify-center text-[#6B7694] mx-auto mb-2">
+                <Users className="w-5 h-5" />
+              </div>
+              <p className="font-bold text-[#0B1F4B]">No candidates found</p>
+              <p className="text-[11px] mt-0.5 text-[#6B7694]">
+                {selectedJobId !== "All"
+                  ? `No candidates in "${activeJobTitle}" for "${activeTab}".`
+                  : activeTab !== "All"
+                  ? `No applicants in "${activeTab}" stage.`
+                  : "No applicants match search filter."}
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-2.5">
+                {activeTab !== "All" && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("All")}
+                    className="px-3 py-1 rounded-lg bg-[#E8F0FF] text-[#1E5BE0] text-xs font-bold"
+                  >
+                    View All Stages ({jobFilteredApplicants.length})
+                  </button>
+                )}
+                {selectedJobId !== "All" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedJobId("All");
+                      if (typeof window !== "undefined") {
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete("jobId");
+                        url.searchParams.delete("job");
+                        window.history.replaceState({}, "", url.toString());
+                      }
+                    }}
+                    className="px-3 py-1 rounded-lg bg-white border border-[#D5E3FF] text-[#0B1F4B] text-xs font-bold"
+                  >
+                    Show All Jobs ({applicants.length})
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             filteredApplicants.map((app) => (
@@ -594,9 +970,7 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                           alt={app.applicantName}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            const fallbackUrl = app.applicantId
-                              ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${app.applicantId}`
-                              : "";
+                            const fallbackUrl = app.applicantId ? getAvatarUrl(app.applicantId) : "";
                             if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
                               e.currentTarget.src = fallbackUrl;
                               return;
@@ -625,7 +999,7 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                   </div>
 
                   <select
-                    value={app.status}
+                    value={normalizeApplicantStatus(app.status)}
                     onChange={(e) => handleStatusChange(app, e.target.value)}
                     className="bg-white text-[#0B1F4B] text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-[#D8E2EE] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 shadow-2xs shrink-0"
                   >
@@ -654,9 +1028,9 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                     </div>
                   )}
                   <div className="flex items-center justify-between pt-0.5 text-[11px] text-[#6B7694]">
-                    <span>Applied: {formatDate(app.appliedDate)}</span>
+                    <span>Applied: {formatDate(app.appliedDate || app.appliedAt)}</span>
                     <span className={`px-2 py-0.5 rounded-full font-bold ${getStatusBadge(app.status)}`}>
-                      {app.status}
+                      {normalizeApplicantStatus(app.status)}
                     </span>
                   </div>
                 </div>
@@ -719,7 +1093,8 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
       {/* 4. MODAL: SCHEDULE INTERVIEW & SET STATUS TO "INTERVIEW"       */}
       {/* ============================================================== */}
       {scheduleModalOpen && selectedApplicant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B1F4B]/60 backdrop-blur-xs animate-in fade-in duration-200">
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-[20px] max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-[#EEF1F7] space-y-5">
             <div className="flex items-center justify-between border-b border-[#EEF1F7] pb-4">
               <div>
@@ -834,13 +1209,15 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
             </form>
           </div>
         </div>
+        </Portal>
       )}
 
       {/* ============================================================== */}
       {/* 5. MODAL: CANDIDATE RESUME / CV PREVIEW DIALOG                 */}
       {/* ============================================================== */}
       {previewResume && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-[#0B1F4B]/60 backdrop-blur-xs animate-in fade-in duration-200">
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-[20px] max-w-4xl w-full h-[88vh] flex flex-col shadow-2xl border border-[#EEF1F7] overflow-hidden">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#EEF1F7] px-5 sm:px-6 py-4 bg-[#F8FAFC]">
@@ -914,6 +1291,7 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </div>
   );

@@ -175,7 +175,7 @@ export default function HRJobDetailPageClient({ job: initialJob }: HRJobDetailPa
             </button>
 
             <Link
-              href="/hr/applicants"
+              href={`/hr/applicants?jobId=${encodeURIComponent(job.id)}`}
               className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#1E5BE0] hover:bg-[#1648b8] text-white transition shadow-sm cursor-pointer"
             >
               <Users className="w-4 h-4" />

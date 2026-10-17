@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import WhyChooseUsSection from "./WhyChooseUsSection";
 import ForEmployersSection from "./ForEmployersSection";
 import MobileAppSection from "./MobileAppSection";
@@ -291,9 +292,16 @@ const StepCard = ({
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════ */
 export default function HeroPage() {
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [scrolled, setScrolled] = useState(false);
+
+  const handleSearch = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const q = searchQuery.trim();
+    router.push(q ? `/jobs?search=${encodeURIComponent(q)}` : "/jobs");
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -565,7 +573,7 @@ export default function HeroPage() {
                 </p>
 
                 {/* Search bar */}
-                <div className="bg-white rounded-2xl p-2 shadow-[0_10px_30px_rgba(11,31,75,0.07)] flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full max-w-[540px] border border-slate-100">
+                <form onSubmit={handleSearch} className="bg-white rounded-2xl p-2 shadow-[0_10px_30px_rgba(11,31,75,0.07)] flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full max-w-[540px] border border-slate-100">
                   <div className="flex-1 flex items-center gap-2.5 px-3 py-1">
                     <span style={{ color: "#FF6B00", flexShrink: 0 }}><SearchIcon /></span>
                     <input
@@ -576,8 +584,8 @@ export default function HeroPage() {
                       className="w-full bg-transparent border-none outline-none font-['Poppins',sans-serif] font-medium text-sm text-[#0B1F4B] h-10"
                     />
                   </div>
-                  <button className="search-btn justify-center w-full sm:w-auto shadow-md shadow-[#FF6B00]/20">Search Jobs →</button>
-                </div>
+                  <button type="submit" onClick={() => handleSearch()} className="search-btn justify-center w-full sm:w-auto shadow-md shadow-[#FF6B00]/20">Search Jobs →</button>
+                </form>
 
 
               </div>

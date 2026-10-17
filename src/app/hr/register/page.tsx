@@ -8,6 +8,8 @@ import {
   Building2,
   Mail,
   Lock,
+  Eye,
+  EyeOff,
   User,
   Phone,
   Globe,
@@ -34,6 +36,7 @@ export default function HRRegisterPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Step 2: Company Profile & Branding (identical to HR Dashboard Company Profile fields)
   const [companyName, setCompanyName] = useState("");
@@ -181,7 +184,7 @@ export default function HRRegisterPage() {
           <div className="bg-white/95 px-3.5 py-2 rounded-xl inline-flex items-center shadow-sm border border-slate-200/80 transition-transform duration-200 group-hover:scale-105">
             <div className="relative w-36 sm:w-40 h-9 sm:h-10">
               <Image
-                src="/image.png"
+                src="/wegrow-portal-logo.png"
                 alt="WeGrow Skill Campus"
                 fill
                 className="object-contain object-left"
@@ -433,21 +436,41 @@ export default function HRRegisterPage() {
                         <Lock className="w-4 h-4" />
                       </div>
                       <input
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         required
                         minLength={6}
                         placeholder="At least 6 characters"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full bg-[#F8FAFD] border border-slate-200 text-slate-900 text-xs pl-10 pr-3.5 py-2.5 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0756A8]/20 focus:border-[#0756A8]"
+                        className="w-full bg-[#F8FAFD] border border-slate-200 text-slate-900 text-xs pl-10 pr-10 py-2.5 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0756A8]/20 focus:border-[#0756A8]"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-4 flex items-center justify-between border-t border-slate-100">
+                <div className="pt-2 text-[11px] text-slate-500 text-center sm:text-left">
+                  By signing up as an Employer, you agree to our{" "}
+                  <Link href="/terms" target="_blank" className="text-[#0756A8] font-bold hover:underline">
+                    Terms &amp; Conditions
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy-policy" target="_blank" className="text-[#0756A8] font-bold hover:underline">
+                    Privacy Policy
+                  </Link>
+                  .
+                </div>
+
+                <div className="pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100">
                   <span className="text-xs text-slate-500">
-                    Next: Set up your company logo & public profile
+                    Next: Set up your company logo &amp; public profile
                   </span>
                   <Button
                     type="submit"
@@ -713,6 +736,18 @@ export default function HRRegisterPage() {
                     <span className="font-bold">Moderation Notice:</span> Upon submission, your company profile will be routed to the WeGrow Admin Dashboard under the <span className="font-bold underline">Pending Moderation</span> queue. The administration team will verify corporate legitimacy before publishing active job slots.
                   </div>
                 </div>
+
+                <p className="text-[11px] text-slate-500 text-center">
+                  By submitting this corporate profile, you confirm your authorization to represent this entity and agree to WeGrow&apos;s{" "}
+                  <Link href="/terms" target="_blank" className="text-[#0756A8] font-bold hover:underline">
+                    Terms &amp; Conditions
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy-policy" target="_blank" className="text-[#0756A8] font-bold hover:underline">
+                    Privacy Policy
+                  </Link>
+                  .
+                </p>
 
                 {/* Submit Actions */}
                 <div className="pt-4 flex items-center justify-between border-t border-slate-100">

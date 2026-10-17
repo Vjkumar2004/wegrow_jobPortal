@@ -283,7 +283,7 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
             <Link href="/student/dashboard" className="inline-flex items-center gap-2" aria-label="WeGrow Skill Campus Home">
               <div className="relative w-28 sm:w-40 h-7 sm:h-10">
                 <Image
-                  src="/image.png"
+                  src="/wegrow-portal-logo.png"
                   alt="WeGrow Skill Campus"
                   fill
                   className="object-contain object-left"
@@ -317,28 +317,30 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
                 aria-expanded={profileDropdownOpen}
                 className="flex items-center gap-1.5 sm:gap-3 pl-1 sm:pl-3 border-l border-[#EEF1F7] hover:opacity-90 transition cursor-pointer select-none py-0.5 sm:py-1 focus:outline-none active:scale-98"
               >
-                <div className="relative w-7 h-7 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-xs sm:text-sm flex items-center justify-center shadow-xs shrink-0 ring-2 ring-white">
-                  {navAvatar && !navImgError ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={navAvatar}
-                      alt={studentProfile.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const fallbackUrl = studentProfile.id
-                          ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${studentProfile.id}`
-                          : "";
-                        if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
-                          e.currentTarget.src = fallbackUrl;
-                          return;
-                        }
-                        setNavImgError(true);
-                      }}
-                    />
-                  ) : (
-                    <span>{getNameInitials(studentProfile.name)}</span>
-                  )}
-                  {/* Online indicator dot */}
+                <div className="relative w-7 h-7 sm:w-10 sm:h-10 shrink-0">
+                  <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-tr from-[#1E5BE0] to-blue-400 text-white font-bold text-xs sm:text-sm flex items-center justify-center shadow-xs ring-2 ring-white">
+                    {navAvatar && !navImgError ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={navAvatar}
+                        alt={studentProfile.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const fallbackUrl = studentProfile.id
+                            ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${studentProfile.id}`
+                            : "";
+                          if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
+                            e.currentTarget.src = fallbackUrl;
+                            return;
+                          }
+                          setNavImgError(true);
+                        }}
+                      />
+                    ) : (
+                      <span>{getNameInitials(studentProfile.name)}</span>
+                    )}
+                  </div>
+                  {/* Online indicator dot — outside overflow-hidden so it isn't clipped */}
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
                 </div>
 
@@ -470,17 +472,19 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
 
               {/* Profile Card in Drawer */}
               <div className="flex items-center gap-3">
-                <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-white/60 bg-white/20 flex items-center justify-center font-bold text-white text-base shrink-0 shadow-md">
-                  {navAvatar && !navImgError ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={navAvatar}
-                      alt={studentProfile.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span>{getNameInitials(studentProfile.name)}</span>
-                  )}
+                <div className="relative w-12 h-12 shrink-0 shadow-md">
+                  <div className="w-full h-full rounded-full overflow-hidden ring-2 ring-white/60 bg-white/20 flex items-center justify-center font-bold text-white text-base">
+                    {navAvatar && !navImgError ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={navAvatar}
+                        alt={studentProfile.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span>{getNameInitials(studentProfile.name)}</span>
+                    )}
+                  </div>
                   <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -558,12 +562,12 @@ export const StudentLayout: React.FC<{ children: React.ReactNode }> = ({ childre
                   <p className="text-[11px] text-[#6B7694] mt-0.5 leading-snug">
                     Placement assistance & support
                   </p>
-                  <button
-                    type="button"
-                    className="mt-2.5 w-full border-[1.5px] border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white transition-colors text-[11px] font-semibold py-1.5 px-3 rounded-lg cursor-pointer active:scale-98"
+                  <a
+                    href="mailto:wegrowjobz@gmail.com?subject=Student%20Support%20Request"
+                    className="mt-2.5 w-full border-[1.5px] border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white transition-colors text-[11px] font-semibold py-1.5 px-3 rounded-lg cursor-pointer active:scale-98 block text-center"
                   >
                     Contact Support →
-                  </button>
+                  </a>
                 </div>
 
                 <button

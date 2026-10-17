@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { authService } from "@/services/auth.service";
+import { authApi } from "@/lib/api/auth.api";
 import { PageLoader } from "@/components/common/PageLoader";
 import { getAvatarUrl } from "@/lib/utils";
 
@@ -38,6 +39,54 @@ function StudentLoginContent() {
       ? "Your account has been suspended. Please contact platform support."
       : ""
   );
+
+  // Forgot password modal state
+  const [fpStep, setFpStep] = useState<"closed" | "email" | "otp" | "newpass">("closed");
+  const [fpEmail, setFpEmail] = useState("");
+  const [fpOtp, setFpOtp] = useState("");
+  const [fpNewPass, setFpNewPass] = useState("");
+  const [fpConfirmPass, setFpConfirmPass] = useState("");
+  const [fpError, setFpError] = useState("");
+  const [fpLoading, setFpLoading] = useState(false);
+  const [fpSuccess, setFpSuccess] = useState("");
+
+  const handleForgotRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fpEmail.trim()) { setFpError("Please enter your email address."); return; }
+    setFpLoading(true); setFpError("");
+    try {
+      await authApi.forgotPassword(fpEmail, "STUDENT");
+      setFpStep("otp");
+    } catch (err: any) {
+      setFpError(err?.response?.data?.message || "Failed to send reset code. Please try again.");
+    } finally { setFpLoading(false); }
+  };
+
+  const handleForgotVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fpOtp.trim()) { setFpError("Please enter the OTP sent to your email."); return; }
+    setFpLoading(true); setFpError("");
+    try {
+      await authApi.verifyResetCode(fpEmail, fpOtp);
+      setFpStep("newpass");
+    } catch (err: any) {
+      setFpError(err?.response?.data?.message || "Invalid or expired OTP. Please try again.");
+    } finally { setFpLoading(false); }
+  };
+
+  const handleForgotReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (fpNewPass !== fpConfirmPass) { setFpError("Passwords do not match."); return; }
+    if (fpNewPass.length < 8) { setFpError("Password must be at least 8 characters."); return; }
+    setFpLoading(true); setFpError("");
+    try {
+      await authApi.resetPassword(fpEmail, fpOtp, fpNewPass);
+      setFpSuccess("Password reset successfully! You can now log in with your new password.");
+      setTimeout(() => setFpStep("closed"), 2000);
+    } catch (err: any) {
+      setFpError(err?.response?.data?.message || "Failed to reset password. Please try again.");
+    } finally { setFpLoading(false); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,7 +213,7 @@ function StudentLoginContent() {
             <div className="bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl inline-flex items-center shadow-md shadow-black/15 transition-transform duration-200 group-hover:scale-105">
               <div className="relative w-36 sm:w-40 h-9 sm:h-10">
                 <Image
-                  src="/image.png"
+                  src="/wegrow-portal-logo.png"
                   alt="WeGrow Skill Campus"
                   fill
                   className="object-contain object-left"
@@ -247,7 +296,7 @@ function StudentLoginContent() {
           <Link href="/" className="inline-block focus:outline-none" aria-label="WeGrow Skill Campus Home">
             <div className="relative w-36 h-9">
               <Image
-                src="/image.png"
+                src="/wegrow-portal-logo.png"
                 alt="WeGrow Skill Campus"
                 fill
                 className="object-contain object-left"
@@ -352,12 +401,13 @@ function StudentLoginContent() {
                   >
                     Password
                   </label>
-                  <a
-                    href="#"
-                    className="text-xs font-semibold text-[#014E9C] hover:text-[#F79400] transition"
+                  <button
+                    type="button"
+                    onClick={() => { setFpEmail(email); setFpStep("email"); setFpError(""); setFpSuccess(""); }}
+                    className="text-xs font-semibold text-[#014E9C] hover:text-[#F79400] transition cursor-pointer"
                   >
                     Forgot password?
-                  </a>
+                  </button>
                 </div>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -443,11 +493,104 @@ function StudentLoginContent() {
           </div>
         </div>
 
-        {/* Footer / Copyright */}
-        <div className="pt-6 text-center text-xs text-slate-400">
+        {/* Footer / Copyright & Legal Links */}
+        <div className="pt-6 text-center text-xs text-slate-400 space-y-2">
           <p>© {new Date().getFullYear()} WeGrow Skill Campus. All rights reserved.</p>
+          <div className="flex items-center justify-center gap-3 text-[11px] text-slate-500">
+            <Link href="/privacy-policy" className="hover:text-[#014E9C] hover:underline transition">
+              Privacy Policy
+            </Link>
+            <span>•</span>
+            <Link href="/terms" className="hover:text-[#014E9C] hover:underline transition">
+              Terms &amp; Conditions
+            </Link>
+            <span>•</span>
+            <Link href="/contact" className="hover:text-[#014E9C] hover:underline transition">
+              Contact Support
+            </Link>
+          </div>
         </div>
       </div>
+
+      {/* ===== FORGOT PASSWORD MODAL ===== */}
+      {fpStep !== "closed" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-7 relative">
+            <button
+              type="button"
+              onClick={() => setFpStep("closed")}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition cursor-pointer"
+              aria-label="Close"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+
+            {fpSuccess ? (
+              <div className="text-center py-4">
+                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-7 h-7 text-green-500" />
+                </div>
+                <p className="text-sm text-green-700 font-medium">{fpSuccess}</p>
+              </div>
+            ) : fpStep === "email" ? (
+              <form onSubmit={handleForgotRequest}>
+                <h3 className="text-lg font-bold text-[#0B1F4B] mb-1">Forgot Password</h3>
+                <p className="text-xs text-slate-500 mb-5">Enter your registered email to receive a reset code.</p>
+                {fpError && <p className="text-xs text-red-500 mb-3 bg-red-50 rounded-lg px-3 py-2">{fpError}</p>}
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email Address</label>
+                <div className="relative mb-5">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input type="email" required value={fpEmail} onChange={(e) => setFpEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className="block w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#014E9C] focus:outline-none focus:ring-2 focus:ring-[#014E9C]/15 transition-all" />
+                </div>
+                <Button type="submit" disabled={fpLoading} className="w-full">
+                  {fpLoading ? "Sending…" : "Send Reset Code"}
+                </Button>
+              </form>
+            ) : fpStep === "otp" ? (
+              <form onSubmit={handleForgotVerify}>
+                <h3 className="text-lg font-bold text-[#0B1F4B] mb-1">Enter Reset Code</h3>
+                <p className="text-xs text-slate-500 mb-5">A 6-digit code was sent to <span className="font-semibold text-[#014E9C]">{fpEmail}</span>.</p>
+                {fpError && <p className="text-xs text-red-500 mb-3 bg-red-50 rounded-lg px-3 py-2">{fpError}</p>}
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">OTP Code</label>
+                <input type="text" required maxLength={6} value={fpOtp} onChange={(e) => setFpOtp(e.target.value)}
+                  placeholder="123456"
+                  className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#014E9C] focus:outline-none focus:ring-2 focus:ring-[#014E9C]/15 transition-all mb-5 tracking-widest text-center text-lg font-bold" />
+                <Button type="submit" disabled={fpLoading} className="w-full">
+                  {fpLoading ? "Verifying…" : "Verify Code"}
+                </Button>
+                <button type="button" onClick={() => setFpStep("email")} className="mt-3 w-full text-xs text-slate-500 hover:text-[#014E9C] transition cursor-pointer">
+                  ← Back / Resend code
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleForgotReset}>
+                <h3 className="text-lg font-bold text-[#0B1F4B] mb-1">Set New Password</h3>
+                <p className="text-xs text-slate-500 mb-5">Choose a strong password for your account.</p>
+                {fpError && <p className="text-xs text-red-500 mb-3 bg-red-50 rounded-lg px-3 py-2">{fpError}</p>}
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">New Password</label>
+                <div className="relative mb-3">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input type="password" required minLength={8} value={fpNewPass} onChange={(e) => setFpNewPass(e.target.value)}
+                    placeholder="At least 8 characters"
+                    className="block w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#014E9C] focus:outline-none focus:ring-2 focus:ring-[#014E9C]/15 transition-all" />
+                </div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Confirm Password</label>
+                <div className="relative mb-5">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input type="password" required minLength={8} value={fpConfirmPass} onChange={(e) => setFpConfirmPass(e.target.value)}
+                    placeholder="Repeat your new password"
+                    className="block w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#014E9C] focus:outline-none focus:ring-2 focus:ring-[#014E9C]/15 transition-all" />
+                </div>
+                <Button type="submit" disabled={fpLoading} className="w-full">
+                  {fpLoading ? "Resetting…" : "Reset Password"}
+                </Button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

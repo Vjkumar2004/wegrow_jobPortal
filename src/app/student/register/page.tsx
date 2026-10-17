@@ -62,6 +62,7 @@ export default function StudentRegisterPage() {
       const res = await authService.register({
         name,
         email,
+        phone: phone.trim() || undefined,
         collegeName,
         password,
         role: "STUDENT",
@@ -114,7 +115,7 @@ export default function StudentRegisterPage() {
             <div className="bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl inline-flex items-center shadow-md shadow-black/15 transition-transform duration-200 group-hover:scale-105">
               <div className="relative w-36 sm:w-40 h-9 sm:h-10">
                 <Image
-                  src="/image.png"
+                  src="/wegrow-portal-logo.png"
                   alt="WeGrow Skill Campus"
                   fill
                   className="object-contain object-left"
@@ -197,7 +198,7 @@ export default function StudentRegisterPage() {
           <Link href="/" className="inline-block" aria-label="WeGrow Skill Campus Home">
             <div className="relative w-36 h-9">
               <Image
-                src="/image.png"
+                src="/wegrow-portal-logo.png"
                 alt="WeGrow Skill Campus"
                 fill
                 className="object-contain object-left"
@@ -221,7 +222,7 @@ export default function StudentRegisterPage() {
               <Link href="/" className="inline-block" aria-label="WeGrow Skill Campus Home">
                 <div className="relative w-40 h-10">
                   <Image
-                    src="/image.png"
+                    src="/wegrow-portal-logo.png"
                     alt="WeGrow Skill Campus"
                     fill
                     className="object-contain object-left"
@@ -385,10 +386,16 @@ export default function StudentRegisterPage() {
                   onChange={(e) => setGraduationYear(e.target.value)}
                   className="block w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 transition-all focus:border-[#014E9C] focus:outline-none focus:ring-2 focus:ring-[#014E9C]/15"
                 >
-                  <option value="2027">2027 (Pre-final Year)</option>
-                  <option value="2026">2026 (Final Year)</option>
-                  <option value="2025">2025 (Recent Graduate)</option>
-                  <option value="2024">2024 (Experienced)</option>
+                  <option value="2030">2030</option>
+                  <option value="2029">2029</option>
+                  <option value="2028">2028</option>
+                  <option value="2027">2027</option>
+                  <option value="2026">2026</option>
+                  <option value="2025">2025</option>
+                  <option value="2024">2024</option>
+                  <option value="2023">2023</option>
+                  <option value="2022">2022</option>
+                  <option value="2021">2021</option>
                 </select>
               </div>
             </div>
@@ -454,13 +461,13 @@ export default function StudentRegisterPage() {
                 />
                 <span className="text-xs font-medium text-slate-600 leading-snug">
                   I agree to the{" "}
-                  <a href="#" className="text-[#014E9C] hover:underline font-semibold">
+                  <Link href="/terms" target="_blank" className="text-[#014E9C] hover:underline font-semibold">
                     Terms of Service
-                  </a>{" "}
+                  </Link>{" "}
                   and{" "}
-                  <a href="#" className="text-[#014E9C] hover:underline font-semibold">
+                  <Link href="/privacy-policy" target="_blank" className="text-[#014E9C] hover:underline font-semibold">
                     Privacy Policy
-                  </a>
+                  </Link>
                   .
                 </span>
               </label>

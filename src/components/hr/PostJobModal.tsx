@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import Portal from "@/components/common/Portal";
 import {
   Briefcase,
   X,
@@ -46,6 +47,20 @@ export default function PostJobModal({ isOpen, onClose, onJobCreated }: PostJobM
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") onClose();
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "unset";
+      };
+    }
+  }, [isOpen, onClose]);
 
   // Form states matching rich job portal standards
   const [title, setTitle] = useState("");
@@ -197,8 +212,11 @@ export default function PostJobModal({ isOpen, onClose, onJobCreated }: PostJobM
     ]);
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#0B1F4B]/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
+    <Portal>
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
       <div className="bg-white rounded-[20px] max-w-3xl w-full my-8 shadow-2xl border border-[#EEF1F7] overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
         <div className="p-5 sm:p-6 border-b border-[#EEF1F7] flex items-center justify-between bg-gradient-to-r from-white via-white to-blue-50/50 shrink-0">
@@ -670,5 +688,6 @@ export default function PostJobModal({ isOpen, onClose, onJobCreated }: PostJobM
         </form>
       </div>
     </div>
+    </Portal>
   );
 }

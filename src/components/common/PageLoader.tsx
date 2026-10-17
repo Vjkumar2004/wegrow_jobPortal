@@ -62,7 +62,7 @@ export const PageLoader: React.FC<PageLoaderProps> = ({
             style={{ width: "100%", height: "100%", position: "relative" }}
           >
             <Image
-              src="/image.png"
+              src="/wegrow-portal-logo.png"
               alt="WeGrow Skill Campus"
               fill
               className="object-contain"

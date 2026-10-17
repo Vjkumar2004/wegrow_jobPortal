@@ -251,6 +251,7 @@ export const jobsService = {
         skills: j.skills,
         overflowSkillsCount: Math.max(0, j.skills.length - 3),
         postedAgo: "Recently",
+        deadline: j.deadline,
         isBookmarked: false,
         hasApplied: j.hasApplied,
         applicationId: j.applicationId,

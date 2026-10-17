@@ -154,7 +154,7 @@ function VerifyEmailContent() {
           <div className="bg-white/95 px-3.5 py-2 rounded-xl inline-flex items-center shadow-xs border border-slate-200">
             <div className="relative w-36 h-9">
               <Image
-                src="/image.png"
+                src="/wegrow-portal-logo.png"
                 alt="WeGrow Skill Campus"
                 fill
                 className="object-contain object-left"

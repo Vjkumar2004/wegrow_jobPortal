@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Briefcase,
@@ -43,10 +43,11 @@ import { useSearchParams } from "next/navigation";
 import { Job, Application, Interview, CompanyApprovalStatus } from "@/types";
 import PostJobModal from "@/components/hr/PostJobModal";
 import CompanyProfileSubSection from "@/components/hr/CompanyProfileSubSection";
+import Portal from "@/components/common/Portal";
 import { authService } from "@/services/auth.service";
 import { hrService } from "@/services/hr.service";
 import { applicationsService } from "@/services/applications.service";
-import { getNameInitials, getHRAvatarUrl } from "@/lib/utils";
+import { getNameInitials, getHRAvatarUrl, getAvatarUrl, buildIsoInterviewTime } from "@/lib/utils";
 
 interface HRDashboardClientProps {
   initialJobs: Job[];
@@ -118,6 +119,18 @@ export default function HRDashboardClient({
   const [meetingLink, setMeetingLink] = useState("https://meet.google.com/wegrow-interview");
   const [interviewNotes, setInterviewNotes] = useState("");
 
+  // Body scroll lock when schedule modal is open
+  useEffect(() => {
+    if (scheduleModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [scheduleModalOpen]);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
@@ -172,23 +185,7 @@ export default function HRDashboardClient({
 
     try {
       setIsSubmittingSchedule(true);
-      let startIso = new Date(Date.now() + 86400000).toISOString();
-      let endIso = new Date(Date.now() + 86400000 + 3600000).toISOString();
-      if (interviewDate) {
-        let hours = 11, minutes = 30;
-        const match = interviewTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-        if (match) {
-          hours = parseInt(match[1], 10);
-          minutes = parseInt(match[2], 10);
-          const meridiem = match[3]?.toUpperCase();
-          if (meridiem === "PM" && hours < 12) hours += 12;
-          if (meridiem === "AM" && hours === 12) hours = 0;
-        }
-        const d = new Date(interviewDate);
-        d.setHours(hours, minutes, 0, 0);
-        startIso = d.toISOString();
-        endIso = new Date(d.getTime() + 60 * 60 * 1000).toISOString();
-      }
+      const { startIso, endIso } = buildIsoInterviewTime(interviewDate, interviewTime);
 
       const scheduled = await hrService.scheduleInterview({
         applicationId: selectedApplicant.id,
@@ -198,20 +195,25 @@ export default function HRDashboardClient({
         date: interviewDate,
         time: interviewTime,
         type: interviewType,
-        meetingLink,
+        meetingLink: meetingLink?.trim() || "https://meet.google.com/wegrow-interview",
         notes: interviewNotes,
         scheduledStartAt: startIso,
         scheduledEndAt: endIso,
       });
 
       setInterviews((prev) => [scheduled, ...prev]);
-      await updateStatus(selectedApplicant.id, "Interview");
+      try {
+        await updateStatus(selectedApplicant.id, "Interview");
+      } catch {
+        // Status may already be transitioned by backend scheduleInterview
+      }
       queryClient.invalidateQueries({ queryKey: ["hr-interviews"] });
       queryClient.invalidateQueries({ queryKey: ["hr-applications"] });
       setScheduleModalOpen(false);
       showToast(`Interview invite scheduled & status updated to "Interview"!`);
     } catch (err: any) {
-      showToast(err?.message || "Failed to schedule interview.");
+      const msg = err?.response?.data?.message || err?.message || "Failed to schedule interview.";
+      showToast(msg);
     } finally {
       setIsSubmittingSchedule(false);
     }
@@ -607,7 +609,7 @@ export default function HRDashboardClient({
             <PlusCircle className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={2} />
           </div>
           <span className="text-[10px] sm:text-[12px] font-bold text-[#0B1F4B] leading-tight">
-            + Post Job
+            Post Job
           </span>
         </button>
         <Link
@@ -687,8 +689,11 @@ export default function HRDashboardClient({
       {/* ============================================================== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {/* Blue tint: Active Jobs */}
-        <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-blue-50/40 to-white">
-          <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
+        <Link
+          href="/hr/jobs"
+          className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-blue-50/40 to-white cursor-pointer group"
+        >
+          <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
             <Briefcase className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
           </div>
           <div className="min-w-0">
@@ -698,11 +703,14 @@ export default function HRDashboardClient({
               <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {activeJobs.length} live
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Orange tint: Total Applicants */}
-        <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-orange-50/40 to-white">
-          <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
+        <Link
+          href="/hr/applicants?status=All"
+          className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-orange-50/40 to-white cursor-pointer group"
+        >
+          <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
             <Users className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
           </div>
           <div className="min-w-0">
@@ -712,11 +720,14 @@ export default function HRDashboardClient({
               <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {applicants.length} total
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Green tint: Shortlisted */}
-        <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
-          <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
+        <Link
+          href="/hr/applicants?status=Shortlisted"
+          className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-emerald-50/40 to-white cursor-pointer group"
+        >
+          <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
             <CheckCircle2 className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
           </div>
           <div className="min-w-0">
@@ -726,11 +737,14 @@ export default function HRDashboardClient({
               <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {shortlistedCount} verified
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Purple tint: Live Interviews */}
-        <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-purple-50/40 to-white">
-          <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
+        <Link
+          href="/hr/interviews"
+          className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-purple-50/40 to-white cursor-pointer group"
+        >
+          <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
             <Calendar className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
           </div>
           <div className="min-w-0">
@@ -740,7 +754,7 @@ export default function HRDashboardClient({
               <Clock className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" /> {interviews.length} rounds
             </div>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* ============================================================== */}
@@ -954,9 +968,7 @@ export default function HRDashboardClient({
                                 alt={app.applicantName}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
-                                  const fallbackUrl = app.applicantId
-                                    ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${app.applicantId}`
-                                    : "";
+                                  const fallbackUrl = app.applicantId ? getAvatarUrl(app.applicantId) : "";
                                   if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
                                     e.currentTarget.src = fallbackUrl;
                                     return;
@@ -1059,9 +1071,7 @@ export default function HRDashboardClient({
                             alt={app.applicantName}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              const fallbackUrl = app.applicantId
-                                ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${app.applicantId}`
-                                : "";
+                              const fallbackUrl = app.applicantId ? getAvatarUrl(app.applicantId) : "";
                               if (fallbackUrl && e.currentTarget.src !== fallbackUrl) {
                                 e.currentTarget.src = fallbackUrl;
                                 return;
@@ -1221,7 +1231,8 @@ export default function HRDashboardClient({
 
       {/* SCHEDULE INTERVIEW MODAL */}
       {scheduleModalOpen && selectedApplicant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B1F4B]/60 backdrop-blur-xs animate-in fade-in duration-200">
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-[20px] max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-[#EEF1F7] space-y-5">
             <div className="flex items-center justify-between border-b border-[#EEF1F7] pb-4">
               <div>
@@ -1336,6 +1347,7 @@ export default function HRDashboardClient({
             </form>
           </div>
         </div>
+        </Portal>
       )}
      </div>
    );

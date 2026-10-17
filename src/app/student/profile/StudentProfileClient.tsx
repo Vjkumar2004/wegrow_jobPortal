@@ -300,14 +300,21 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
   const handleSavePersonal = async () => {
     try {
       setIsSavingSection("personal");
+      // Build a careerPreferences object that explicitly preserves DOB and gender.
+      // We embed them here directly so they are NOT lost even if the query hasn't
+      // fully loaded yet (profile.careerPreferences could still be undefined).
+      const existingPrefs: Record<string, any> = (profile.careerPreferences as any) || {};
+      const careerPrefsPayload: Record<string, any> = { ...existingPrefs };
+      if (personalForm.dateOfBirth) careerPrefsPayload.dateOfBirth = personalForm.dateOfBirth;
+      if (personalForm.gender) careerPrefsPayload.gender = personalForm.gender;
+
       await studentService.updateProfile({
         headline: personalForm.headline,
         bio: profile.bio,
         phone: personalForm.phone,
         currentLocation: personalForm.location,
         location: personalForm.location,
-        dateOfBirth: personalForm.dateOfBirth || undefined,
-        gender: personalForm.gender || undefined,
+        careerPreferences: careerPrefsPayload,
       });
       setProfile((prev) => ({
         ...prev,
@@ -318,7 +325,8 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
         gender: personalForm.gender,
       }));
       setEditingSection(null);
-      queryClient.invalidateQueries({ queryKey: ["student-profile"] });
+      // Refresh to confirm the actual saved state from the backend.
+      await refreshProfileData();
       showToast("Personal Information updated successfully!");
     } catch (err) {
       showToast(getErrorMessage(err, "Failed to update personal information"), "error");
@@ -356,8 +364,13 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
   const handleSaveCareerPref = async () => {
     try {
       setIsSavingSection("career");
+      // Preserve dateOfBirth and gender that live in careerPreferences JSON column
       await studentService.updateProfile({
-        careerPreferences: careerPrefForm,
+        careerPreferences: {
+          ...careerPrefForm,
+          dateOfBirth: profile.dateOfBirth || (profile.careerPreferences as any)?.dateOfBirth,
+          gender: profile.gender || (profile.careerPreferences as any)?.gender,
+        },
         expectedSalary: careerPrefForm.expectedSalary,
       });
       setProfile((prev) => ({
@@ -397,25 +410,13 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
 
   const handleRemoveSkill = async (skillToRemove: string) => {
     try {
-      // Find skill in backend list to get its ID, or fallback
-      let deleted = false;
-      try {
-        const skills = await studentService.getSkills();
-        const match = skills.find((s) => s.name.toLowerCase() === skillToRemove.toLowerCase());
-        if (match && match.id) {
-          await studentService.deleteSkill(match.id);
-          deleted = true;
-        }
-      } catch {
-        // Continue to fallback if direct skill endpoint returns differently
+      const skills = await studentService.getSkills();
+      const match = skills.find((s) => (s.name || "").toLowerCase() === skillToRemove.toLowerCase());
+      if (!match?.id) {
+        showToast(`Skill "${skillToRemove}" not found. Please refresh and try again.`, "error");
+        return;
       }
-
-      if (!deleted) {
-        // Fallback to updateProfile if skills are handled as an array on profile
-        const remaining = profile.skills.filter((s) => s !== skillToRemove);
-        await studentService.updateProfile({ skills: remaining as any });
-      }
-
+      await studentService.deleteSkill(match.id);
       await refreshProfileData();
       showToast(`Removed skill "${skillToRemove}"`);
     } catch (err) {
@@ -1375,7 +1376,7 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                         <div className="flex-1 pr-4">
                           <h3 className="font-[600] text-[16px] text-[#0B1F4B] leading-snug">
-                            {edu.degree}
+                            {edu.degree}{edu.fieldOfStudy ? ` — ${edu.fieldOfStudy}` : ""}
                           </h3>
                           <p className="text-[14px] text-[#6B7694] mt-0.5">{edu.institution}</p>
                           <div className="mt-1.5 text-[13px] flex items-center gap-3">

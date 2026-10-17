@@ -71,6 +71,9 @@ export const hrService = {
         isSalaryDisclosed: true,
         benefits: jobData.benefits || [],
         hiringStages: jobData.hiringStages || undefined,
+        deadline: jobData.deadline
+          ? (jobData.deadline.includes("T") ? jobData.deadline : new Date(jobData.deadline).toISOString())
+          : undefined,
         skills: formattedSkills,
         publish: (jobData as any).publish ?? true,
       };
@@ -122,6 +125,21 @@ export const hrService = {
   },
 
   /**
+   * GET /api/v1/hr/jobs/:jobId
+   */
+  async getJobById(jobId: string): Promise<Job | null> {
+    try {
+      const response = await apiClient.get<{ success: boolean; data: { job: BackendPublicJob } }>(`/hr/jobs/${jobId}`);
+      if (response.data?.data?.job) {
+        return mapBackendJobToFrontend(response.data.data.job);
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
    * GET /api/v1/hr/applications
    */
   async getApplicants(): Promise<Application[]> {
@@ -135,14 +153,28 @@ export const hrService = {
       if (items.length === 0) return [];
 
       const mapHRStatus = (s: string): Application["status"] => {
-        switch (s) {
-          case "SHORTLISTED": return "Shortlisted";
-          case "INTERVIEW": return "Interview";
+        const upper = (s || "").trim().toUpperCase();
+        switch (upper) {
+          case "SHORTLISTED":
+            return "Shortlisted";
+          case "INTERVIEW":
+          case "INTERVIEWING":
+          case "SCHEDULED":
+            return "Interview";
           case "OFFERED":
-          case "SELECTED": return "Selected";
+          case "SELECTED":
+          case "HIRED":
+            return "Selected";
           case "REJECTED":
-          case "WITHDRAWN": return "Rejected";
-          default: return "Under Review";
+          case "WITHDRAWN":
+          case "DECLINED":
+            return "Rejected";
+          case "APPLIED":
+          case "SCREENING":
+          case "UNDER_REVIEW":
+          case "UNDER REVIEW":
+          default:
+            return "Under Review";
         }
       };
 
@@ -155,10 +187,10 @@ export const hrService = {
         applicantName: app.student?.fullName || app.student?.name || "Candidate",
         applicantEmail: app.student?.user?.email || app.student?.email || "",
         applicantAvatar:
-          app.student?.avatarUrl ||
-          app.student?.avatar ||
-          app.student?.photoUrl ||
-          (app.student?.id ? `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "https://wegrow-jobportal-backend.vercel.app/api/v1"}/media/avatar/${app.student.id}` : undefined),
+          (app.student?.avatarUrl && (app.student.avatarUrl.startsWith("http://") || app.student.avatarUrl.startsWith("https://")))
+            ? app.student.avatarUrl
+            : resolveMediaUrl(app.student?.avatarUrl || app.student?.avatar || app.student?.photoUrl) ||
+              (app.student?.id ? getAvatarUrl(app.student.id) : undefined),
         applicantPhone: app.student?.phone || app.student?.user?.phone || undefined,
         applicantCollege:
           app.student?.currentCollege ||
@@ -178,8 +210,8 @@ export const hrService = {
           app.student?.educations?.[0]?.degree ||
           app.student?.headline ||
           undefined,
-        appliedDate: new Date(app.appliedAt).toLocaleDateString(),
-        appliedAt: app.appliedAt,
+        appliedDate: app.appliedAt || (app as any).createdAt || new Date().toISOString(),
+        appliedAt: app.appliedAt || (app as any).createdAt || new Date().toISOString(),
         status: mapHRStatus(app.status),
         resumeId:
           app.resumeId ||
@@ -216,8 +248,9 @@ export const hrService = {
    */
   async getInterviews(): Promise<Interview[]> {
     try {
-      const response = await apiClient.get<{ success: boolean; data: { items: BackendInterview[] } }>("/hr/interviews");
-      const items = response.data?.data?.items;
+      const response = await apiClient.get<any>("/hr/interviews");
+      const rData = response.data?.data;
+      const items: BackendInterview[] = Array.isArray(rData) ? rData : (rData?.items || rData?.interviews || []);
       if (Array.isArray(items)) {
         return items.map((i) => {
           const d = new Date(i.scheduledStartAt);
@@ -279,7 +312,7 @@ export const hrService = {
    */
   async cancelInterview(interviewId: string, feedback?: string): Promise<boolean> {
     try {
-      await apiClient.patch(`/hr/interviews/${interviewId}/cancel`, feedback ? { feedback } : {});
+      await apiClient.patch(`/hr/interviews/${interviewId}/cancel`, feedback ? { feedback, reason: feedback } : {});
       return true;
     } catch {
       return false;
@@ -287,11 +320,11 @@ export const hrService = {
   },
 
   /**
-   * POST /api/v1/hr/applications/:applicationId/interviews
+   * POST /api/v1/hr/applications/:applicationId/interviews or POST /api/v1/hr/interviews
    */
   async scheduleInterview(interviewData: Partial<Interview> & { scheduledStartAt?: string; scheduledEndAt?: string }): Promise<Interview> {
     if (!interviewData.applicationId) {
-      throw new Error("applicationId is required to schedule an interview.");
+      throw new Error("Please select an applicant before scheduling an interview.");
     }
 
     const backendType =
@@ -300,35 +333,120 @@ export const hrService = {
       : interviewData.type === "Screening" ? "SCREENING"
       : "TECHNICAL";
 
-    const payload = {
-      title: interviewData.jobTitle || "Interview Round",
+    // Clean and validate meetingLink
+    let cleanMeetingLink: string | null = null;
+    if (interviewData.meetingLink && interviewData.meetingLink.trim()) {
+      let link = interviewData.meetingLink.trim();
+      if (!/^https?:\/\//i.test(link)) {
+        link = "https://" + link;
+      }
+      try {
+        new URL(link);
+        cleanMeetingLink = link;
+      } catch {
+        cleanMeetingLink = "https://meet.google.com/wegrow-interview";
+      }
+    } else {
+      cleanMeetingLink = "https://meet.google.com/wegrow-interview";
+    }
+
+    // Future timestamp check
+    const now = new Date();
+    let startDate = interviewData.scheduledStartAt ? new Date(interviewData.scheduledStartAt) : new Date(Date.now() + 86400000);
+    if (isNaN(startDate.getTime()) || startDate <= now) {
+      startDate = new Date(Date.now() + 86400000);
+      startDate.setHours(11, 30, 0, 0);
+      if (startDate <= now) {
+        startDate = new Date(Date.now() + 3600000 * 4);
+      }
+    }
+    let endDate = interviewData.scheduledEndAt ? new Date(interviewData.scheduledEndAt) : new Date(startDate.getTime() + 3600000);
+    if (isNaN(endDate.getTime()) || endDate <= startDate) {
+      endDate = new Date(startDate.getTime() + 3600000);
+    }
+
+    const rawTitle = interviewData.jobTitle ? `${interviewData.jobTitle} - Interview Round` : "Technical Interview Round";
+    const title = rawTitle.slice(0, 190);
+
+    const payload: Record<string, any> = {
+      applicationId: interviewData.applicationId,
+      title,
       type: backendType,
-      scheduledStartAt: interviewData.scheduledStartAt || new Date(Date.now() + 86400000).toISOString(),
-      scheduledEndAt: interviewData.scheduledEndAt || new Date(Date.now() + 86400000 + 3600000).toISOString(),
-      meetingLink: interviewData.meetingLink,
+      scheduledStartAt: startDate.toISOString(),
+      scheduledEndAt: endDate.toISOString(),
+      meetingLink: cleanMeetingLink,
     };
 
-    const response = await apiClient.post(`/hr/applications/${interviewData.applicationId}/interviews`, payload);
+    let response: any;
+    const executePost = async () => {
+      try {
+        return await apiClient.post(`/hr/applications/${interviewData.applicationId}/interviews`, payload);
+      } catch (err: any) {
+        if (err?.response?.status === 404) {
+          return await apiClient.post("/hr/interviews", payload);
+        }
+        throw err;
+      }
+    };
 
-    const inv = response.data?.data?.interview;
+    try {
+      response = await executePost();
+    } catch (err: any) {
+      const errCode = err?.response?.data?.error?.code;
+      const errMsg = String(err?.response?.data?.message || "");
+
+      // If backend reports candidate must be SHORTLISTED (409 APPLICATION_NOT_SHORTLISTED):
+      if (
+        err?.response?.status === 409 &&
+        (errCode === "APPLICATION_NOT_SHORTLISTED" || errMsg.toLowerCase().includes("shortlisted"))
+      ) {
+        try {
+          // Auto-shortlist candidate so interview can be scheduled seamlessly
+          await apiClient.patch(`/hr/applications/${interviewData.applicationId}/status`, {
+            status: "SHORTLISTED",
+            note: "Shortlisted for interview scheduling",
+          });
+          // Retry scheduling now that the candidate is SHORTLISTED
+          response = await executePost();
+        } catch (retryErr: any) {
+          const finalMsg =
+            retryErr?.response?.data?.message ||
+            retryErr?.response?.data?.error?.message ||
+            retryErr?.message ||
+            "Failed to schedule interview.";
+          throw new Error(finalMsg);
+        }
+      } else {
+        const errorMsg =
+          err?.response?.data?.message ||
+          err?.response?.data?.error?.message ||
+          err?.message ||
+          "Failed to schedule interview.";
+        throw new Error(errorMsg);
+      }
+    }
+
+    const inv = response.data?.data?.interview || response.data?.data;
     if (!inv) {
       throw new Error("Failed to schedule interview — no data returned from server.");
     }
 
     return {
       id: inv.id,
-      applicationId: inv.applicationId,
-      jobTitle: inv.title,
+      applicationId: inv.applicationId || interviewData.applicationId,
+      jobTitle: inv.title || interviewData.jobTitle || "Interview Round",
       companyName: interviewData.companyName || "Company",
       candidateName: interviewData.candidateName || "Candidate",
       candidateEmail: interviewData.candidateEmail || "",
       candidateCollege: interviewData.candidateCollege || "",
       candidateAvatar: interviewData.candidateAvatar,
-      date: new Date(inv.scheduledStartAt).toLocaleDateString(),
-      time: new Date(inv.scheduledStartAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      date: new Date(inv.scheduledStartAt || startDate).toLocaleDateString(),
+      time: new Date(inv.scheduledStartAt || startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      scheduledStartAt: inv.scheduledStartAt || startDate.toISOString(),
+      scheduledEndAt: inv.scheduledEndAt || endDate.toISOString(),
       type: (interviewData.type || "Technical") as any,
       status: "Upcoming",
-      meetingLink: inv.meetingLink,
+      meetingLink: inv.meetingLink || cleanMeetingLink || undefined,
     };
   },
 

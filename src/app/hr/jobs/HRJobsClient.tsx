@@ -49,11 +49,25 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
       if (queryJobId) {
         const found = jobs.find((j) => j.id === queryJobId);
         if (found) {
-          setSelectedJobForView(found);
+          handleViewJobDetails(found);
         }
       }
     }
   }, [jobs]);
+
+  const handleViewJobDetails = async (job: Job) => {
+    setSelectedJobForView(job);
+    if (!job.description || !job.responsibilities?.length) {
+      try {
+        const full = await hrService.getJobById(job.id);
+        if (full) {
+          setSelectedJobForView(full);
+        }
+      } catch {
+        // Fallback to loaded job
+      }
+    }
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -298,9 +312,9 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
                     {/* Applicants Pill */}
                     <td className="py-4 px-4 text-center">
                       <Link
-                        href="/hr/applicants"
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-[#E8F0FF] text-[#1E5BE0] hover:bg-[#d8e6ff] transition"
-                        title="View candidate applications"
+                        href={`/hr/applicants?jobId=${encodeURIComponent(job.id)}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-[#E8F0FF] text-[#1E5BE0] hover:bg-[#d8e6ff] transition cursor-pointer shadow-2xs hover:scale-105"
+                        title={`View applicants for ${job.title}`}
                       >
                         <Users className="w-3.5 h-3.5" />
                         <span>{job.applicantsCount || 0}</span>
@@ -325,7 +339,7 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setSelectedJobForView(job)}
+                          onClick={() => handleViewJobDetails(job)}
                           className="p-2 rounded-[8px] text-[#6B7694] hover:text-[#1E5BE0] hover:bg-[#E8F0FF] transition cursor-pointer"
                           title="View Job Details in HR Portal"
                         >
@@ -388,7 +402,7 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
                     <div className="min-w-0">
                       <button
                         type="button"
-                        onClick={() => setSelectedJobForView(job)}
+                        onClick={() => handleViewJobDetails(job)}
                         className="text-left font-bold text-[#0B1F4B] text-sm hover:text-[#1E5BE0] transition truncate block"
                       >
                         {job.title}
@@ -428,8 +442,9 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
                   <div>
                     <span className="text-[#6B7694] text-[10px] uppercase font-semibold block">Applicants</span>
                     <Link
-                      href="/hr/applicants"
+                      href={`/hr/applicants?jobId=${encodeURIComponent(job.id)}`}
                       className="inline-flex items-center gap-1 font-bold text-[#1E5BE0] text-[12px] hover:underline"
+                      title={`View applicants for ${job.title}`}
                     >
                       <Users className="w-3.5 h-3.5" />
                       <span>{job.applicantsCount || 0} applied</span>
@@ -445,7 +460,7 @@ export default function HRJobsClient({ initialJobs }: { initialJobs: Job[] }) {
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => setSelectedJobForView(job)}
+                    onClick={() => handleViewJobDetails(job)}
                     className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 bg-[#E8F0FF] text-[#1E5BE0] active:bg-[#d8e6ff] rounded-xl text-xs font-bold"
                   >
                     <Eye className="w-3.5 h-3.5" />

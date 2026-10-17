@@ -116,10 +116,19 @@ export const JobCard: React.FC<JobCardProps> = ({ job, onSave, isSaved = false, 
       </div>
 
       <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-        <span className="inline-flex items-center gap-1">
-          <Clock className="w-3.5 h-3.5" />
-          Posted {formatDate(job.postedDate)}
-        </span>
+        <div className="flex flex-col text-[11px]">
+          {job.deadline ? (
+            <span className="inline-flex items-center gap-1 font-semibold text-[#FF6B00]">
+              <Clock className="w-3.5 h-3.5 text-[#FF6B00]" />
+              Apply by {formatDate(job.deadline)}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-slate-400">
+              <Clock className="w-3.5 h-3.5" />
+              Posted {formatDate(job.postedDate)}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <Link href={`${basePath}/${job.id}`}>
             <Button variant="soft" size="sm" className="cursor-pointer">

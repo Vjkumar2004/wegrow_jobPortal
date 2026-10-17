@@ -155,8 +155,34 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
     if (compProfile?.logoUrl) setHrCompanyLogoUrl(compProfile.logoUrl);
   }, [compProfile]);
 
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        profileDropdownRef.current &&
+        !profileDropdownRef.current.contains(event.target as Node)
+      ) {
+        setProfileDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setProfileDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   React.useEffect(() => {
     setMobileMenuOpen(false);
+    setProfileDropdownOpen(false);
   }, [pathname]);
 
   // If already inside the shell, only render children
@@ -215,7 +241,7 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
               <Link href="/hr/dashboard" className="inline-flex items-center gap-2" aria-label="WeGrow Skill Campus Home">
                 <div className="relative w-28 sm:w-40 h-7 sm:h-10">
                   <Image
-                    src="/image.png"
+                    src="/wegrow-portal-logo.png"
                     alt="WeGrow Skill Campus"
                     fill
                     className="object-contain object-left"
@@ -252,50 +278,166 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 <Bell className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#0B1F4B]" strokeWidth={1.75} />
               </div>
 
-              {/* Recruiter profile capsule */}
-              <Link
-                href="/hr/company"
-                className="flex items-center gap-1.5 sm:gap-3 pl-1 sm:pl-3 border-l border-[#EEF1F7] hover:opacity-90 active:scale-98 transition select-none"
-              >
-                <div className="relative w-7 h-7 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gradient-to-tr from-[#FF6B00] to-amber-400 text-white font-bold text-xs sm:text-sm flex items-center justify-center shadow-xs shrink-0 ring-2 ring-white">
-                  {hrAvatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={hrAvatarUrl}
-                      alt={hrUserName || "Recruiter"}
-                      className="w-full h-full object-cover"
-                      onError={() => {
-                        if (hrUserId && hrAvatarUrl !== getHRAvatarUrl(hrUserId)) {
-                          setHrAvatarUrl(getHRAvatarUrl(hrUserId));
-                        } else {
-                          setHrAvatarUrl(null);
-                        }
-                      }}
-                    />
-                  ) : hrCompanyLogoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={hrCompanyLogoUrl}
-                      alt="Company Logo"
-                      className="w-full h-full object-cover"
-                      onError={() => setHrCompanyLogoUrl(null)}
-                    />
-                  ) : (
-                    hrUserName ? hrUserName.slice(0, 2).toUpperCase() : "HR"
-                  )}
-                  {/* Online dot */}
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
-                </div>
-                <div className="hidden sm:block text-left">
-                  <div className="text-[13px] sm:text-[14px] font-semibold text-[#0B1F4B] leading-snug truncate max-w-[140px]">
-                    {hrUserName || "Recruiter"}
+              {/* Recruiter profile capsule with dropdown */}
+              <div className="relative" ref={profileDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setProfileDropdownOpen((prev) => !prev)}
+                  aria-expanded={profileDropdownOpen}
+                  aria-label="Toggle user profile menu"
+                  className="flex items-center gap-1.5 sm:gap-3 pl-1 sm:pl-3 border-l border-[#EEF1F7] hover:opacity-90 active:scale-98 transition select-none cursor-pointer py-1 focus:outline-none"
+                >
+                  <div className="relative w-7 h-7 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gradient-to-tr from-[#FF6B00] to-amber-400 text-white font-bold text-xs sm:text-sm flex items-center justify-center shadow-xs shrink-0 ring-2 ring-white">
+                    {hrAvatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={hrAvatarUrl}
+                        alt={hrUserName || "Recruiter"}
+                        className="w-full h-full object-cover"
+                        onError={() => {
+                          if (hrUserId && hrAvatarUrl !== getHRAvatarUrl(hrUserId)) {
+                            setHrAvatarUrl(getHRAvatarUrl(hrUserId));
+                          } else {
+                            setHrAvatarUrl(null);
+                          }
+                        }}
+                      />
+                    ) : hrCompanyLogoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={hrCompanyLogoUrl}
+                        alt="Company Logo"
+                        className="w-full h-full object-cover"
+                        onError={() => setHrCompanyLogoUrl(null)}
+                      />
+                    ) : (
+                      hrUserName ? hrUserName.slice(0, 2).toUpperCase() : "HR"
+                    )}
+                    {/* Online dot */}
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
                   </div>
-                  <div className="text-[11px] sm:text-[12px] text-[#6B7694] leading-none truncate max-w-[140px]">
-                    {hrCompanyName || "WeGrow Partner"}
+                  <div className="hidden sm:block text-left">
+                    <div className="text-[13px] sm:text-[14px] font-semibold text-[#0B1F4B] leading-snug truncate max-w-[140px]">
+                      {hrUserName || "Recruiter"}
+                    </div>
+                    <div className="text-[11px] sm:text-[12px] text-[#6B7694] leading-none truncate max-w-[140px]">
+                      {hrCompanyName || "WeGrow Partner"}
+                    </div>
                   </div>
-                </div>
-                <ChevronDown className="hidden sm:block w-4 h-4 text-[#6B7694] cursor-pointer" />
-              </Link>
+                  <ChevronDown
+                    className={`hidden sm:block w-4 h-4 text-[#6B7694] transition-transform duration-200 ${
+                      profileDropdownOpen ? "rotate-180 text-[#FF6B00]" : ""
+                    }`}
+                  />
+                </button>
+
+                {/* Profile Dropdown Menu */}
+                {profileDropdownOpen && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#EEF1F7] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                    style={{ filter: "drop-shadow(0 10px 25px rgba(11, 31, 75, 0.08))" }}
+                  >
+                    {/* Header info */}
+                    <div className="px-4 py-3 border-b border-[#EEF1F7]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-tr from-[#FF6B00] to-amber-400 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
+                          {hrAvatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={hrAvatarUrl}
+                              alt={hrUserName || "Recruiter"}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : hrCompanyLogoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={hrCompanyLogoUrl}
+                              alt="Company Logo"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            hrUserName ? hrUserName.slice(0, 2).toUpperCase() : "HR"
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-[#0B1F4B] truncate leading-tight">
+                            {hrUserName || "Recruiter"}
+                          </p>
+                          <p className="text-xs text-[#6B7694] truncate mt-0.5">
+                            {hrCompanyName || "WeGrow Partner"}
+                          </p>
+                          <span className="inline-block mt-1 text-[10px] font-semibold text-[#FF6B00] bg-[#FFF0E6] px-2 py-0.5 rounded-full">
+                            HR Recruiter Portal
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Navigation Links */}
+                    <div className="py-1">
+                      <Link
+                        href="/hr/company"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#0B1F4B] hover:bg-[#F1F4F9] transition"
+                      >
+                        <Building className="w-4 h-4 text-[#FF6B00]" />
+                        <span>Company Profile</span>
+                      </Link>
+
+                      <Link
+                        href="/hr/jobs"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#0B1F4B] hover:bg-[#F1F4F9] transition"
+                      >
+                        <Briefcase className="w-4 h-4 text-[#1E5BE0]" />
+                        <span>Manage Jobs</span>
+                      </Link>
+
+                      <Link
+                        href="/hr/applicants"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#0B1F4B] hover:bg-[#F1F4F9] transition"
+                      >
+                        <Users className="w-4 h-4 text-[#22B573]" />
+                        <span>Candidate Applicants</span>
+                      </Link>
+
+                      <Link
+                        href="/hr/interviews"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#0B1F4B] hover:bg-[#F1F4F9] transition"
+                      >
+                        <Calendar className="w-4 h-4 text-[#8B5CF6]" />
+                        <span>Scheduled Interviews</span>
+                      </Link>
+
+                      <a
+                        href="mailto:wegrowjobz@gmail.com?subject=Recruiter%20Support%20Request"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#6B7694] hover:bg-[#F1F4F9] transition"
+                      >
+                        <Headphones className="w-4 h-4 text-[#6B7694]" />
+                        <span>Help & Support</span>
+                      </a>
+                    </div>
+
+                    {/* Sign Out */}
+                    <div className="pt-1 border-t border-[#EEF1F7]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileDropdownOpen(false);
+                          handleLogout();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </header>
 
@@ -470,12 +612,12 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
                     <p className="text-[11px] text-[#6B7694] mt-0.5 leading-snug">
                       Customized drive assistance
                     </p>
-                    <button
-                      type="button"
-                      className="mt-2.5 w-full border-[1.5px] border-[#FF6B00] text-[#FF6B00] hover:bg-[#FF6B00] hover:text-white transition-colors text-[11px] font-semibold py-1.5 px-3 rounded-lg cursor-pointer active:scale-98"
+                    <a
+                      href="mailto:wegrowjobz@gmail.com?subject=Campus%20Hiring%20Drive%20Inquiry"
+                      className="mt-2.5 w-full border-[1.5px] border-[#FF6B00] text-[#FF6B00] hover:bg-[#FF6B00] hover:text-white transition-colors text-[11px] font-semibold py-1.5 px-3 rounded-lg cursor-pointer active:scale-98 block text-center"
                     >
                       Contact Desk →
-                    </button>
+                    </a>
                   </div>
 
                   <button

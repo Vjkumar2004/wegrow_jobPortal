@@ -180,7 +180,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           <Link href="/admin/dashboard" className="inline-block" aria-label="WeGrow Admin Control">
             <div className="relative w-28 sm:w-40 h-7 sm:h-10">
               <Image
-                src="/image.png"
+                src="/wegrow-portal-logo.png"
                 alt="WeGrow Skill Campus"
                 fill
                 className="object-contain object-left"
@@ -267,7 +267,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           <div className="flex items-center justify-between pb-3.5 mb-2 border-b border-[#EEF1F7] lg:hidden">
             <div className="relative w-32 h-8">
               <Image
-                src="/image.png"
+                src="/wegrow-portal-logo.png"
                 alt="WeGrow Skill Campus"
                 fill
                 className="object-contain object-left"

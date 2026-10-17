@@ -124,6 +124,7 @@ export interface StudentProfile {
     id: string;
     degree: string;
     institution: string;
+    fieldOfStudy?: string;
     startYear: string;
     endYear: string;
     grade?: string;
@@ -314,6 +315,7 @@ export interface StudentBrowseJobItem {
   skills: string[];
   overflowSkillsCount?: number;
   postedAgo: string;
+  deadline?: string;
   isBookmarked?: boolean;
   hasApplied?: boolean;
   applicationId?: string;

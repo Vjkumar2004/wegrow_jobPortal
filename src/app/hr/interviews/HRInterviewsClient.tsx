@@ -30,7 +30,8 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Interview, Application } from "@/types";
 import { hrService } from "@/services/hr.service";
-import { getNameInitials, resolveMediaUrl } from "@/lib/utils";
+import { getNameInitials, resolveMediaUrl, buildIsoInterviewTime } from "@/lib/utils";
+import Portal from "@/components/common/Portal";
 
 interface HRInterviewsClientProps {
   initialInterviews: Interview[];
@@ -76,10 +77,26 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
   const [interviewNotes, setInterviewNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Cancel Interview Modal State
+  const [cancelModalInterview, setCancelModalInterview] = useState<Interview | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  useEffect(() => {
+    if (isScheduleModalOpen || cancelModalInterview) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isScheduleModalOpen, cancelModalInterview]);
 
   useEffect(() => {
     if (interviewsQuery) setInterviews(interviewsQuery);
@@ -96,6 +113,23 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
       }
     }
   }, [applicantsQuery, selectedAppId]);
+
+  const handleOpenScheduleModal = () => {
+    if (applicantsList.length > 0) {
+      const selected = applicantsList.find((a) => a.id === selectedAppId) || applicantsList[0];
+      setSelectedAppId(selected.id);
+      setCustomJobTitle(selected.jobTitle);
+      setCustomCandidateName(selected.applicantName);
+      setCustomCandidateEmail(selected.applicantEmail);
+    }
+    const d = new Date(Date.now() + 86400000);
+    setInterviewDate(d.toISOString().split("T")[0]);
+    setInterviewTime("11:30 AM");
+    if (!meetingLink) {
+      setMeetingLink("https://meet.google.com/wegrow-interview");
+    }
+    setIsScheduleModalOpen(true);
+  };
 
   const copyMeetingLink = (link: string, id: string) => {
     navigator.clipboard.writeText(link);
@@ -117,68 +151,78 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
         );
         queryClient.invalidateQueries({ queryKey: ["hr-interviews"] });
         showToast("Interview marked as completed!");
+      } else {
+        showToast("Failed to mark interview as completed. Please try again.");
       }
     } catch {
       showToast("Failed to update interview status.");
     }
   };
 
-  // Cancel Interview
-  const handleCancelInterview = async (interviewId: string) => {
-    if (!confirm("Are you sure you want to cancel this interview session?")) return;
+  // Confirm Cancel Interview with Reason
+  const handleConfirmCancel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cancelModalInterview) return;
+
+    const trimmedReason = cancelReason.trim();
+    if (!trimmedReason) {
+      showToast("Please provide or select a cancellation reason.");
+      return;
+    }
+
+    setIsCancelling(true);
     try {
-      const ok = await hrService.cancelInterview(interviewId, "Cancelled by recruiter");
+      const ok = await hrService.cancelInterview(cancelModalInterview.id, trimmedReason);
       if (ok) {
         setInterviews((prev) =>
-          prev.map((i) => (i.id === interviewId ? { ...i, status: "Cancelled" } : i))
+          prev.map((i) => (i.id === cancelModalInterview.id ? { ...i, status: "Cancelled", notes: trimmedReason } : i))
         );
         queryClient.setQueryData<Interview[]>(["hr-interviews"], (prev) =>
-          (prev ?? []).map((i) => (i.id === interviewId ? { ...i, status: "Cancelled" } : i))
+          (prev ?? []).map((i) => (i.id === cancelModalInterview.id ? { ...i, status: "Cancelled", notes: trimmedReason } : i))
         );
         queryClient.invalidateQueries({ queryKey: ["hr-interviews"] });
-        showToast("Interview session cancelled.");
+        showToast(`Interview cancelled. Notification and email sent to ${cancelModalInterview.candidateName}.`);
+        setCancelModalInterview(null);
+        setCancelReason("");
+      } else {
+        showToast("Failed to cancel interview session. Please try again.");
       }
     } catch {
       showToast("Failed to cancel interview.");
+    } finally {
+      setIsCancelling(false);
     }
   };
 
   // Handle Schedule Modal Submission
   const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!selectedAppId) {
+      showToast("Please select an applicant before scheduling an interview.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      let startIso = new Date(Date.now() + 86400000).toISOString();
-      let endIso = new Date(Date.now() + 86400000 + 3600000).toISOString();
-      if (interviewDate) {
-        let hours = 11, minutes = 30;
-        const match = interviewTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-        if (match) {
-          hours = parseInt(match[1], 10);
-          minutes = parseInt(match[2], 10);
-          const meridiem = match[3]?.toUpperCase();
-          if (meridiem === "PM" && hours < 12) hours += 12;
-          if (meridiem === "AM" && hours === 12) hours = 0;
-        }
-        const d = new Date(interviewDate);
-        d.setHours(hours, minutes, 0, 0);
-        startIso = d.toISOString();
-        endIso = new Date(d.getTime() + 60 * 60 * 1000).toISOString();
-      }
-
+      const { startIso, endIso } = buildIsoInterviewTime(interviewDate, interviewTime);
       const selectedApp = applicantsList.find((a) => a.id === selectedAppId);
+      const candidateName = customCandidateName || selectedApp?.applicantName || "Candidate";
+      const candidateEmail = customCandidateEmail || selectedApp?.applicantEmail || "";
+      const jobTitle = customJobTitle || selectedApp?.jobTitle || "Software Trainee";
+
       const created = await hrService.scheduleInterview({
         applicationId: selectedAppId,
-        candidateName: customCandidateName || selectedApp?.applicantName || "Candidate",
-        candidateEmail: customCandidateEmail || selectedApp?.applicantEmail || "",
+        candidateName,
+        candidateEmail,
         candidateCollege: selectedApp?.applicantCollege,
         candidateAvatar: selectedApp?.applicantAvatar,
-        jobTitle: customJobTitle || selectedApp?.jobTitle || "Software Trainee",
+        jobTitle,
         date: interviewDate,
         time: interviewTime,
         type: interviewType,
-        meetingLink,
+        meetingLink: meetingLink?.trim() || "https://meet.google.com/wegrow-interview",
         notes: interviewNotes,
         scheduledStartAt: startIso,
         scheduledEndAt: endIso,
@@ -192,9 +236,10 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
       queryClient.invalidateQueries({ queryKey: ["hr-interviews"] });
       queryClient.invalidateQueries({ queryKey: ["hr-applications"] });
       setIsScheduleModalOpen(false);
-      showToast(`Interview scheduled successfully for ${customCandidateName || "Candidate"}!`);
+      showToast(`Interview scheduled successfully for ${candidateName}!`);
     } catch (err: any) {
-      showToast(err?.message || "Failed to schedule interview.");
+      const msg = err?.response?.data?.message || err?.message || "Failed to schedule interview.";
+      showToast(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -267,7 +312,7 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
 
           <button
             type="button"
-            onClick={() => setIsScheduleModalOpen(true)}
+            onClick={handleOpenScheduleModal}
             className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-[#1E5BE0] hover:bg-[#1546B0] text-white text-xs font-bold rounded-xl transition-colors shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -617,9 +662,12 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
 
                     <button
                       type="button"
-                      onClick={() => handleCancelInterview(interview.id)}
+                      onClick={() => {
+                        setCancelModalInterview(interview);
+                        setCancelReason("");
+                      }}
                       className="p-2 border border-[#E3E8F0] hover:bg-rose-50 hover:text-[#EF4444] hover:border-rose-200 rounded-[10px] text-[#6B7694] transition cursor-pointer"
-                      title="Cancel Session"
+                      title="Cancel Session & Notify Candidate"
                     >
                       <Ban className="w-4 h-4" />
                     </button>
@@ -633,7 +681,8 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
 
       {/* 5. Schedule Interview Modal */}
       {isScheduleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B1F4B]/60 backdrop-blur-xs animate-in fade-in duration-200">
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-[20px] max-w-lg w-full max-h-[92vh] overflow-y-auto p-5 sm:p-7 shadow-2xl border border-[#EEF1F7] space-y-5">
             <div className="flex items-center justify-between border-b border-[#EEF1F7] pb-4">
               <div>
@@ -685,14 +734,19 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
                     ))}
                   </select>
                 ) : (
-                  <input
-                    type="text"
-                    required
-                    placeholder="Candidate Name"
-                    value={customCandidateName}
-                    onChange={(e) => setCustomCandidateName(e.target.value)}
-                    className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] px-3 py-2.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20"
-                  />
+                  <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1.5">
+                    <div className="flex items-center gap-2 font-bold text-amber-800">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                      <span>No Applicants Available Yet</span>
+                    </div>
+                    <p className="text-[11px] text-amber-700 leading-relaxed">
+                      Candidates must first submit an application to one of your active job postings before you can schedule an interview.
+                    </p>
+                    <Link href="/hr/jobs" className="text-xs font-bold text-[#1E5BE0] hover:underline inline-flex items-center gap-1 mt-1">
+                      <span>View My Posted Jobs</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
                 )}
               </div>
 
@@ -780,8 +834,8 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2.5 rounded-[8px] font-bold bg-[#1E5BE0] hover:bg-[#1546B0] text-white shadow-sm transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                  disabled={isSubmitting || !selectedAppId || applicantsList.length === 0}
+                  className="px-5 py-2.5 rounded-[8px] font-bold bg-[#1E5BE0] hover:bg-[#1546B0] text-white shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>Confirm & Send Invite</span>
@@ -790,6 +844,149 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
             </form>
           </div>
         </div>
+        </Portal>
+      )}
+
+      {/* 6. Cancel Interview Reason Pop-Up Modal */}
+      {cancelModalInterview && (
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[20px] max-w-lg w-full max-h-[92vh] overflow-y-auto p-5 sm:p-7 shadow-2xl border border-rose-100 space-y-5">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[#EEF1F7] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 text-[#EF4444] border border-rose-100 flex items-center justify-center shrink-0">
+                  <Ban className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-[#0B1F4B]">Cancel Interview Session</h3>
+                  <p className="text-xs text-[#6B7694]">Provide a reason to notify the student via email & in-app alert.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isCancelling) setCancelModalInterview(null);
+                }}
+                className="w-8 h-8 rounded-lg text-[#6B7694] hover:bg-slate-100 flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Candidate & Round Summary Card */}
+            <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#EEF1F7] space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[#6B7694]">Candidate:</span>
+                <span className="font-bold text-[#0B1F4B]">{cancelModalInterview.candidateName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6B7694]">Position / Role:</span>
+                <span className="font-semibold text-[#1E5BE0]">{cancelModalInterview.jobTitle}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6B7694]">Interview Round:</span>
+                <span className="font-semibold text-[#0B1F4B]">{cancelModalInterview.type}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6B7694]">Scheduled Date & Time:</span>
+                <span className="font-semibold text-[#0B1F4B]">
+                  {cancelModalInterview.date} at {cancelModalInterview.time}
+                </span>
+              </div>
+              {cancelModalInterview.candidateEmail && (
+                <div className="flex justify-between border-t border-[#EEF1F7] pt-2 mt-2">
+                  <span className="text-[#6B7694] flex items-center gap-1">
+                    <Mail className="w-3.5 h-3.5 text-[#1E5BE0]" /> Student Email:
+                  </span>
+                  <span className="font-medium text-[#0B1F4B] truncate max-w-[240px]">
+                    {cancelModalInterview.candidateEmail}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleConfirmCancel} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F4B] mb-1.5">
+                  Cancellation Reason <span className="text-rose-500">*</span>
+                </label>
+
+                {/* Quick Select Reason Chips */}
+                <div className="flex flex-wrap gap-1.5 mb-2.5">
+                  {[
+                    "Interviewer is unavailable; rescheduling soon",
+                    "Candidate requested rescheduling",
+                    "Position filled / internal placement",
+                    "Schedule conflict with panel",
+                    "Role requirements updated",
+                  ].map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setCancelReason(chip)}
+                      className={`text-[11px] font-medium px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                        cancelReason === chip
+                          ? "bg-rose-50 border-rose-300 text-rose-700 font-bold"
+                          : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+
+                <textarea
+                  required
+                  rows={3}
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Enter or select a clear reason for cancellation. This will be sent directly to the candidate's email..."
+                  className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] text-xs px-3.5 py-2.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-rose-400/30 focus:border-rose-300 resize-none"
+                />
+              </div>
+
+              {/* Informational Email Banner */}
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl flex items-start gap-2 text-[11px] text-amber-900 leading-relaxed">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>
+                  An automated email with your cancellation reason will be delivered to <strong>{cancelModalInterview.candidateName}</strong>, and their student portal status will update to <strong>Cancelled</strong>.
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-3 border-t border-[#EEF1F7] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={isCancelling}
+                  onClick={() => setCancelModalInterview(null)}
+                  className="px-4 py-2.5 rounded-[10px] text-xs font-semibold text-[#6B7694] hover:bg-[#F1F4F9] transition cursor-pointer disabled:opacity-50"
+                >
+                  Keep Interview
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCancelling || !cancelReason.trim()}
+                  className="px-5 py-2.5 rounded-[10px] text-xs font-bold bg-[#EF4444] hover:bg-rose-700 text-white shadow-sm transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isCancelling ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Sending Email & Cancelling...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="w-3.5 h-3.5" />
+                      <span>Confirm Cancellation & Send Email</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+        </Portal>
       )}
     </div>
   );

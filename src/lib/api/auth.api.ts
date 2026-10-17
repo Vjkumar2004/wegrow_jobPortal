@@ -229,6 +229,37 @@ export const authApi = {
   },
 
   /**
+   * POST /auth/forgot-password
+   * Sends a reset OTP to the provided email
+   */
+  async forgotPassword(email: string, role?: "STUDENT" | "HR"): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.post<{ success: boolean; message: string }>("/auth/forgot-password", {
+      email: email.trim().toLowerCase(),
+      ...(role ? { role } : {}),
+    });
+    return response.data;
+  },
+
+  /**
+   * POST /auth/verify-reset-code
+   * Validates the OTP before allowing password reset
+   */
+  async verifyResetCode(email: string, otp: string): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.post<{ success: boolean; message: string }>("/auth/verify-reset-code", { email: email.trim().toLowerCase(), otp: otp.trim() });
+    return response.data;
+  },
+
+  /**
+   * POST /auth/reset-password
+   * Resets the password after OTP verification
+   */
+  async resetPassword(email: string, otp: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    // Backend schema uses "password", not "newPassword"
+    const response = await apiClient.post<{ success: boolean; message: string }>("/auth/reset-password", { email: email.trim().toLowerCase(), otp: otp.trim(), password: newPassword });
+    return response.data;
+  },
+
+  /**
    * Helper to inspect currently stored local user
    */
   getCurrentUser(): (BackendUser & { token?: string }) | null {

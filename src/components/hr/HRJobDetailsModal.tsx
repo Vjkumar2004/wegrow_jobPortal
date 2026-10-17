@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import Link from "next/link";
+import Portal from "@/components/common/Portal";
 import { Job } from "@/types";
 import { formatDate, formatSalary, getCompanyLogoUrl, getCompanyLogoProxyUrl } from "@/lib/utils";
 import {
@@ -64,12 +65,13 @@ export default function HRJobDetailsModal({
   const isPublished = job.status === "Published";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-[#0B1F4B]/60 backdrop-blur-sm animate-fadeIn"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-job-title"
-    >
+    <Portal>
+      <div
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-sm animate-fadeIn"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-job-title"
+      >
       {/* Background click to dismiss */}
       <div className="absolute inset-0" onClick={onClose} />
 
@@ -229,8 +231,16 @@ export default function HRJobDetailsModal({
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#6B7694] flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-[#1E5BE0]" /> Role Overview & Description
             </h3>
-            <div className="text-xs sm:text-[13px] text-[#2D3748] leading-relaxed bg-[#F8FAFD] p-4 rounded-xl border border-[#EEF1F7] whitespace-pre-line">
-              {job.description || "No full description provided for this job opening."}
+            <div className="text-xs sm:text-[13px] text-[#2D3748] leading-relaxed bg-[#F8FAFD] p-4 sm:p-5 rounded-xl border border-[#EEF1F7] space-y-2.5">
+              {job.description ? (
+                job.description.split("\n\n").map((para, idx) => (
+                  <p key={idx} className="whitespace-pre-line">
+                    {para}
+                  </p>
+                ))
+              ) : (
+                <p className="text-[#6B7694] italic">No full description provided for this job opening.</p>
+              )}
             </div>
           </div>
 
@@ -376,6 +386,7 @@ export default function HRJobDetailsModal({
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </Portal>
   );
 }

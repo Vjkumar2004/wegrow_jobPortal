@@ -68,7 +68,7 @@ export const PublicNavbar: React.FC = () => {
 
   const navLinks = [
     { label: "Home",           href: "/",               hash: null },
-    { label: "Explore Careers", href: "/#hero-search",   hash: "hero-search" },
+    { label: "Explore Careers", href: "/jobs",            hash: null },
     { label: "Top Recruiters", href: "/#top-companies",  hash: "top-companies" },
     { label: "About Us",       href: "/about",           hash: null },
     { label: "Resources",      href: "/resources",       hash: null },
@@ -118,7 +118,7 @@ export const PublicNavbar: React.FC = () => {
             }}
           >
             <Image
-              src="/image.png"
+              src="/wegrow-portal-logo.png"
               alt="WeGrow Skill Campus"
               fill
               className="object-contain object-left"
@@ -255,7 +255,7 @@ export const PublicNavbar: React.FC = () => {
         >
           <div className="relative w-36 h-9">
             <Image
-              src="/image.png"
+              src="/wegrow-portal-logo.png"
               alt="WeGrow Skill Campus"
               fill
               className="object-contain object-left"

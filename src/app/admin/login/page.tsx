@@ -107,7 +107,7 @@ function AdminLoginContent() {
             <div className="bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl inline-flex items-center shadow-md shadow-black/15 transition-transform duration-200 group-hover:scale-105">
               <div className="relative w-36 sm:w-40 h-9 sm:h-10">
                 <Image
-                  src="/image.png"
+                  src="/wegrow-portal-logo.png"
                   alt="WeGrow Skill Campus"
                   fill
                   className="object-contain object-left"
@@ -186,7 +186,7 @@ function AdminLoginContent() {
           <Link href="/" className="inline-block" aria-label="WeGrow Skill Campus Home">
             <div className="relative w-36 h-9">
               <Image
-                src="/image.png"
+                src="/wegrow-portal-logo.png"
                 alt="WeGrow Skill Campus"
                 fill
                 className="object-contain object-left"
@@ -210,7 +210,7 @@ function AdminLoginContent() {
               <Link href="/" className="inline-block" aria-label="WeGrow Skill Campus Home">
                 <div className="relative w-40 h-10">
                   <Image
-                    src="/image.png"
+                    src="/wegrow-portal-logo.png"
                     alt="WeGrow Skill Campus"
                     fill
                     className="object-contain object-left"

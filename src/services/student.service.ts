@@ -50,6 +50,7 @@ export const studentService = {
           id: e.id || "",
           degree: e.degree || e.course || "Degree",
           institution: e.institution || e.college || "College",
+          fieldOfStudy: e.fieldOfStudy || undefined,
           startYear: e.startYear ? String(e.startYear) : e.startDate ? String(new Date(e.startDate).getFullYear()) : "",
           endYear: e.endYear ? String(e.endYear) : e.endDate ? String(new Date(e.endDate).getFullYear()) : (e.isCurrent ? "Present" : ""),
           cgpa: e.cgpa ? String(e.cgpa) : e.grade || undefined,
@@ -64,6 +65,8 @@ export const studentService = {
           description: p.description || "",
           link: p.projectUrl || p.link || undefined,
           repoUrl: p.githubUrl || p.repoUrl || undefined,
+          startDate: p.startDate ? new Date(p.startDate).toISOString().split("T")[0] : "",
+          endDate: p.endDate ? new Date(p.endDate).toISOString().split("T")[0] : "",
           dateText: p.dateText || (p.startDate ? `${new Date(p.startDate).getFullYear()}` : undefined),
           thumbnailUrl: p.thumbnailUrl || undefined,
           technologies: Array.isArray(p.technologies)
@@ -82,6 +85,9 @@ export const studentService = {
           company: exp.company || "Company",
           location: exp.location || "",
           companyLogo: exp.companyLogo || undefined,
+          startDate: exp.startDate ? new Date(exp.startDate).toISOString().split("T")[0] : "",
+          endDate: exp.endDate ? new Date(exp.endDate).toISOString().split("T")[0] : "",
+          isCurrent: Boolean(exp.isCurrent),
           duration: exp.duration || (exp.startDate && exp.endDate ? `${new Date(exp.startDate).getFullYear()} - ${new Date(exp.endDate).getFullYear()}` : exp.isCurrent ? "Present" : "Completed"),
           bullets: exp.description ? exp.description.split("\n").filter(Boolean) : [],
           description: exp.description || "",
@@ -101,8 +107,8 @@ export const studentService = {
         const checklist = [
           { label: "Personal Information", done: Boolean(data.fullName && data.phone), countText: "" },
           { label: "Education Details", done: Boolean(eduList.length > 0), countText: "" },
-          { label: "Skills", done: Boolean(skillsList.length > 0), countText: `${skillsList.length}/10` },
-          { label: "Add Projects", done: Boolean(projList.length > 0), countText: `${projList.length}/2` },
+          { label: "Skills", done: Boolean(skillsList.length > 0), countText: "" },
+          { label: "Add Projects", done: Boolean(projList.length > 0), countText: "" },
           { label: "Upload Resume", done: hasResume, countText: "" },
         ];
         const doneCount = checklist.filter((c) => c.done).length;
@@ -110,7 +116,9 @@ export const studentService = {
 
         // Parse personal metadata saved in careerPreferences if present
         const prefObj = (typeof data.careerPreferences === "object" && data.careerPreferences) ? data.careerPreferences : {};
-        const savedDob = prefObj.dateOfBirth || (data.dateOfBirth ? new Date(data.dateOfBirth).toISOString().split("T")[0] : "");
+        const savedDob = prefObj.dateOfBirth
+          ? new Date(prefObj.dateOfBirth).toISOString().split("T")[0]
+          : (data.dateOfBirth ? new Date(data.dateOfBirth).toISOString().split("T")[0] : "");
         const savedGender = prefObj.gender || data.gender || "";
 
         return {
@@ -252,7 +260,9 @@ export const studentService = {
         mergedPrefs.gender = raw.gender || null;
       }
 
-      if (Object.keys(mergedPrefs).length > 0 || raw.careerPreferences !== undefined) {
+      // Only include careerPreferences when mergedPrefs is actually non-empty.
+      // Sending {} would overwrite and wipe existing DB data.
+      if (Object.keys(mergedPrefs).length > 0) {
         sanitized.careerPreferences = mergedPrefs;
       }
 
@@ -454,7 +464,10 @@ export const studentService = {
     endDate?: string;
     technologies?: string[] | string;
   }): Promise<BackendProject> {
-    const formatted: Record<string, any> = { ...payload };
+    const { repoUrl, ...rest } = payload;
+    const formatted: Record<string, any> = { ...rest };
+    // Backend uses githubUrl, not repoUrl
+    if (repoUrl) formatted.githubUrl = repoUrl;
     if (payload.startDate) {
       const sDate = toIsoDate(payload.startDate);
       formatted.startDate = sDate ?? undefined;
@@ -479,7 +492,10 @@ export const studentService = {
     endDate?: string;
     technologies?: string[] | string;
   }>): Promise<BackendProject> {
-    const formatted: Record<string, any> = { ...payload };
+    const { repoUrl, ...rest } = payload;
+    const formatted: Record<string, any> = { ...rest };
+    // Backend uses githubUrl, not repoUrl
+    if (repoUrl !== undefined) formatted.githubUrl = repoUrl || null;
     if (payload.startDate !== undefined) {
       const sDate = toIsoDate(payload.startDate);
       formatted.startDate = sDate ?? null;
@@ -505,10 +521,18 @@ export const studentService = {
    * GET /api/v1/students/me/skills
    */
   async getSkills(): Promise<BackendSkill[]> {
-    const response = await apiClient.get<{ success: boolean; data: { skills?: BackendSkill[]; items?: BackendSkill[] } | BackendSkill[] }>("/students/me/skills");
+    const response = await apiClient.get<{ success: boolean; data: { skills?: any[]; items?: any[] } | any[] }>("/students/me/skills");
     const d = response.data?.data;
-    if (Array.isArray(d)) return d;
-    return d?.skills || d?.items || [];
+    const raw: any[] = Array.isArray(d) ? d : (d?.skills || d?.items || []);
+    // Backend returns StudentSkill rows: { id, studentId, skillId, proficiency, skill: { id, name } }
+    // Normalize so id = studentSkill.id and name is always at top level
+    return raw.map((s: any) => ({
+      id: s.id,
+      studentId: s.studentId,
+      name: s.name || s.skill?.name || "",
+      proficiencyLevel: s.proficiency || s.proficiencyLevel,
+      createdAt: s.createdAt,
+    }));
   },
 
   /**
@@ -518,7 +542,10 @@ export const studentService = {
     name: string;
     proficiencyLevel?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
   }): Promise<BackendSkill> {
-    const response = await apiClient.post("/students/me/skills", payload);
+    // Backend validator expects "proficiency", not "proficiencyLevel"
+    const body: Record<string, any> = { name: payload.name };
+    if (payload.proficiencyLevel) body.proficiency = payload.proficiencyLevel;
+    const response = await apiClient.post("/students/me/skills", body);
     return response.data?.data?.skill || response.data?.data;
   },
 

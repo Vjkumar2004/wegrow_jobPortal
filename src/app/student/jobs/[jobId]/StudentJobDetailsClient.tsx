@@ -1132,10 +1132,18 @@ export default function StudentJobDetailsClient({
                     <Building2 className="w-6 h-6 text-[#1E5BE0]" />
                   )}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <h4 className="font-bold text-sm text-[#0B1F4B] truncate">{job.title}</h4>
                   <p className="text-xs text-[#6B7694] truncate">{job.company.name} • {job.location}</p>
-                  <span className="text-[11px] font-bold text-[#1E5BE0]">{formattedSalary}</span>
+                  <div className="flex items-center gap-3 mt-1 text-[11px]">
+                    <span className="font-bold text-[#1E5BE0]">{formattedSalary}</span>
+                    {job.deadline && (
+                      <span className="font-semibold text-[#FF6B00] flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        Deadline: {new Date(job.deadline).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

@@ -548,9 +548,19 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
 
                   {/* Footer */}
                   <div className={`flex items-center justify-between gap-3 ${viewMode === "list" ? "sm:flex-col sm:items-end sm:justify-center shrink-0 mt-3 sm:mt-0" : "mt-4 pt-3.5 border-t border-[#F0F2F8]"}`}>
-                    <span className="text-[12px] text-[#9BA5BB] flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {job.postedAgo}
-                    </span>
+                    <div className="text-[12px] flex items-center gap-1">
+                      {job.deadline ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-[#FF6B00]">
+                          <Clock className="w-3.5 h-3.5 text-[#FF6B00]" />
+                          Apply by {new Date(job.deadline).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[#9BA5BB]">
+                          <Clock className="w-3 h-3" />
+                          {job.postedAgo || "Open until filled"}
+                        </span>
+                      )}
+                    </div>
                     {job.hasApplied ? (
                       <span className="inline-flex items-center gap-1 bg-[#E5F8EE] text-[#1E9E63] text-[12px] font-bold px-3 py-1.5 rounded-xl border border-[#22B573]/20">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Applied

@@ -55,7 +55,7 @@ export const Footer: React.FC = () => {
               <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-xl inline-flex items-center shadow-md shadow-black/10 transition-transform duration-200 hover:scale-[1.02]">
                 <div className="relative w-40 sm:w-44 h-11">
                   <Image
-                    src="/image.png"
+                    src="/wegrow-portal-logo.png"
                     alt="WeGrow Skill Campus"
                     fill
                     className="object-contain object-left"
@@ -177,7 +177,7 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <Link
-                  href="/#hero-search"
+                  href="/jobs"
                   className="text-blue-100/90 hover:text-[#F79400] transition-colors duration-200 flex items-center gap-1.5"
                 >
                   <span>Explore Careers</span>
@@ -189,6 +189,22 @@ export const Footer: React.FC = () => {
                   className="text-blue-100/90 hover:text-[#F79400] transition-colors duration-200 flex items-center gap-1.5"
                 >
                   <span>Login / Signup</span>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/privacy-policy"
+                  className="text-blue-100/90 hover:text-[#F79400] transition-colors duration-200 flex items-center gap-1.5"
+                >
+                  <span>Privacy Policy</span>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/terms"
+                  className="text-blue-100/90 hover:text-[#F79400] transition-colors duration-200 flex items-center gap-1.5"
+                >
+                  <span>Terms &amp; Conditions</span>
                 </Link>
               </li>
             </ul>
