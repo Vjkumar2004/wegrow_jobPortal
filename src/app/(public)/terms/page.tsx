@@ -16,10 +16,29 @@ import {
   XCircle,
 } from "lucide-react";
 
-export const metadata = {
-  title: "Terms & Conditions | WeGrow Skill Campus",
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Terms & Conditions",
   description:
-    "Official Terms and Conditions for WeGrow Skill Campus Job Portal. Guidelines, rights, and responsibilities for students, colleges, and corporate recruiters.",
+    "Official Terms and Conditions for WeGrow Jobz. Guidelines, rights, and responsibilities for candidates, colleges, and corporate recruiters.",
+  alternates: {
+    canonical: "https://www.wegrowjobz.com/terms",
+  },
+  openGraph: {
+    title: "Terms & Conditions | WeGrow Jobz",
+    description:
+      "Official Terms and Conditions for WeGrow Jobz. Guidelines, rights, and responsibilities for candidates, colleges, and corporate recruiters.",
+    url: "https://www.wegrowjobz.com/terms",
+    siteName: "WeGrow Jobz",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "WeGrow Jobz Terms & Conditions" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Terms & Conditions | WeGrow Jobz",
+    description: "Guidelines, rights, and responsibilities for candidates and recruiters on WeGrow Jobz.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function TermsPage() {

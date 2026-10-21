@@ -19,10 +19,29 @@ import {
   FileCheck2,
 } from "lucide-react";
 
-export const metadata = {
-  title: "Privacy Policy | WeGrow Skill Campus",
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy",
   description:
-    "Official Privacy Policy for WeGrow Skill Campus Job Portal. Learn how we protect student resumes, academic data, employer records, and adhere to data protection standards.",
+    "Official Privacy Policy for WeGrow Jobz. Learn how we safeguard candidate resumes, personal information, employer records, and recruitment data.",
+  alternates: {
+    canonical: "https://www.wegrowjobz.com/privacy-policy",
+  },
+  openGraph: {
+    title: "Privacy Policy | WeGrow Jobz",
+    description:
+      "Official Privacy Policy for WeGrow Jobz. Learn how we safeguard candidate resumes, personal information, employer records, and recruitment data.",
+    url: "https://www.wegrowjobz.com/privacy-policy",
+    siteName: "WeGrow Jobz",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "WeGrow Jobz Privacy Policy" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Privacy Policy | WeGrow Jobz",
+    description: "Learn how we safeguard candidate resumes, personal information, and recruitment data.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function PrivacyPolicyPage() {

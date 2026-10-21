@@ -1,11 +1,38 @@
-﻿import React from "react";
+import React from "react";
 import { Lightbulb, Compass, Award, CheckCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/common/Button";
 
-export const metadata = {
-  title: "Career Tips & Mentorship Guides | WeGrow Skill Campus",
-  description: "Expert advice on resume tailoring, LinkedIn networking, salary negotiation, and acing campus placement drives.",
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Career Tips & Mentorship Guides",
+  description:
+    "Expert advice on resume tailoring, tech interview preparation, and salary negotiation for college graduates and freshers on WeGrow Jobz.",
+  alternates: {
+    canonical: "https://www.wegrowjobz.com/career-tips",
+  },
+  openGraph: {
+    title: "Career Tips & Mentorship Guides | WeGrow Jobz",
+    description:
+      "Expert advice on resume tailoring, tech interview preparation, and salary negotiation for college graduates and freshers on WeGrow Jobz.",
+    url: "https://www.wegrowjobz.com/career-tips",
+    siteName: "WeGrow Jobz",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Career Tips on WeGrow Jobz",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Career Tips & Mentorship Guides | WeGrow Jobz",
+    description: "Expert advice on cracking campus placements and technical rounds.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function CareerTipsPage() {
