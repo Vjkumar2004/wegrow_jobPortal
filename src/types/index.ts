@@ -272,6 +272,8 @@ export interface StudentNotificationItem {
   companyId?: string;
   read?: boolean;
   linkUrl?: string;
+  createdAt?: string | Date;
+  readAt?: string | Date;
 }
 
 export interface StudentDashboardData {

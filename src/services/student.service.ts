@@ -36,6 +36,39 @@ export function toIsoDate(val: unknown): string | undefined {
   return d.toISOString();
 }
 
+/**
+ * Checks whether a notification is read and older than 15 days.
+ */
+export function isReadAndOlderThan15Days(n: {
+  read?: boolean;
+  isRead?: boolean;
+  createdAt?: string | Date;
+  readAt?: string | Date;
+  timeAgo?: string;
+}): boolean {
+  const isRead = Boolean(n.read || (n as any).isRead);
+  if (!isRead) return false;
+
+  const dateValue = n.readAt || n.createdAt;
+  if (dateValue) {
+    const timestamp = new Date(dateValue).getTime();
+    if (!isNaN(timestamp)) {
+      const diffMs = Date.now() - timestamp;
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+      if (diffDays >= 15) return true;
+    }
+  }
+
+  if (typeof n.timeAgo === "string") {
+    const lower = n.timeAgo.toLowerCase();
+    const dayMatch = lower.match(/(\d+)\s*day/);
+    if (dayMatch && parseInt(dayMatch[1], 10) >= 15) return true;
+    if (lower.includes("month") || lower.includes("year")) return true;
+  }
+
+  return false;
+}
+
 export const studentService = {
   /**
    * GET /api/v1/students/me
@@ -1172,19 +1205,24 @@ export const studentService = {
       // Fetch real notifications directly from database
       const _notifsRaw: any = notifsRes?.data?.data?.items || notifsRes?.data?.data;
       const notifications: StudentNotificationItem[] = Array.isArray(_notifsRaw)
-        ? _notifsRaw.map((n: any) => ({
-            id: n.id || String(Math.random()),
-            title: n.title || "Notification",
-            subtitle: n.subtitle || n.companyName || "",
-            message: n.message || n.body || "",
-            timeAgo: n.timeAgo || "Recently",
-            type: n.type || "blue",
-            companyName: n.companyName || n.company?.name || undefined,
-            companyLogo: getCompanyLogoUrl(n.company, n.companyId || n.company?.id) || undefined,
-            companyId: n.companyId || n.company?.id || undefined,
-            read: Boolean(n.read || n.isRead),
-            linkUrl: n.linkUrl || undefined,
-          }))
+        ? _notifsRaw
+            .filter((n: any) => !isReadAndOlderThan15Days(n))
+            .slice(0, 5)
+            .map((n: any) => ({
+              id: n.id || String(Math.random()),
+              title: n.title || "Notification",
+              subtitle: n.subtitle || n.companyName || "",
+              message: n.message || n.body || "",
+              timeAgo: n.timeAgo || "Recently",
+              type: n.type || "blue",
+              companyName: n.companyName || n.company?.name || undefined,
+              companyLogo: getCompanyLogoUrl(n.company, n.companyId || n.company?.id) || undefined,
+              companyId: n.companyId || n.company?.id || undefined,
+              read: Boolean(n.read || n.isRead),
+              linkUrl: n.linkUrl || undefined,
+              createdAt: n.createdAt,
+              readAt: n.readAt,
+            }))
         : [];
 
       return {
@@ -1295,19 +1333,23 @@ export const studentService = {
       const res = await apiClient.get<any>("/students/me/notifications");
       const items = res.data?.data?.items || res.data?.data;
       if (Array.isArray(items)) {
-        return items.map((n: any) => ({
-          id: n.id || String(Math.random()),
-          title: n.title || "Notification",
-          subtitle: n.subtitle || n.companyName || "",
-          message: n.message || n.body || "",
-          timeAgo: n.timeAgo || "Recently",
-          type: n.type || "blue",
-          companyName: n.companyName || n.company?.name || undefined,
-          companyLogo: getCompanyLogoUrl(n.company, n.companyId || n.company?.id) || undefined,
-          companyId: n.companyId || n.company?.id || undefined,
-          read: Boolean(n.read || n.isRead),
-          linkUrl: n.linkUrl || undefined,
-        }));
+        return items
+          .filter((n: any) => !isReadAndOlderThan15Days(n))
+          .map((n: any) => ({
+            id: n.id || String(Math.random()),
+            title: n.title || "Notification",
+            subtitle: n.subtitle || n.companyName || "",
+            message: n.message || n.body || "",
+            timeAgo: n.timeAgo || "Recently",
+            type: n.type || "blue",
+            companyName: n.companyName || n.company?.name || undefined,
+            companyLogo: getCompanyLogoUrl(n.company, n.companyId || n.company?.id) || undefined,
+            companyId: n.companyId || n.company?.id || undefined,
+            read: Boolean(n.read || n.isRead),
+            linkUrl: n.linkUrl || undefined,
+            createdAt: n.createdAt,
+            readAt: n.readAt,
+          }));
       }
     } catch {
       // Endpoint not available
@@ -1331,7 +1373,9 @@ export const studentService = {
       }
       const items = res.data?.data?.items || res.data?.data;
       if (Array.isArray(items)) {
-        return items.filter((n: any) => !n.read && !n.isRead).length;
+        return items
+          .filter((n: any) => !isReadAndOlderThan15Days(n))
+          .filter((n: any) => !n.read && !n.isRead).length;
       }
     } catch {
       // Fallback
@@ -1357,6 +1401,28 @@ export const studentService = {
     }
   },
 
+  /**
+   * DELETE /api/v1/students/me/notifications/:id
+   */
+  async deleteNotification(id: string): Promise<void> {
+    try {
+      await apiClient.delete(`/students/me/notifications/${id}`);
+    } catch (err) {
+      console.error("Failed to delete notification", err);
+    }
+  },
+
+  /**
+   * DELETE /api/v1/students/me/notifications/cleanup-old
+   * Auto deletes read notifications older than 15 days
+   */
+  async cleanupOldNotifications(): Promise<void> {
+    try {
+      await apiClient.delete("/students/me/notifications/cleanup-old");
+    } catch (err) {
+      console.error("Failed to cleanup old notifications", err);
+    }
+  },
 };
 
 export default studentService;

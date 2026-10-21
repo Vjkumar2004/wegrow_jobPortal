@@ -117,7 +117,7 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
   const recommendedJobsList = dashboardData?.recommendedJobs || [];
   const recentApplicationsList = dashboardData?.recentApplications || [];
   const upcomingInterviewsList = dashboardData?.upcomingInterviews || [];
-  const notificationsList = dashboardData?.notifications || [];
+  const notificationsList = (dashboardData?.notifications || []).slice(0, 5);
   const profileCompletion = dashboardData?.profileCompletion || {
     percentage: 0,
     checklist: [],
@@ -1007,7 +1007,7 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                     No new notifications
                   </div>
                 ) : (
-                  notificationsList.map((notif: any) => (
+                  notificationsList.slice(0, 5).map((notif: any) => (
                     <div key={notif.id} className="flex items-start justify-between gap-3 text-[13px]">
                       <div className="flex items-start gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-xl bg-white border border-[#EEF1F7] p-1 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden font-bold text-xs text-[#1E5BE0]">
