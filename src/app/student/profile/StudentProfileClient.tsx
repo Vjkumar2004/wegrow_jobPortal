@@ -1259,7 +1259,7 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
             {editingSection === "personal" ? (
               <div className="space-y-4 pt-1">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="text-xs font-semibold text-[#6B7694] block mb-1">Headline / Tagline</label>
                     <input
                       type="text"
@@ -1307,29 +1307,6 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                       className="w-full bg-[#F4F6FA] text-sm text-[#0B1F4B] p-2.5 rounded-[10px] border border-[#E3E8F0]"
                     />
                   </div>
-                  <div>
-                    <label className="text-xs font-semibold text-[#6B7694] block mb-1">Date of Birth</label>
-                    <input
-                      type="date"
-                      max={new Date().toISOString().split("T")[0]}
-                      value={personalForm.dateOfBirth}
-                      onChange={(e) => setPersonalForm({ ...personalForm, dateOfBirth: e.target.value })}
-                      className="w-full bg-[#F4F6FA] text-sm text-[#0B1F4B] p-2.5 rounded-[10px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0] cursor-pointer"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-[#6B7694] block mb-1">Gender</label>
-                    <select
-                      value={personalForm.gender}
-                      onChange={(e) => setPersonalForm({ ...personalForm, gender: e.target.value })}
-                      className="w-full bg-[#F4F6FA] text-sm text-[#0B1F4B] p-2.5 rounded-[10px] border border-[#E3E8F0]"
-                    >
-                      <option value="">Select Gender</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
                 </div>
                 <div className="flex justify-end gap-2">
                   <button
@@ -1351,7 +1328,7 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {/* Full Name */}
                 <div className="bg-white border border-[#E9EDF5] rounded-[12px] p-3.5 flex items-center gap-3">
                   <div className="w-[36px] h-[36px] rounded-[10px] bg-[#EAF1FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
@@ -1400,40 +1377,6 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                     <span className="text-[12px] text-[#6B7694] block leading-tight">Current Location</span>
                     <span className="text-[14px] font-[500] text-[#0B1F4B] truncate block mt-0.5">
                       {profile.location || "Not specified"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Date of Birth */}
-                <div className="bg-white border border-[#E9EDF5] rounded-[12px] p-3.5 flex items-center gap-3">
-                  <div className="w-[36px] h-[36px] rounded-[10px] bg-[#EAF1FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[12px] text-[#6B7694] block leading-tight">Date of Birth</span>
-                    <span className="text-[14px] font-[500] text-[#0B1F4B] truncate block mt-0.5">
-                      {profile.dateOfBirth
-                        ? isNaN(Date.parse(profile.dateOfBirth))
-                          ? profile.dateOfBirth
-                          : new Date(profile.dateOfBirth).toLocaleDateString("en-US", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })
-                        : "Not specified"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Gender */}
-                <div className="bg-white border border-[#E9EDF5] rounded-[12px] p-3.5 flex items-center gap-3">
-                  <div className="w-[36px] h-[36px] rounded-[10px] bg-[#EAF1FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[12px] text-[#6B7694] block leading-tight">Gender</span>
-                    <span className="text-[14px] font-[500] text-[#0B1F4B] truncate block mt-0.5">
-                      {profile.gender || "Not specified"}
                     </span>
                   </div>
                 </div>
@@ -2716,31 +2659,6 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-[#6B7694] block mb-1">Date of Birth</label>
-                  <input
-                    type="date"
-                    max={new Date().toISOString().split("T")[0]}
-                    value={personalForm.dateOfBirth}
-                    onChange={(e) => setPersonalForm({ ...personalForm, dateOfBirth: e.target.value })}
-                    className="w-full bg-[#F4F6FA] text-sm text-[#0B1F4B] p-2.5 rounded-[10px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0] cursor-pointer"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-[#6B7694] block mb-1">Gender</label>
-                  <select
-                    value={personalForm.gender}
-                    onChange={(e) => setPersonalForm({ ...personalForm, gender: e.target.value })}
-                    className="w-full bg-[#F4F6FA] text-sm text-[#0B1F4B] p-2.5 rounded-[10px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0]"
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
 
               <div>
                 <label className="font-semibold text-[#6B7694] block mb-1">About Me / Bio</label>
