@@ -269,10 +269,10 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
     if (selectedWorkMode !== "All" && (job.workMode || "").toLowerCase() !== selectedWorkMode.toLowerCase()) return false;
     if (selectedExperience !== "All") {
       const exp = (job.experience || "").toLowerCase();
-      if (selectedExperience === "0-1 Years" && !exp.match(/0-?1|0-?|fresher|entry/)) return false;
-      if (selectedExperience === "0-2 Years" && !exp.match(/0-?[12]|fresher/)) return false;
-      if (selectedExperience === "1-3 Years" && !exp.match(/1-?[23]|2\+/)) return false;
-      if (selectedExperience === "3+ Years" && !exp.match(/3\+|[345]-|[456789]\+|senior/)) return false;
+      if (selectedExperience === "0-1 Years" && !exp.match(/0\s*-?\s*1|fresher|entry/)) return false;
+      if (selectedExperience === "0-2 Years" && !exp.match(/0\s*-?\s*[12]|fresher/)) return false;
+      if (selectedExperience === "1-3 Years" && !exp.match(/1\s*-?\s*[23]|2\+/)) return false;
+      if (selectedExperience === "3+ Years" && !exp.match(/3\+|[345]\s*-\s*|[456789]\+|senior/)) return false;
     }
     if (selectedSalary !== "All") {
       const lpa = getSalaryLPA(job.salaryText);

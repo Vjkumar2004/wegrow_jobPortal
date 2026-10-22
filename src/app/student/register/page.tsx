@@ -382,18 +382,13 @@ export default function StudentRegisterPage() {
                   id="reg-grad-year"
                   value={graduationYear}
                   onChange={(e) => setGraduationYear(e.target.value)}
-                  className="block w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 transition-all focus:border-[#014E9C] focus:outline-none focus:ring-2 focus:ring-[#014E9C]/15"
+                  className="block w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 transition-all focus:border-[#014E9C] focus:outline-none focus:ring-2 focus:ring-[#014E9C]/15 cursor-pointer"
                 >
-                  <option value="2030">2030</option>
-                  <option value="2029">2029</option>
-                  <option value="2028">2028</option>
-                  <option value="2027">2027</option>
-                  <option value="2026">2026</option>
-                  <option value="2025">2025</option>
-                  <option value="2024">2024</option>
-                  <option value="2023">2023</option>
-                  <option value="2022">2022</option>
-                  <option value="2021">2021</option>
+                  {Array.from({ length: 33 }, (_, i) => 2000 + i).map((yr) => (
+                    <option key={yr} value={String(yr)}>
+                      {yr}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

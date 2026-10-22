@@ -151,6 +151,7 @@ export interface BackendStudentApplication {
     employmentType: string;
     workMode: string;
     minExperience: number;
+    maxExperience?: number | null;
     company: {
       id: string;
       name: string;

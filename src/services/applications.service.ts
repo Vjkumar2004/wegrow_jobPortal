@@ -218,7 +218,17 @@ export const applicationsService = {
           appliedDateText: new Date(app.appliedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
           location: app.job?.location || "—",
           jobType: mapJobType(app.job?.employmentType || ""),
-          experience: app.job?.minExperience === 0 ? "Fresher" : app.job?.minExperience != null ? `${app.job.minExperience}+ Years` : "Fresher",
+          experience: (() => {
+            const min = app.job?.minExperience != null ? Number(app.job.minExperience) : 0;
+            const max = app.job?.maxExperience != null ? Number(app.job.maxExperience) : undefined;
+            if (max != null && !isNaN(max)) {
+              if (min === 0 && max === 1) return "Fresher (0-1 yr)";
+              if (min === max) return `${min} yrs`;
+              return `${min}-${max} yrs`;
+            }
+            if (min === 0) return "Fresher";
+            return `${min}+ yrs`;
+          })(),
           status,
           statusUpdateText: `Status: ${s}`,
           steps: [

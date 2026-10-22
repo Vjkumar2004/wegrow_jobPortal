@@ -1338,7 +1338,17 @@ export const studentService = {
             salaryMin: j.salaryMin || 0,
             salaryMax: j.salaryMax || 0,
             salaryCurrency: j.salaryCurrency || "INR",
-            experience: `${j.minExperience || 0}+ Years`,
+            experience: (() => {
+              const min = j.minExperience != null ? Number(j.minExperience) : 0;
+              const max = j.maxExperience != null ? Number(j.maxExperience) : undefined;
+              if (max != null && !isNaN(max)) {
+                if (min === 0 && max === 1) return "Fresher (0-1 yr)";
+                if (min === max) return `${min} yrs`;
+                return `${min}-${max} yrs`;
+              }
+              if (min === 0) return "Fresher";
+              return `${min}+ yrs`;
+            })(),
             jobType: j.employmentType === "FULL_TIME" ? "Full Time" : "Internship",
             workMode: j.workMode === "REMOTE" ? "Remote" : j.workMode === "HYBRID" ? "Hybrid" : "On-site",
             skills: j.skills?.map((s: any) => s.skill?.name || s.name).filter(Boolean) || [],

@@ -55,7 +55,41 @@ export const hrService = {
             .filter((s: any) => Boolean(s?.name))
         : undefined;
 
-      const payload = {
+      // Parse experience to minExperience and maxExperience
+      let minExperience = 0;
+      let maxExperience: number | undefined = undefined;
+
+      if (typeof (jobData as any).minExperience === "number") {
+        minExperience = (jobData as any).minExperience;
+      }
+      if (typeof (jobData as any).maxExperience === "number") {
+        maxExperience = (jobData as any).maxExperience;
+      } else if (jobData.experience) {
+        const expStr = String(jobData.experience).trim().toLowerCase();
+        if (expStr.includes("internship")) {
+          minExperience = 0;
+          maxExperience = 0;
+        } else {
+          const rangeMatch = expStr.match(/(\d+)\s*(?:-|to)\s*(\d+)/);
+          if (rangeMatch) {
+            minExperience = parseInt(rangeMatch[1], 10);
+            maxExperience = parseInt(rangeMatch[2], 10);
+          } else {
+            const plusMatch = expStr.match(/(\d+)\s*\+/);
+            if (plusMatch) {
+              minExperience = parseInt(plusMatch[1], 10);
+              maxExperience = undefined;
+            } else {
+              const single = expStr.match(/(\d+)/);
+              if (single) {
+                minExperience = parseInt(single[1], 10);
+              }
+            }
+          }
+        }
+      }
+
+      const payload: Record<string, any> = {
         title: jobData.title || "Software Engineer",
         description: jobData.description || "Exciting opportunity to join our expanding tech team.",
         responsibilities: Array.isArray(jobData.responsibilities) ? jobData.responsibilities.join("\n") : undefined,
@@ -64,7 +98,7 @@ export const hrService = {
         workMode: jobData.workMode === "Remote" ? "REMOTE" : jobData.workMode === "Hybrid" ? "HYBRID" : "ON_SITE",
         location: jobData.location || "Bengaluru",
         openings: jobData.openings || 1,
-        minExperience: 0,
+        minExperience,
         salaryMin: jobData.salaryMin,
         salaryMax: jobData.salaryMax,
         salaryPeriod: "ANNUAL",
@@ -79,11 +113,78 @@ export const hrService = {
         publish: (jobData as any).publish ?? true,
       };
 
+      if (maxExperience !== undefined && !isNaN(maxExperience)) {
+        payload.maxExperience = maxExperience;
+      }
+
       const response = await apiClient.post<{ success: boolean; data: { job: BackendPublicJob } }>("/hr/jobs", payload);
       if (response.data?.data?.job) {
         return mapBackendJobToFrontend(response.data.data.job);
       }
       throw new Error("Failed to create job posting");
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  /**
+   * PATCH /api/v1/hr/jobs/:jobId
+   */
+  async updateJob(jobId: string, jobData: Partial<Job>): Promise<Job> {
+    try {
+      let minExperience: number | undefined = undefined;
+      let maxExperience: number | undefined = undefined;
+
+      if (typeof (jobData as any).minExperience === "number") {
+        minExperience = (jobData as any).minExperience;
+      }
+      if (typeof (jobData as any).maxExperience === "number") {
+        maxExperience = (jobData as any).maxExperience;
+      } else if (jobData.experience) {
+        const expStr = String(jobData.experience).trim().toLowerCase();
+        if (expStr.includes("internship")) {
+          minExperience = 0;
+          maxExperience = 0;
+        } else {
+          const rangeMatch = expStr.match(/(\d+)\s*(?:-|to)\s*(\d+)/);
+          if (rangeMatch) {
+            minExperience = parseInt(rangeMatch[1], 10);
+            maxExperience = parseInt(rangeMatch[2], 10);
+          } else {
+            const plusMatch = expStr.match(/(\d+)\s*\+/);
+            if (plusMatch) {
+              minExperience = parseInt(plusMatch[1], 10);
+            } else {
+              const single = expStr.match(/(\d+)/);
+              if (single) {
+                minExperience = parseInt(single[1], 10);
+              }
+            }
+          }
+        }
+      }
+
+      const payload: Record<string, any> = {};
+      if (jobData.title) payload.title = jobData.title;
+      if (jobData.description) payload.description = jobData.description;
+      if (jobData.location) payload.location = jobData.location;
+      if (jobData.salaryMin != null) payload.salaryMin = jobData.salaryMin;
+      if (jobData.salaryMax != null) payload.salaryMax = jobData.salaryMax;
+      if (jobData.openings != null) payload.openings = jobData.openings;
+      if (minExperience != null) payload.minExperience = minExperience;
+      if (maxExperience != null) payload.maxExperience = maxExperience;
+      if (jobData.jobType) {
+        payload.employmentType = jobData.jobType === "Part Time" ? "PART_TIME" : jobData.jobType === "Internship" ? "INTERNSHIP" : "FULL_TIME";
+      }
+      if (jobData.workMode) {
+        payload.workMode = jobData.workMode === "Remote" ? "REMOTE" : jobData.workMode === "Hybrid" ? "HYBRID" : "ON_SITE";
+      }
+
+      const response = await apiClient.patch<{ success: boolean; data: { job: BackendPublicJob } }>(`/hr/jobs/${jobId}`, payload);
+      if (response.data?.data?.job) {
+        return mapBackendJobToFrontend(response.data.data.job);
+      }
+      throw new Error("Failed to update job posting");
     } catch (error) {
       throw error;
     }

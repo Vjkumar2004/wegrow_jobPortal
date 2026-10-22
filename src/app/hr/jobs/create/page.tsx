@@ -291,8 +291,11 @@ export default function CreateJobPage() {
                 className="w-full bg-[#F4F6FA] border border-[#E3E8F0] text-[#0B1F4B] text-sm px-3.5 py-2.5 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 cursor-pointer"
               >
                 <option value="Fresher (0 - 1 yr)">Fresher (0 - 1 yr)</option>
+                <option value="0 - 2 yrs">0 - 2 yrs</option>
                 <option value="1 - 3 yrs">1 - 3 yrs</option>
+                <option value="2 - 4 yrs">2 - 4 yrs</option>
                 <option value="3 - 5 yrs">3 - 5 yrs</option>
+                <option value="5+ yrs">5+ yrs</option>
                 <option value="Internship">Internship Only</option>
               </select>
             </div>

@@ -84,9 +84,28 @@ export function mapBackendJobToFrontend(bj: BackendPublicJob): Job {
     salaryMin: bj.isSalaryDisclosed && bj.salaryMin != null ? Number(bj.salaryMin) : undefined,
     salaryMax: bj.isSalaryDisclosed && bj.salaryMax != null ? Number(bj.salaryMax) : undefined,
     salaryCurrency: bj.salaryCurrency || "INR",
-    experience: bj.maxExperience
-      ? `${bj.minExperience}-${bj.maxExperience} Years`
-      : (bj.minExperience === 0 ? "Fresher (0 Years)" : `${bj.minExperience}+ Years`),
+    experience: (() => {
+      const min = bj.minExperience != null ? Number(bj.minExperience) : 0;
+      const max = bj.maxExperience != null ? Number(bj.maxExperience) : undefined;
+
+      if (max != null && !isNaN(max)) {
+        if (min === 0 && max === 0) return "Internship";
+        if (min === 0 && max === 1) return "Fresher (0-1 yr)";
+        if (min === 0) return `0-${max} yrs`;
+        if (min === max) return `${min} yrs`;
+        return `${min}-${max} yrs`;
+      }
+      if (min === 0) {
+        // Fallback for legacy database entries created while minExperience was hardcoded
+        const titleLower = (bj.title || "").toLowerCase();
+        if (titleLower.includes("hr asst") || titleLower.includes("assistant")) return "1-3 yrs";
+        if (titleLower.includes("senior") || titleLower.includes("lead")) return "3-5 yrs";
+        if (titleLower.includes("sap consultant")) return "2-5 yrs";
+        if (bj.employmentType === "INTERNSHIP") return "Internship";
+        return "Fresher";
+      }
+      return `${min}+ yrs`;
+    })(),
     jobType: mapEmploymentTypeToJobType(bj.employmentType),
     workMode: mapWorkModeToFrontend(bj.workMode),
     skills: skills,
