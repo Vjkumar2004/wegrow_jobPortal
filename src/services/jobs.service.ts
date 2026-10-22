@@ -125,7 +125,7 @@ export const jobsService = {
       if (params?.search) queryParams.search = params.search;
       if (params?.location && params.location !== "All") queryParams.location = params.location;
       if (params?.page) queryParams.page = Math.max(1, Number(params.page) || 1);
-      queryParams.limit = Math.min(Number(params?.limit) || 50, 50);
+      queryParams.limit = Math.min(Number(params?.limit) || 50, 100);
 
       // Map workMode filter
       if (params?.workMode && params.workMode !== "All") {

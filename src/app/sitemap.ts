@@ -1,6 +1,8 @@
 import { MetadataRoute } from "next";
 import { jobsService } from "@/services/jobs.service";
 
+export const revalidate = 3600; // Revalidate dynamic sitemap every hour
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://www.wegrowjobz.com";
   const now = new Date();
@@ -8,7 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Core public routes
   const staticRoutes: MetadataRoute.Sitemap = [
     {
-      url: `${baseUrl}/`,
+      url: `${baseUrl}`,
       lastModified: now,
       changeFrequency: "daily",
       priority: 1.0,

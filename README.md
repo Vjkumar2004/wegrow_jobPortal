@@ -36,12 +36,12 @@ The modern, responsive frontend web application for **WeGrow Job Portal** (WeGro
 - **Placement Resources**: [`/resources`](file:///d:/wegrow_jobPortal/src/app/resources/page.tsx)
 - **Career Tips**: [`/career-tips`](file:///d:/wegrow_jobPortal/src/app/career-tips/page.tsx)
 
-> **Important**: The public navbar exclusively exposes **Student Login** and **HR Login**. Admin login is hidden from public navigation.
+> **Important**: The public navbar exclusively exposes **Candidate Login** and **HR Login**. Admin login is hidden from public navigation.
 
 ---
 
-### 🎓 Student Portal
-- **Student Login**: [`/student/login`](file:///d:/wegrow_jobPortal/src/app/student/login/page.tsx)
+### 🎓 Candidate Portal
+- **Candidate Login**: [`/student/login`](file:///d:/wegrow_jobPortal/src/app/student/login/page.tsx)
 - **Student Register**: [`/student/register`](file:///d:/wegrow_jobPortal/src/app/student/register/page.tsx)
 - **Dashboard**: [`/student/dashboard`](file:///d:/wegrow_jobPortal/src/app/student/dashboard/page.tsx)
 - **Browse Jobs**: [`/student/jobs`](file:///d:/wegrow_jobPortal/src/app/student/jobs/page.tsx)

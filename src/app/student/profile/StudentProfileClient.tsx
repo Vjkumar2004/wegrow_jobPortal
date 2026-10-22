@@ -129,6 +129,10 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
   const photoFileInputRef = useRef<HTMLInputElement>(null);
   const resumeFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Edit Profile Modal
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
+  const [isSavingProfileModal, setIsSavingProfileModal] = useState(false);
+
   // Modals for CRUD sub-resources
   // 1. Education Modal
   const [isEduModalOpen, setIsEduModalOpen] = useState(false);
@@ -296,19 +300,75 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
     }
   };
 
-  // ===================== SAVE PERSONAL INFO =====================
-  const handleSavePersonal = async () => {
+  // ===================== EDIT PROFILE MODAL HANDLERS =====================
+  const handleOpenEditProfileModal = () => {
+    setPersonalForm({
+      name: profile.name || "",
+      email: profile.email || "",
+      phone: profile.phone || "",
+      location: profile.location || "",
+      dateOfBirth: profile.dateOfBirth || "",
+      gender: profile.gender || "",
+      headline: profile.headline || "",
+    });
+    setAboutForm(profile.bio || "");
+    setIsEditProfileModalOpen(true);
+  };
+
+  const handleSaveProfileModal = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
-      setIsSavingSection("personal");
-      // Build a careerPreferences object that explicitly preserves DOB and gender.
-      // We embed them here directly so they are NOT lost even if the query hasn't
-      // fully loaded yet (profile.careerPreferences could still be undefined).
+      setIsSavingProfileModal(true);
       const existingPrefs: Record<string, any> = (profile.careerPreferences as any) || {};
       const careerPrefsPayload: Record<string, any> = { ...existingPrefs };
       if (personalForm.dateOfBirth) careerPrefsPayload.dateOfBirth = personalForm.dateOfBirth;
       if (personalForm.gender) careerPrefsPayload.gender = personalForm.gender;
 
       await studentService.updateProfile({
+        name: personalForm.name.trim(),
+        fullName: personalForm.name.trim(),
+        headline: personalForm.headline.trim(),
+        bio: aboutForm.trim(),
+        phone: personalForm.phone.trim(),
+        currentLocation: personalForm.location.trim(),
+        location: personalForm.location.trim(),
+        careerPreferences: careerPrefsPayload,
+      });
+
+      setProfile((prev) => ({
+        ...prev,
+        name: personalForm.name.trim(),
+        headline: personalForm.headline.trim(),
+        bio: aboutForm.trim(),
+        phone: personalForm.phone.trim(),
+        location: personalForm.location.trim(),
+        dateOfBirth: personalForm.dateOfBirth,
+        gender: personalForm.gender,
+      }));
+
+      setIsEditProfileModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["student-profile"] });
+      await refreshProfileData();
+      showToast("Profile updated successfully!");
+    } catch (err) {
+      showToast(getErrorMessage(err, "Failed to update profile"), "error");
+    } finally {
+      setIsSavingProfileModal(false);
+    }
+  };
+
+  // ===================== SAVE PERSONAL INFO =====================
+  const handleSavePersonal = async () => {
+    try {
+      setIsSavingSection("personal");
+      const existingPrefs: Record<string, any> = (profile.careerPreferences as any) || {};
+      const careerPrefsPayload: Record<string, any> = { ...existingPrefs };
+      if (personalForm.dateOfBirth) careerPrefsPayload.dateOfBirth = personalForm.dateOfBirth;
+      if (personalForm.gender) careerPrefsPayload.gender = personalForm.gender;
+
+      await studentService.updateProfile({
+        name: personalForm.name.trim(),
+        fullName: personalForm.name.trim(),
         headline: personalForm.headline,
         bio: profile.bio,
         phone: personalForm.phone,
@@ -318,6 +378,7 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
       });
       setProfile((prev) => ({
         ...prev,
+        name: personalForm.name.trim(),
         headline: personalForm.headline,
         phone: personalForm.phone,
         location: personalForm.location,
@@ -325,7 +386,6 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
         gender: personalForm.gender,
       }));
       setEditingSection(null);
-      // Refresh to confirm the actual saved state from the backend.
       await refreshProfileData();
       showToast("Personal Information updated successfully!");
     } catch (err) {
@@ -922,6 +982,15 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                 <span className="inline-flex items-center text-[#1E5BE0]" title="Verified Student Profile">
                   <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 fill-[#1E5BE0] text-white" />
                 </span>
+                <button
+                  type="button"
+                  onClick={handleOpenEditProfileModal}
+                  className="p-1 sm:p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-[#1E5BE0] transition cursor-pointer"
+                  title="Edit Profile"
+                  aria-label="Edit Profile"
+                >
+                  <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </button>
               </div>
 
               {/* Tagline / Headline */}
@@ -965,7 +1034,7 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
               <span className="text-[12px] sm:text-[13px] font-[600] text-[#1E5BE0]">Profile Strength</span>
               <button
                 type="button"
-                onClick={() => setEditingSection("personal")}
+                onClick={handleOpenEditProfileModal}
                 className="inline-flex items-center gap-1 border-[1.5px] border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-[6px] sm:rounded-[8px] text-[11px] sm:text-[12px] font-[600] transition cursor-pointer"
               >
                 <Pencil className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
@@ -2523,6 +2592,135 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                 >
                   {isSavingProj && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{projModalMode === "add" ? "Add Project" : "Save Changes"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= EDIT PROFILE MODAL ================= */}
+      {isEditProfileModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 my-8">
+            <div className="flex items-center justify-between border-b pb-3 border-[#EEF1F7]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#EAF1FF] text-[#1E5BE0] flex items-center justify-center">
+                  <User className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base sm:text-lg text-[#0B1F4B]">Edit Profile</h3>
+                  <p className="text-[11px] text-[#6B7694]">Update your basic information and bio</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditProfileModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-[#F1F4F9] text-[#6B7694] hover:text-[#0B1F4B] flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfileModal} className="space-y-3.5 text-xs">
+              <div>
+                <label className="font-semibold text-[#6B7694] block mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Alex Johnson"
+                  value={personalForm.name}
+                  onChange={(e) => setPersonalForm({ ...personalForm, name: e.target.value })}
+                  className="w-full bg-[#F4F6FA] text-sm text-[#0B1F4B] p-2.5 rounded-[10px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0]"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#6B7694] block mb-1">Headline / Tagline</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Full Stack Developer | Final Year CS"
+                  value={personalForm.headline}
+                  onChange={(e) => setPersonalForm({ ...personalForm, headline: e.target.value })}
+                  className="w-full bg-[#F4F6FA] text-sm text-[#0B1F4B] p-2.5 rounded-[10px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-[#6B7694] block mb-1">Phone Number</label>
+                  <input
+                    type="tel"
+                    placeholder="+91 9876543210"
+                    value={personalForm.phone}
+                    onChange={(e) => setPersonalForm({ ...personalForm, phone: e.target.value })}
+                    className="w-full bg-[#F4F6FA] text-sm text-[#0B1F4B] p-2.5 rounded-[10px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0]"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-[#6B7694] block mb-1">Current Location</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Chennai, Tamil Nadu"
+                    value={personalForm.location}
+                    onChange={(e) => setPersonalForm({ ...personalForm, location: e.target.value })}
+                    className="w-full bg-[#F4F6FA] text-sm text-[#0B1F4B] p-2.5 rounded-[10px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-[#6B7694] block mb-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    max={new Date().toISOString().split("T")[0]}
+                    value={personalForm.dateOfBirth}
+                    onChange={(e) => setPersonalForm({ ...personalForm, dateOfBirth: e.target.value })}
+                    className="w-full bg-[#F4F6FA] text-sm text-[#0B1F4B] p-2.5 rounded-[10px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0] cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-[#6B7694] block mb-1">Gender</label>
+                  <select
+                    value={personalForm.gender}
+                    onChange={(e) => setPersonalForm({ ...personalForm, gender: e.target.value })}
+                    className="w-full bg-[#F4F6FA] text-sm text-[#0B1F4B] p-2.5 rounded-[10px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0]"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#6B7694] block mb-1">About Me / Bio</label>
+                <textarea
+                  rows={3}
+                  placeholder="Brief summary about yourself, passions, and career aspirations..."
+                  value={aboutForm}
+                  onChange={(e) => setAboutForm(e.target.value)}
+                  className="w-full bg-[#F4F6FA] text-sm text-[#0B1F4B] p-2.5 rounded-[10px] border border-[#E3E8F0] focus:outline-none focus:ring-2 focus:ring-[#1E5BE0]/20 focus:border-[#1E5BE0] resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#EEF1F7]">
+                <button
+                  type="button"
+                  onClick={() => setIsEditProfileModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-[#6B7694] hover:bg-slate-50 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingProfileModal}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-[#1E5BE0] hover:bg-[#1548b8] rounded-lg cursor-pointer flex items-center gap-1.5 shadow-xs"
+                >
+                  {isSavingProfileModal && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Save Changes</span>
                 </button>
               </div>
             </form>

@@ -166,7 +166,7 @@ export const PublicNavbar: React.FC = () => {
           })}
         </nav>
 
-        {/* Right Side Buttons: Student Login & HR Login */}
+        {/* Right Side Buttons: Candidate Login & HR Login */}
         <div className="hidden md:flex items-center gap-3 shrink-0">
           <Link
             href="/student/login"
@@ -188,7 +188,7 @@ export const PublicNavbar: React.FC = () => {
             className="hover:bg-[#EEF4FD] hover:-translate-y-0.5 hover:shadow-sm transition-all duration-200"
           >
             <User className="w-4 h-4" />
-            <span>Student Login</span>
+            <span>Candidate Login</span>
           </Link>
 
           <Link
@@ -296,7 +296,7 @@ export const PublicNavbar: React.FC = () => {
         })}
       </nav>
 
-      {/* Drawer Action Buttons: Student Login & HR Login placed comfortably right below nav links */}
+      {/* Drawer Action Buttons: Candidate Login & HR Login placed comfortably right below nav links */}
       <div className="pt-4 mt-4 border-t border-[#EEF1F7] space-y-2.5">
         <Link
           href="/student/login"
@@ -304,7 +304,7 @@ export const PublicNavbar: React.FC = () => {
           className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-[1.5px] border-[#014E9C] text-[#014E9C] font-semibold text-[13px] hover:bg-blue-50 transition-colors shadow-2xs"
         >
           <User className="w-4 h-4" />
-          <span>Student Portal Login</span>
+          <span>Candidate Login</span>
         </Link>
 
         <Link

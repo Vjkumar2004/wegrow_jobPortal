@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   Share2,
   X,
+  ChevronDown,
 } from "lucide-react";
 
 import { authService } from "@/services/auth.service";
@@ -62,6 +63,14 @@ export default function JobsClient({
   );
   const [savedJobs, setSavedJobs] = useState<Record<string, boolean>>({});
   const [jobsList, setJobsList] = useState<Job[]>(initialJobs);
+
+  // Pagination / Load More
+  const JOBS_PER_PAGE = 12;
+  const [visibleCount, setVisibleCount] = useState(JOBS_PER_PAGE);
+
+  useEffect(() => {
+    setVisibleCount(JOBS_PER_PAGE);
+  }, [search, location, jobType, workMode, sortBy, initialJobs]);
 
   useEffect(() => {
     setJobsList(initialJobs);
@@ -396,8 +405,9 @@ export default function JobsClient({
 
         {/* Jobs Grid */}
         {jobsList.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {jobsList.map((job) => {
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {jobsList.slice(0, visibleCount).map((job) => {
               const isSaved = !!savedJobs[job.id];
               return (
                 <div
@@ -536,6 +546,28 @@ export default function JobsClient({
               );
             })}
           </div>
+
+          {/* Load More Button */}
+          {visibleCount < jobsList.length ? (
+            <div className="mt-10 text-center space-y-2.5">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((prev) => prev + JOBS_PER_PAGE)}
+                className="inline-flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white bg-[#014E9C] hover:bg-[#013C78] transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
+              >
+                <span>Load More Jobs ({jobsList.length - visibleCount} remaining)</span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              <p className="text-xs text-slate-500 font-medium">
+                Showing {Math.min(visibleCount, jobsList.length)} of {jobsList.length} vacancies
+              </p>
+            </div>
+          ) : jobsList.length > JOBS_PER_PAGE ? (
+            <p className="mt-8 text-center text-xs text-slate-500 font-medium">
+              Showing all {jobsList.length} vacancies
+            </p>
+          ) : null}
+        </>
         ) : (
           <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center max-w-lg mx-auto shadow-sm">
             <div className="w-16 h-16 rounded-2xl bg-amber-50 text-[#F79400] flex items-center justify-center mx-auto mb-4 border border-amber-200">

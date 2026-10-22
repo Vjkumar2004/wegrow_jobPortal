@@ -377,9 +377,13 @@ export default function MobileAppSection() {
 
             {/* 5. Store buttons: vertical on mobile, horizontal on sm+ */}
             <div className="flex flex-col sm:flex-row gap-3.5 sm:gap-4 items-center justify-center lg:justify-start w-full max-w-[340px] sm:max-w-none">
-              {/* Google Play Store Button */}
-              <a href="#" className="google-play-btn w-full sm:w-auto justify-center sm:justify-start" style={{ minWidth: "210px", height: "64px" }}>
-                <div style={{ position: "relative", width: "28px", height: "30px", flexShrink: 0 }}>
+              {/* Google Play Store Button (Disabled look) */}
+              <div
+                className="app-store-btn w-full sm:w-auto justify-center sm:justify-start"
+                title="Coming soon to the Google Play Store"
+                style={{ minWidth: "210px", height: "64px" }}
+              >
+                <div style={{ position: "relative", width: "26px", height: "28px", flexShrink: 0, opacity: 0.55 }}>
                   <Image
                     src="/google-play-icon.svg"
                     alt="Google Play"
@@ -394,19 +398,19 @@ export default function MobileAppSection() {
                       fontSize: "10px",
                       textTransform: "uppercase",
                       letterSpacing: "0.08em",
-                      color: "rgba(255,255,255,0.75)",
+                      color: "#8A93A8",
                       lineHeight: 1.1,
                       fontWeight: 500,
                     }}
                   >
-                    Get it on
+                    Coming Soon
                   </span>
                   <span
                     style={{
                       fontFamily: "'Poppins', sans-serif",
                       fontWeight: 700,
                       fontSize: "18px",
-                      color: "#FFFFFF",
+                      color: "#8A93A8",
                       lineHeight: 1.25,
                       letterSpacing: "-0.2px",
                     }}
@@ -414,7 +418,7 @@ export default function MobileAppSection() {
                     Google Play
                   </span>
                 </div>
-              </a>
+              </div>
 
               {/* Apple App Store Button (Disabled look) */}
               <div className="app-store-btn w-full sm:w-auto justify-center sm:justify-start" title="Coming soon to the Apple App Store" style={{ minWidth: "210px", height: "64px" }}>

@@ -321,7 +321,7 @@ function StudentLoginContent() {
               className="flex-1 py-2 px-3 text-xs font-bold rounded-lg bg-white text-[#014E9C] shadow-sm flex items-center justify-center gap-1.5"
             >
               <GraduationCap className="w-4 h-4 text-[#014E9C]" />
-              <span>Student Login</span>
+              <span>Candidate Login</span>
             </button>
             <Link
               href="/hr/login"
@@ -338,10 +338,10 @@ function StudentLoginContent() {
             <div className="hidden lg:block mb-8">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#014E9C] text-xs font-bold uppercase tracking-wider mb-3">
                 <GraduationCap className="w-4 h-4 text-[#014E9C]" />
-                Student Portal
+                Candidate Portal
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Welcome back, Student
+                Welcome back, Candidate
               </h2>
               <p className="text-sm text-slate-500 mt-1.5">
                 Sign in to manage your job applications, view shortlisted status, and attend upcoming interviews.
@@ -354,7 +354,7 @@ function StudentLoginContent() {
                 Welcome back 👋
               </h2>
               <p className="text-xs text-[#6B7694] mt-1.5 leading-relaxed max-w-xs mx-auto">
-                Sign in with your student credentials to access jobs and interviews.
+                Sign in with your candidate credentials to access jobs and interviews.
               </p>
             </div>
 
@@ -468,7 +468,7 @@ function StudentLoginContent() {
             {/* Alternate Role Redirection */}
             <div className="mt-8 pt-6 border-t border-slate-200/80">
               <div className="flex items-center justify-between text-xs text-slate-600">
-                <span>Don&apos;t have a student account?</span>
+                <span>Don&apos;t have a candidate account?</span>
                 <Link
                   href="/student/register"
                   className="font-bold text-[#F79400] hover:text-[#d47f00] hover:underline transition"

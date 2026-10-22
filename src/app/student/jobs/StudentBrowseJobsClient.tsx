@@ -96,6 +96,14 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
+  // Pagination / Load More
+  const JOBS_PER_PAGE = 10;
+  const [visibleCount, setVisibleCount] = useState(JOBS_PER_PAGE);
+
+  useEffect(() => {
+    setVisibleCount(JOBS_PER_PAGE);
+  }, [searchTerm, selectedLocation, selectedJobType, selectedExperience, selectedWorkMode, selectedSalary, activeQuickFilter, sortBy]);
+
   const [bookmarks, setBookmarks] = useState<{ [id: string]: boolean }>(() => {
     const map: { [id: string]: boolean } = {};
     initialData.jobs.forEach((j) => {
@@ -455,7 +463,7 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
           </div>
         ) : (
           <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4" : "space-y-3"}>
-            {sortedFilteredJobs.map((job) => {
+            {sortedFilteredJobs.slice(0, visibleCount).map((job) => {
               const visibleSkills = (job.skills ?? []).slice(0, 3);
               const extraSkills = Math.max(0, (job.skills ?? []).length - 3);
 
@@ -581,14 +589,27 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
         )}
 
         {/* Load more */}
-        <div className="pt-4 pb-2 text-center">
-          <button
-            type="button"
-            className="border border-[#E3E8F0] text-[#6B7694] hover:border-[#1E5BE0] hover:text-[#1E5BE0] transition-all text-[13px] font-semibold px-8 py-2.5 rounded-xl inline-flex items-center gap-2 cursor-pointer"
-          >
-            Load More Opportunities <ChevronDown className="w-4 h-4" />
-          </button>
-        </div>
+        {visibleCount < sortedFilteredJobs.length ? (
+          <div className="pt-4 pb-2 text-center space-y-2">
+            <button
+              type="button"
+              onClick={() => setVisibleCount((prev) => prev + JOBS_PER_PAGE)}
+              className="border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white transition-all text-[13px] font-semibold px-8 py-2.5 rounded-xl inline-flex items-center gap-2 cursor-pointer shadow-2xs hover:shadow-sm"
+            >
+              <span>Load More Opportunities ({sortedFilteredJobs.length - visibleCount} remaining)</span>
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            <p className="text-[12px] text-[#6B7694]">
+              Showing {Math.min(visibleCount, sortedFilteredJobs.length)} of {sortedFilteredJobs.length} opportunities
+            </p>
+          </div>
+        ) : sortedFilteredJobs.length > JOBS_PER_PAGE ? (
+          <div className="pt-4 pb-2 text-center">
+            <p className="text-[12px] text-[#6B7694] font-medium">
+              Showing all {sortedFilteredJobs.length} opportunities
+            </p>
+          </div>
+        ) : null}
       </main>
 
       {/* ═══════════════════ RIGHT SIDEBAR ═══════════════════ */}

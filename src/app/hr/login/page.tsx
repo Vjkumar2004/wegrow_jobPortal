@@ -166,7 +166,7 @@ function HRLoginContent() {
       ) {
         authService.logout();
         setError(
-          message || "This account is registered as a Student. Please use the Student login portal."
+          message || "This account is registered as a Candidate. Please use the Candidate login portal."
         );
       } else if (
         status === 403 &&
@@ -524,13 +524,13 @@ function HRLoginContent() {
               <div className="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <GraduationCap className="w-4 h-4 text-slate-500" />
-                  <span className="text-xs text-slate-600 font-medium">Are you a Student looking for jobs?</span>
+                  <span className="text-xs text-slate-600 font-medium">Are you a Candidate looking for jobs?</span>
                 </div>
                 <Link
                   href="/student/login"
                   className="text-xs font-bold text-[#014E9C] hover:underline"
                 >
-                  Student Login →
+                  Candidate Login →
                 </Link>
               </div>
             </div>
