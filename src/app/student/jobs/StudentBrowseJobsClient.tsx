@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Search,
   MapPin,
@@ -21,7 +22,9 @@ import {
   Filter,
   Loader2,
   ChevronRight,
+  Share2,
 } from "lucide-react";
+import { ShareJobModal } from "@/components/common/ShareJobModal";
 import { StudentBrowseJobsPageData, StudentBrowseJobItem } from "@/types";
 import { jobsService } from "@/services/jobs.service";
 import { studentService } from "@/services/student.service";
@@ -85,7 +88,16 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
     }
   }, [freshProfile]);
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const searchParams = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams?.get("search") || searchParams?.get("company") || "");
+
+  useEffect(() => {
+    const q = searchParams?.get("search") || searchParams?.get("company");
+    if (q) {
+      setSearchTerm(q);
+    }
+  }, [searchParams]);
+
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [selectedJobType, setSelectedJobType] = useState("All");
   const [selectedExperience, setSelectedExperience] = useState("All");
@@ -95,6 +107,7 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
   const [sortBy, setSortBy] = useState("Newest First");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [shareJobTarget, setShareJobTarget] = useState<StudentBrowseJobItem | null>(null);
 
   // Pagination / Load More
   const JOBS_PER_PAGE = 10;
@@ -183,6 +196,55 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
     } catch { /* noop */ } finally { setIsSearching(false); }
   };
 
+  const dynamicLocationOptions: [string, string][] = useMemo(() => {
+    function extractCities(loc?: string): string[] {
+      if (!loc) return [];
+      const cleaned = loc.replace(/\([^)]*\)/g, "").trim();
+      const segments = cleaned.split(/[/|;]+/).map((s) => s.trim()).filter(Boolean);
+      const cities: string[] = [];
+      for (const seg of segments) {
+        const city = seg.split(",")[0].trim();
+        if (city && city.length > 1) {
+          const norm = city.toLowerCase() === "bangalore" ? "Bengaluru" : city;
+          const titleCase = norm
+            .split(" ")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(" ");
+          cities.push(titleCase);
+        }
+      }
+      return cities;
+    }
+
+    const counts: Record<string, number> = {};
+    let remoteCount = 0;
+
+    jobs.forEach((job) => {
+      const isRemote = (job.workMode || "").toLowerCase().includes("remote") || (job.location || "").toLowerCase().includes("remote");
+      if (isRemote) remoteCount++;
+
+      const cities = new Set(extractCities(job.location));
+      cities.forEach((c) => {
+        if (c.toLowerCase() !== "remote") {
+          counts[c] = (counts[c] || 0) + 1;
+        }
+      });
+    });
+
+    const sortedCities = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([city, count]) => [city, `${city} (${count})`] as [string, string]);
+
+    const result: [string, string][] = [["All", `All Locations (${jobs.length})`]];
+
+    if (remoteCount > 0) {
+      result.push(["Remote", `Remote (${remoteCount})`]);
+    }
+
+    result.push(...sortedCities);
+    return result;
+  }, [jobs]);
+
   const quickFilters = ["Fresher", "Internship", "Full Time", "Remote", "Chennai", "Bangalore", "IT", "Marketing", "Design", "Data Analyst"];
 
   const filteredJobs = jobs.filter((job) => {
@@ -191,7 +253,18 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
       const haystack = [job.title, job.company?.name, job.location, job.jobType, job.workMode, job.experience, job.salaryText, ...(job.skills ?? [])].map((s) => (s || "").toLowerCase());
       if (!tokens.every((t) => haystack.some((h) => h.includes(t)))) return false;
     }
-    if (selectedLocation !== "All" && !(job.location || "").toLowerCase().includes(selectedLocation.toLowerCase())) return false;
+    if (selectedLocation !== "All") {
+      const jobLoc = (job.location || "").toLowerCase();
+      const selLoc = selectedLocation.toLowerCase();
+      if (selLoc === "remote") {
+        const isRemote = (job.workMode || "").toLowerCase() === "remote" || jobLoc.includes("remote");
+        if (!isRemote) return false;
+      } else if (selLoc === "bengaluru" || selLoc === "bangalore") {
+        if (!jobLoc.includes("bengaluru") && !jobLoc.includes("bangalore")) return false;
+      } else {
+        if (!jobLoc.includes(selLoc)) return false;
+      }
+    }
     if (selectedJobType !== "All" && (job.jobType || "").toLowerCase() !== selectedJobType.toLowerCase()) return false;
     if (selectedWorkMode !== "All" && (job.workMode || "").toLowerCase() !== selectedWorkMode.toLowerCase()) return false;
     if (selectedExperience !== "All") {
@@ -390,7 +463,7 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
           {/* Dropdowns (Collapsible on mobile, always visible on tablet/desktop) */}
           <div className={`${mobileFiltersOpen ? "grid" : "hidden sm:grid"} grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-1`}>
             {[
-              { icon: <MapPin className="w-3.5 h-3.5" />, val: selectedLocation, set: setSelectedLocation, opts: [["All","All Locations"],["Chennai","Chennai"],["Bangalore","Bangalore"],["Hyderabad","Hyderabad"],["Pune","Pune"],["Remote","Remote"]] },
+              { icon: <MapPin className="w-3.5 h-3.5" />, val: selectedLocation, set: setSelectedLocation, opts: dynamicLocationOptions },
               { icon: <Briefcase className="w-3.5 h-3.5" />, val: selectedJobType, set: setSelectedJobType, opts: [["All","Job Type"],["Full Time","Full Time"],["Internship","Internship"],["Part Time","Part Time"]] },
               { icon: <Clock className="w-3.5 h-3.5" />, val: selectedExperience, set: setSelectedExperience, opts: [["All","Experience"],["0-1 Years","0–1 Years"],["0-2 Years","0–2 Years"],["1-3 Years","1–3 Years"],["3+ Years","3+ Years"]] },
               { icon: <Building2 className="w-3.5 h-3.5" />, val: selectedWorkMode, set: setSelectedWorkMode, opts: [["All","Work Mode"],["On-site","On-site"],["Remote","Remote"],["Hybrid","Hybrid"]] },
@@ -505,14 +578,26 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
                           </h3>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleBookmark(job.id)}
-                        className="p-1.5 text-[#9BA5BB] hover:text-[#1E5BE0] transition cursor-pointer shrink-0 mt-0.5"
-                        aria-label="Bookmark"
-                      >
-                        <Bookmark className={`w-4 h-4 ${bookmarks[job.id] ? "fill-[#1E5BE0] text-[#1E5BE0]" : ""}`} />
-                      </button>
+                      <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setShareJobTarget(job)}
+                          className="p-1.5 text-[#9BA5BB] hover:text-[#1E5BE0] transition cursor-pointer rounded-lg hover:bg-slate-50"
+                          aria-label="Share Job"
+                          title="Share job"
+                        >
+                          <Share2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleBookmark(job.id)}
+                          className="p-1.5 text-[#9BA5BB] hover:text-[#1E5BE0] transition cursor-pointer rounded-lg hover:bg-slate-50"
+                          aria-label="Bookmark"
+                          title="Bookmark job"
+                        >
+                          <Bookmark className={`w-4 h-4 ${bookmarks[job.id] ? "fill-[#1E5BE0] text-[#1E5BE0]" : ""}`} />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Meta pills */}
@@ -643,25 +728,45 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
           </Link>
         </div>
 
-        {/* Top Companies */}
+        {/* Top Recruiters */}
         {topCompanies.length > 0 && (
           <div className="bg-white rounded-2xl border border-[#EEF1F7] shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[15px] font-bold text-[#0B1F4B]">Top Companies Hiring</h3>
-              <Link href="/companies" className="text-[12px] font-semibold text-[#1E5BE0] hover:underline">View All</Link>
+              <h3 className="text-[15px] font-bold text-[#0B1F4B]">Top Recruiters Hiring</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm("");
+                  setSelectedLocation("All");
+                  setSelectedJobType("All");
+                  setSelectedWorkMode("All");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="text-[12px] font-semibold text-[#1E5BE0] hover:underline cursor-pointer"
+              >
+                View All
+              </button>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {topCompanies.map((comp) => (
-                <div key={comp.id} className="flex items-center justify-between gap-3 cursor-pointer hover:bg-[#F7F9FD] rounded-xl px-2 py-1.5 -mx-2 transition-colors group">
-                  <div className="flex items-center gap-2.5">
+                <button
+                  key={comp.id}
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm(comp.name);
+                    window.scrollTo({ top: 220, behavior: "smooth" });
+                  }}
+                  className="w-full flex items-center justify-between gap-3 cursor-pointer hover:bg-[#F7F9FD] rounded-xl px-2.5 py-2 -mx-2.5 transition-colors group text-left"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <CompanyLogo id={comp.id} name={comp.name} logo={comp.logo} size={36} />
-                    <div>
-                      <p className="text-[13px] font-bold text-[#0B1F4B] group-hover:text-[#1E5BE0] transition-colors">{comp.name}</p>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-bold text-[#0B1F4B] group-hover:text-[#1E5BE0] transition-colors truncate">{comp.name}</p>
                       <p className="text-[11px] text-[#9BA5BB]">{comp.openings}</p>
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-[#FF6B00] group-hover:translate-x-0.5 transition-transform shrink-0" />
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -691,6 +796,19 @@ export default function StudentBrowseJobsClient({ initialData }: StudentBrowseJo
           </div>
         )}
       </aside>
+
+      {/* Share Job Modal Popup */}
+      {shareJobTarget && (
+        <ShareJobModal
+          isOpen={Boolean(shareJobTarget)}
+          onClose={() => setShareJobTarget(null)}
+          jobTitle={shareJobTarget.title}
+          companyName={shareJobTarget.company?.name || "Company"}
+          jobUrl={typeof window !== "undefined" ? `${window.location.origin}/jobs/${shareJobTarget.id}` : undefined}
+          location={shareJobTarget.location}
+          jobType={shareJobTarget.jobType}
+        />
+      )}
     </div>
   );
 }

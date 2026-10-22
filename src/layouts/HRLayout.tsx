@@ -47,7 +47,47 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [hrCompanyLogoUrl, setHrCompanyLogoUrl] = useState<string | null>(null);
   const [hrAvatarUrl, setHrAvatarUrl] = useState<string | null>(null);
   const [showBottomNav, setShowBottomNav] = useState(true);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [hrInquiries, setHrInquiries] = useState<any[]>([]);
   const lastScrollYRef = React.useRef(0);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const loadHrInquiries = async () => {
+      // 1. Fetch from Next.js server route (shared across all browsers/sessions)
+      try {
+        const res = await fetch("/api/inquiries", { cache: "no-store" });
+        if (res.ok) {
+          const json = await res.json();
+          if (isMounted && Array.isArray(json.inquiries)) {
+            setHrInquiries(json.inquiries);
+            return;
+          }
+        }
+      } catch {}
+
+      // 2. Fallback to localStorage
+      if (typeof window !== "undefined") {
+        try {
+          const stored = localStorage.getItem("wegrow_hr_inquiries");
+          if (stored && isMounted) {
+            setHrInquiries(JSON.parse(stored));
+          }
+        } catch {}
+      }
+    };
+
+    loadHrInquiries();
+    window.addEventListener("notificationsUpdated", loadHrInquiries);
+    // Real-time polling so candidate inquiries appear automatically
+    const interval = setInterval(loadHrInquiries, 4000);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("notificationsUpdated", loadHrInquiries);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Auto-hide bottom navbar on scroll down, show on scroll up (native app pattern)
   React.useEffect(() => {
@@ -273,9 +313,73 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 <span>Post</span>
               </button>
 
-              {/* Bell Icon */}
-              <div className="relative p-1.5 sm:p-2 rounded-xl text-[#0B1F4B] hover:bg-[#F1F4F9] active:scale-95 transition-all cursor-pointer">
-                <Bell className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#0B1F4B]" strokeWidth={1.75} />
+              {/* Bell Icon & Inquiries Notification Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setNotificationsOpen((prev) => !prev)}
+                  className="relative p-1.5 sm:p-2 rounded-xl text-[#0B1F4B] hover:bg-[#F1F4F9] active:scale-95 transition-all cursor-pointer focus:outline-none"
+                  aria-label="View notifications"
+                >
+                  <Bell className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-[#0B1F4B]" strokeWidth={1.75} />
+                  {hrInquiries.length > 0 && (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#FF6B00] rounded-full ring-2 ring-white animate-pulse" />
+                  )}
+                </button>
+
+                {notificationsOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40 bg-transparent"
+                      onClick={() => setNotificationsOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-[#EEF1F7] p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center justify-between pb-3 border-b border-[#EEF1F7]">
+                        <h4 className="font-bold text-sm text-[#0B1F4B] flex items-center gap-2">
+                          <span>Candidate Follow-ups</span>
+                          {hrInquiries.length > 0 && (
+                            <span className="bg-[#E8F0FF] text-[#1E5BE0] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                              {hrInquiries.length} New
+                            </span>
+                          )}
+                        </h4>
+                        <Link
+                          href="/hr/applicants"
+                          onClick={() => setNotificationsOpen(false)}
+                          className="text-xs font-semibold text-[#1E5BE0] hover:underline"
+                        >
+                          View Candidates →
+                        </Link>
+                      </div>
+
+                      <div className="mt-3 max-h-72 overflow-y-auto space-y-2.5">
+                        {hrInquiries.length === 0 ? (
+                          <div className="py-6 text-center text-xs text-[#6B7694]">
+                            No candidate inquiries at this moment.
+                          </div>
+                        ) : (
+                          hrInquiries.map((inq) => (
+                            <Link
+                              key={inq.id}
+                              href={`/hr/applicants?inquiryId=${encodeURIComponent(inq.id)}`}
+                              onClick={() => setNotificationsOpen(false)}
+                              className="block p-3 rounded-xl bg-[#F8FAFC] hover:bg-blue-50/50 border border-slate-100 hover:border-blue-200 transition-colors"
+                            >
+                              <div className="flex items-center justify-between gap-1 mb-1">
+                                <span className="text-[10px] font-bold bg-[#E8F0FF] text-[#1E5BE0] px-2 py-0.5 rounded">
+                                  {inq.topic}
+                                </span>
+                                <span className="text-[10px] text-[#6B7694]">{inq.sentAtText || "Recent"}</span>
+                              </div>
+                              <p className="font-bold text-xs text-[#0B1F4B] truncate">{inq.subject}</p>
+                              <p className="text-[11px] text-[#6B7694] line-clamp-2 mt-0.5">{inq.message}</p>
+                            </Link>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Recruiter profile capsule with dropdown */}

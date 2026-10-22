@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StudentProfile } from "@/types";
 import { studentService } from "@/services/student.service";
 import { getErrorMessage, API_BASE_URL } from "@/lib/api/client";
-import { getNameInitials } from "@/lib/utils";
+import { getNameInitials, downloadFileDirectly } from "@/lib/utils";
 import { PageLoader } from "@/components/common/PageLoader";
 import {
   MapPin,
@@ -31,6 +31,8 @@ import {
   Trash2,
   Loader2,
   AlertCircle,
+  Download,
+  Eye,
 } from "lucide-react";
 
 const DEFAULT_EMPTY_PROFILE: StudentProfile = {
@@ -126,6 +128,7 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
 
   // Resume upload state
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [isDownloadingResume, setIsDownloadingResume] = useState(false);
   const photoFileInputRef = useRef<HTMLInputElement>(null);
   const resumeFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -541,6 +544,36 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
       showToast("Unable to generate resume link. Please re-upload your resume.", "error");
     } catch (err) {
       showToast(getErrorMessage(err, "Failed to fetch secure resume download link"), "error");
+    }
+  };
+
+  const handleDownloadResume = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    const hasValidResume = Boolean(
+      profile.resumeId &&
+      profile.resumeName &&
+      profile.resumeName !== "Student_Resume_2026.pdf" &&
+      !profile.resumeUrl?.includes("example.com")
+    );
+
+    if (!hasValidResume || !profile.resumeId) {
+      showToast("No uploaded resume found. Please upload your PDF resume first.", "error");
+      return;
+    }
+
+    setIsDownloadingResume(true);
+    try {
+      const result = await studentService.getResumeDownloadUrl(profile.resumeId);
+      if (result?.downloadUrl) {
+        await downloadFileDirectly(result.downloadUrl, profile.resumeName || "Resume.pdf");
+        showToast("Resume download started!", "success");
+        return;
+      }
+      showToast("Unable to generate resume download link. Please re-upload your resume.", "error");
+    } catch (err) {
+      showToast(getErrorMessage(err, "Failed to download resume"), "error");
+    } finally {
+      setIsDownloadingResume(false);
     }
   };
 
@@ -1797,20 +1830,34 @@ export default function StudentProfileClient({ initialProfile = DEFAULT_EMPTY_PR
                   )}
 
                   {/* Action buttons */}
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap sm:flex-nowrap gap-2.5">
                     {hasRealResume ? (
                       <>
                         <button
                           type="button"
                           onClick={handleViewResume}
-                          className="flex-1 h-[44px] rounded-[10px] border-[1.5px] border-[#1E5BE0] font-[600] text-[13px] text-[#1E5BE0] hover:bg-blue-50 cursor-pointer flex items-center justify-center transition"
+                          className="flex-1 min-w-[100px] h-[42px] px-3 rounded-[10px] border border-[#1E5BE0] font-[600] text-[13px] text-[#1E5BE0] hover:bg-blue-50 cursor-pointer flex items-center justify-center gap-1.5 transition"
                         >
-                          View Resume
+                          <Eye className="w-4 h-4 shrink-0" />
+                          <span>View</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDownloadResume}
+                          disabled={isDownloadingResume}
+                          className="flex-1 min-w-[120px] h-[42px] px-3 rounded-[10px] bg-[#1E5BE0] hover:bg-[#1548b8] text-white font-[600] text-[13px] flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer disabled:opacity-60"
+                        >
+                          {isDownloadingResume ? (
+                            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                          ) : (
+                            <Download className="w-4 h-4 shrink-0" />
+                          )}
+                          <span>Download</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => resumeFileInputRef.current?.click()}
-                          className="flex-1 h-[44px] rounded-[10px] bg-[#1E5BE0] hover:bg-[#1548b8] text-white font-[600] text-[13px] flex items-center justify-center transition shadow-xs cursor-pointer"
+                          className="h-[42px] px-4 rounded-[10px] border border-[#E2E8F0] hover:bg-gray-50 text-[#475569] font-[600] text-[13px] flex items-center justify-center transition cursor-pointer"
                         >
                           Replace
                         </button>

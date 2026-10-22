@@ -31,6 +31,7 @@ import { applicationsService } from "@/services/applications.service";
 import { hrService } from "@/services/hr.service";
 import { buildIsoInterviewTime } from "@/lib/utils";
 import Portal from "@/components/common/Portal";
+import { CandidateProfileModal } from "@/components/hr/CandidateProfileModal";
 
 const STATUS_TABS = [
   { label: "All Applicants", key: "All" },
@@ -98,6 +99,58 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
   const [scheduledAppIds, setScheduledAppIds] = useState<Set<string>>(() => {
     return new Set(interviewsQuery.map((i: any) => i.applicationId).filter(Boolean));
   });
+  const [hrInquiries, setHrInquiries] = useState<any[]>([]);
+  const [activeInquiryModal, setActiveInquiryModal] = useState<any | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchInquiries = async () => {
+      try {
+        const res = await fetch("/api/inquiries", { cache: "no-store" });
+        if (res.ok) {
+          const json = await res.json();
+          if (isMounted && Array.isArray(json.inquiries)) {
+            setHrInquiries(json.inquiries);
+
+            if (typeof window !== "undefined") {
+              const params = new URLSearchParams(window.location.search);
+              const inqId = params.get("inquiryId");
+              if (inqId) {
+                const target = json.inquiries.find((x: any) => x.id === inqId);
+                if (target) {
+                  setActiveInquiryModal(target);
+                }
+              }
+            }
+            return;
+          }
+        }
+      } catch {}
+
+      if (typeof window !== "undefined") {
+        try {
+          const stored = localStorage.getItem("wegrow_hr_inquiries");
+          if (stored && isMounted) {
+            const list = JSON.parse(stored);
+            setHrInquiries(list);
+            const params = new URLSearchParams(window.location.search);
+            const inqId = params.get("inquiryId");
+            if (inqId) {
+              const target = list.find((x: any) => x.id === inqId);
+              if (target) setActiveInquiryModal(target);
+            }
+          }
+        } catch {}
+      }
+    };
+
+    fetchInquiries();
+    const interval = setInterval(fetchInquiries, 4000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     if (applicantsQuery) setApplicants(applicantsQuery);
@@ -144,6 +197,7 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
   // Candidate detail / Status update modal
   const [selectedApplicant, setSelectedApplicant] = useState<Application | null>(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [viewingProfileApplicant, setViewingProfileApplicant] = useState<Application | null>(null);
 
   // Schedule Interview form
   const getTomorrowDate = () => {
@@ -617,6 +671,37 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
         </div>
       )}
 
+      {/* Candidate Follow-up Inquiries Alert Card */}
+      {hrInquiries.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-blue-500/10 via-indigo-50/70 to-white border border-blue-200 rounded-2xl shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#1E5BE0] text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Mail className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-[#0B1F4B]">
+                  {hrInquiries.length} Candidate Follow-up Inquir{hrInquiries.length > 1 ? "ies" : "y"} Received
+                </span>
+                <span className="bg-[#1E5BE0] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">New</span>
+              </div>
+              <p className="text-[11px] text-[#6B7694]">
+                Latest from <strong className="text-slate-800">{hrInquiries[0].applicantName || "Candidate"}</strong>: &ldquo;{hrInquiries[0].subject}&rdquo;
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveInquiryModal(hrInquiries[0])}
+              className="text-xs font-bold bg-[#1E5BE0] hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-xl shadow-xs transition cursor-pointer"
+            >
+              View Message ({hrInquiries[0].topic})
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 2. Interactive Applicants Counts Cards Section (Clickable Quick Filter Tiles) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
         {COUNT_METRICS.map((metric) => {
@@ -791,7 +876,14 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-[#0B1F4B] text-[13px]">{app.applicantName}</p>
+                          <button
+                            type="button"
+                            onClick={() => setViewingProfileApplicant(app)}
+                            className="font-bold text-[#0B1F4B] hover:text-[#1E5BE0] text-[13px] text-left hover:underline cursor-pointer block"
+                            title="Click to view full candidate profile"
+                          >
+                            {app.applicantName}
+                          </button>
                           <div className="flex items-center gap-2 text-[11px] text-[#6B7694] mt-0.5">
                             <span className="flex items-center gap-1">
                               <Mail className="w-3 h-3 text-[#1E5BE0]" /> {app.applicantEmail}
@@ -800,6 +892,33 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                               <span className="hidden sm:inline">| {app.applicantPhone}</span>
                             )}
                           </div>
+                          {(() => {
+                            const inq = hrInquiries.find(
+                              (i) =>
+                                (i.applicationId && String(i.applicationId) === String(app.id)) ||
+                                (i.applicantEmail && app.applicantEmail && i.applicantEmail.toLowerCase() === app.applicantEmail.toLowerCase()) ||
+                                (i.jobId && String(i.jobId) === String(app.jobId) && i.applicantName && app.applicantName && i.applicantName.toLowerCase() === app.applicantName.toLowerCase()) ||
+                                (i.jobId && String(i.jobId) === String(app.jobId))
+                            );
+                            if (!inq) return null;
+                            return (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setActiveInquiryModal({
+                                    ...inq,
+                                    applicantName: inq.applicantName || app.applicantName,
+                                    applicantEmail: inq.applicantEmail || app.applicantEmail,
+                                    jobTitle: inq.jobTitle || app.jobTitle,
+                                  })
+                                }
+                                className="inline-flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-[#1E5BE0] border border-blue-200/90 rounded-md px-2 py-0.5 text-[10.5px] font-bold mt-1.5 shadow-2xs transition cursor-pointer"
+                                title="Click to view candidate follow-up inquiry"
+                              >
+                                <span>💬 Candidate Inquiry: {inq.topic}</span>
+                              </button>
+                            );
+                          })()}
                         </div>
                       </div>
                     </td>
@@ -851,6 +970,17 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
                     {/* Action buttons */}
                     <td className="py-4 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {/* View Candidate Full Profile */}
+                        <button
+                          type="button"
+                          onClick={() => setViewingProfileApplicant(app)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#E8F0FF] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white active:scale-95 rounded-[8px] text-xs font-semibold transition cursor-pointer shadow-2xs"
+                          title="View Candidate Full Profile Details"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          <span>Profile</span>
+                        </button>
+
                         {/* Download / View Candidate Resume from Cloudflare R2 */}
                         <button
                           type="button"
@@ -1037,6 +1167,17 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
 
                 {/* Actions row */}
                 <div className="flex items-center gap-2 pt-0.5">
+                  {/* View Full Profile */}
+                  <button
+                    type="button"
+                    onClick={() => setViewingProfileApplicant(app)}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-[#E8F0FF] text-[#1E5BE0] rounded-xl text-xs font-bold shadow-2xs cursor-pointer active:scale-95"
+                    title="View Candidate Full Profile Details"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Profile</span>
+                  </button>
+
                   {/* CV Download / View */}
                   <button
                     type="button"
@@ -1293,6 +1434,84 @@ export default function HRApplicantsClient({ initialApplicants }: { initialAppli
         </div>
         </Portal>
       )}
+
+      {/* Candidate Inquiry Details Modal */}
+      {activeInquiryModal && (
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E5BE0] flex items-center justify-center font-bold">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[#0B1F4B]">Candidate Follow-up Inquiry</h3>
+                    <p className="text-xs text-slate-500">
+                      From {activeInquiryModal.applicantName} ({activeInquiryModal.applicantEmail})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveInquiryModal(null)}
+                  className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-3.5 text-xs">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/70">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="font-bold text-[#1E5BE0] bg-blue-100/80 px-2 py-0.5 rounded text-[10px]">
+                      {activeInquiryModal.topic}
+                    </span>
+                    <span className="text-slate-400 text-[11px]">{activeInquiryModal.sentAtText || "Recent"}</span>
+                  </div>
+                  <p className="font-bold text-sm text-[#0B1F4B] mt-1">{activeInquiryModal.subject}</p>
+                  <p className="text-[11px] text-[#6B7694] mt-0.5">Applied Role: {activeInquiryModal.jobTitle}</p>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    Candidate Message:
+                  </label>
+                  <div className="bg-[#F8FAFC] border border-slate-200 p-3.5 rounded-xl text-slate-700 whitespace-pre-wrap leading-relaxed text-[12px]">
+                    {activeInquiryModal.message}
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-between gap-3">
+                  <a
+                    href={`mailto:${activeInquiryModal.applicantEmail}?subject=Re: ${encodeURIComponent(activeInquiryModal.subject)}`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#1E5BE0] hover:bg-[#1548b8] text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Reply via Email</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setActiveInquiryModal(null)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+      {/* 6. MODAL: CANDIDATE FULL FILLED PROFILE MODAL */}
+      <CandidateProfileModal
+        isOpen={!!viewingProfileApplicant}
+        onClose={() => setViewingProfileApplicant(null)}
+        application={viewingProfileApplicant}
+        onStatusChange={(appId, newStatus) => updateStatus(appId, newStatus)}
+        onScheduleInterview={(app) => openScheduleModal(app)}
+        onDownloadResume={(app) => handleDownloadResume(app)}
+      />
     </div>
   );
 }

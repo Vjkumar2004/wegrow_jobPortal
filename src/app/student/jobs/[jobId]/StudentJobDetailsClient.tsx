@@ -41,6 +41,7 @@ import { applicationsService } from "@/services/applications.service";
 import { studentService } from "@/services/student.service";
 import { jobsService } from "@/services/jobs.service";
 import { getCompanyLogoUrl, getCompanyLogoProxyUrl, getNameInitials } from "@/lib/utils";
+import { ShareJobModal } from "@/components/common/ShareJobModal";
 
 interface StudentJobDetailsClientProps {
   job: Job;
@@ -67,6 +68,7 @@ export default function StudentJobDetailsClient({
   const [coverNote, setCoverNote] = useState<string>("");
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedJobId, setCopiedJobId] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const markApplied = (appId?: string) => {
     setIsApplied(true);
@@ -228,14 +230,9 @@ export default function StudentJobDetailsClient({
     }
   };
 
-  // Copy job link
+  // Open share modal
   const handleShare = () => {
-    if (typeof window !== "undefined") {
-      navigator.clipboard.writeText(window.location.href);
-      setCopiedLink(true);
-      triggerToast("Job link copied to clipboard!");
-      setTimeout(() => setCopiedLink(false), 2500);
-    }
+    setIsShareModalOpen(true);
   };
 
   // Copy Job ID
@@ -546,12 +543,13 @@ export default function StudentJobDetailsClient({
               </button>
 
               <button
+                type="button"
                 onClick={handleShare}
-                className="h-11 px-5 rounded-xl border border-[#EEF1F7] bg-white hover:bg-[#F7F9FD] text-[#475467] hover:text-[#0B1F4B] flex items-center gap-2 text-xs sm:text-sm font-semibold transition-all cursor-pointer"
+                className="h-11 px-5 rounded-xl border border-[#EEF1F7] bg-white hover:bg-[#F7F9FD] text-[#475467] hover:text-[#0B1F4B] flex items-center gap-2 text-xs sm:text-sm font-semibold transition-all cursor-pointer shadow-2xs"
                 title="Share Job"
               >
-                <Share2 className="w-4 h-4" />
-                <span>{copiedLink ? "Copied!" : "Share"}</span>
+                <Share2 className="w-4 h-4 text-[#1E5BE0]" />
+                <span>Share</span>
               </button>
             </div>
           </div>
@@ -1307,6 +1305,16 @@ export default function StudentJobDetailsClient({
           </button>
         )}
       </div>
+
+      {/* Share Job Modal */}
+      <ShareJobModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        jobTitle={job.title}
+        companyName={job.company?.name || "Company"}
+        location={job.location}
+        jobType={job.jobType}
+      />
     </div>
   );
 }

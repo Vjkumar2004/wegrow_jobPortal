@@ -27,14 +27,15 @@ import {
   MapPin,
   Clock,
   IndianRupee,
-  Heart,
   MoreVertical,
   Check,
   CheckCircle2,
-  ExternalLink,
   ChevronRight,
   Building2,
+  Share2,
+  Eye,
 } from "lucide-react";
+import { ShareJobModal } from "@/components/common/ShareJobModal";
 import {
   PieChart,
   Pie,
@@ -71,6 +72,7 @@ const TREND_DATA = [
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StudentDashboardData, StudentProfile } from "@/types";
 import { studentService } from "@/services/student.service";
+import { jobsService } from "@/services/jobs.service";
 
 interface StudentDashboardClientProps {
   initialData?: StudentDashboardData;
@@ -90,7 +92,16 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
     initialData,
     staleTime: 0,
     refetchOnMount: "always",
+    refetchInterval: 4000,
+    refetchOnWindowFocus: true,
   });
+
+  const { data: browseJobsData } = useQuery({
+    queryKey: ["browse-jobs-top-companies"],
+    queryFn: () => jobsService.getBrowseJobsPageData({ limit: 20 }),
+    staleTime: 60_000,
+  });
+  const topRecruiters = browseJobsData?.topCompanies ?? [];
 
   // Dynamic state populated from dashboardData
   const student = dashboardData?.student || {
@@ -110,6 +121,8 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
     shortlistedTrend: "0 shortlisted",
     offers: 0,
     offersTrend: "0 offers",
+    profileViews: 0,
+    profileViewsTrend: "0 views",
   };
 
   const donutData = dashboardData?.applicationStatus || [];
@@ -128,7 +141,6 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
   const [avatarError, setAvatarError] = useState(false);
   const [trendRange, setTrendRange] = useState("Last 6 Months");
   const [savedJobs, setSavedJobs] = useState<{ [id: string]: boolean }>({});
-  const [likedJobs, setLikedJobs] = useState<{ [id: string]: boolean }>({});
 
   useEffect(() => {
     const handleAvatarUpdate = (e: Event) => {
@@ -153,6 +165,27 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
     return () => window.removeEventListener("avatarUpdated", handleAvatarUpdate);
   }, [queryClient]);
 
+  // Listen for instant real-time recruiter profile view events across tabs
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "wegrow_profile_view_updated") {
+        queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["student-reports"] });
+      }
+    };
+    const handleCustomViewEvent = () => {
+      queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["student-reports"] });
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("profileViewRecorded", handleCustomViewEvent);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("profileViewRecorded", handleCustomViewEvent);
+    };
+  }, [queryClient]);
+
   // Hydrate saved jobs from backend on mount
   useEffect(() => {
     studentService.getSavedJobs().then((savedList) => {
@@ -163,6 +196,8 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
       }
     }).catch(() => {});
   }, []);
+
+  const [shareJobTarget, setShareJobTarget] = useState<any | null>(null);
 
   const toggleSave = async (id: string) => {
     const isCurrentlySaved = !!savedJobs[id];
@@ -177,10 +212,6 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
     } catch {
       setSavedJobs((prev) => ({ ...prev, [id]: isCurrentlySaved }));
     }
-  };
-
-  const toggleLike = (id: string) => {
-    setLikedJobs((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleLogout = async () => {
@@ -202,7 +233,8 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
   ];
 
   return (
-    <div className="flex-1 flex flex-col xl:flex-row min-w-0 p-3 sm:p-5 lg:p-7 gap-3.5 sm:gap-5 overflow-hidden">
+    <>
+      <div className="flex-1 flex flex-col xl:flex-row min-w-0 p-3 sm:p-5 lg:p-7 gap-3.5 sm:gap-5 overflow-hidden">
       {/* ================= ZONE 2: CENTER CONTENT (flexible, gap 14px-20px) ================= */}
           <main className="flex-1 min-w-0 space-y-4 sm:space-y-5">
             {/* 1. Welcome Banner: Soft peach-to-blue gradient card */}
@@ -303,16 +335,16 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
               </Link>
             </div>
 
-            {/* 2. Four Stat Cards in a row (Mobile optimized 2x2 grid) */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+            {/* 2. Five Stat Cards in a row (Mobile optimized grid with Recruiter Views) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3.5">
               {/* Blue tint: Jobs Applied */}
-              <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-blue-50/40 to-white">
-                <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
-                  <FileText className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+              <div className="bg-white rounded-2xl p-2.5 sm:p-4 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-3.5 bg-gradient-to-br from-blue-50/40 to-white">
+                <div className="w-9 h-9 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-[#E8F0FF] text-[#1E5BE0] flex items-center justify-center shrink-0">
+                  <FileText className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.jobsApplied}</div>
-                  <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Jobs Applied</div>
+                  <div className="text-[18px] sm:text-[22px] lg:text-[24px] font-bold text-[#0B1F4B] leading-none">{stats.jobsApplied}</div>
+                  <div className="text-[10px] sm:text-[12px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Jobs Applied</div>
                   <div className="text-[9px] sm:text-[11px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
                     <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {stats.jobsAppliedTrend}
                   </div>
@@ -320,13 +352,13 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
               </div>
 
               {/* Orange tint: Interviews */}
-              <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-orange-50/40 to-white">
-                <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
-                  <Calendar className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+              <div className="bg-white rounded-2xl p-2.5 sm:p-4 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-3.5 bg-gradient-to-br from-orange-50/40 to-white">
+                <div className="w-9 h-9 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-[#FFF0E6] text-[#FF6B00] flex items-center justify-center shrink-0">
+                  <Calendar className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.interviews}</div>
-                  <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Interviews</div>
+                  <div className="text-[18px] sm:text-[22px] lg:text-[24px] font-bold text-[#0B1F4B] leading-none">{stats.interviews}</div>
+                  <div className="text-[10px] sm:text-[12px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Interviews</div>
                   <div className="text-[9px] sm:text-[11px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
                     <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {stats.interviewsTrend}
                   </div>
@@ -334,13 +366,13 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
               </div>
 
               {/* Green tint: Shortlisted */}
-              <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-emerald-50/40 to-white">
-                <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+              <div className="bg-white rounded-2xl p-2.5 sm:p-4 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-3.5 bg-gradient-to-br from-emerald-50/40 to-white">
+                <div className="w-9 h-9 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-[#E8F8F1] text-[#22B573] flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.shortlisted}</div>
-                  <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Shortlisted</div>
+                  <div className="text-[18px] sm:text-[22px] lg:text-[24px] font-bold text-[#0B1F4B] leading-none">{stats.shortlisted}</div>
+                  <div className="text-[10px] sm:text-[12px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Shortlisted</div>
                   <div className="text-[9px] sm:text-[11px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
                     <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {stats.shortlistedTrend}
                   </div>
@@ -348,19 +380,41 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
               </div>
 
               {/* Purple tint: Offers */}
-              <div className="bg-white rounded-2xl p-2.5 sm:p-4 lg:p-5 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-4 bg-gradient-to-br from-purple-50/40 to-white">
-                <div className="w-9 h-9 sm:w-[50px] sm:h-[50px] rounded-xl sm:rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
-                  <Briefcase className="w-4.5 h-4.5 sm:w-6 sm:h-6" strokeWidth={1.75} />
+              <div className="bg-white rounded-2xl p-2.5 sm:p-4 border border-[#EEF1F7] shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-3.5 bg-gradient-to-br from-purple-50/40 to-white">
+                <div className="w-9 h-9 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0">
+                  <Briefcase className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[18px] sm:text-[24px] lg:text-[26px] font-bold text-[#0B1F4B] leading-none">{stats.offers}</div>
-                  <div className="text-[10px] sm:text-[13px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Offers</div>
+                  <div className="text-[18px] sm:text-[22px] lg:text-[24px] font-bold text-[#0B1F4B] leading-none">{stats.offers}</div>
+                  <div className="text-[10px] sm:text-[12px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">Offers</div>
                   <div className="text-[9px] sm:text-[11px] font-semibold text-[#22B573] flex items-center gap-1 mt-0.5 truncate">
                     <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {stats.offersTrend}
                   </div>
                 </div>
               </div>
+
+              {/* Purple/Indigo Tint: Recruiter Profile Views (Directly in main row) */}
+              <div className="col-span-2 sm:col-span-1 bg-white rounded-2xl p-2.5 sm:p-4 border border-purple-200/80 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs flex items-center gap-2.5 sm:gap-3.5 bg-gradient-to-br from-indigo-50/50 via-purple-50/30 to-white">
+                <div className="w-9 h-9 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0 shadow-2xs font-bold">
+                  <Eye className="w-4.5 h-4.5 sm:w-5 sm:h-5" strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[18px] sm:text-[22px] lg:text-[24px] font-bold text-[#0B1F4B] leading-none">
+                    {stats.profileViews ?? 0}
+                  </div>
+                  <div className="text-[10px] sm:text-[12px] text-[#6B7694] mt-0.5 sm:mt-1 font-medium truncate">
+                    Profile Views
+                  </div>
+                  <div className="text-[9px] sm:text-[11px] font-semibold text-[#8B5CF6] flex items-center gap-1 mt-0.5 truncate">
+                    <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                    {stats.profileViews && stats.profileViews > 0
+                      ? `${stats.profileViews} visit${stats.profileViews > 1 ? "s" : ""}`
+                      : "0 visits"}
+                  </div>
+                </div>
+              </div>
             </div>
+
 
             {/* 3. Two Cards Side by Side (Application Status Donut + Application Trend Bar Chart) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-5">
@@ -594,18 +648,28 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                               <p className="text-[12px] text-[#6B7694]">{job.company?.name || "Company"}</p>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => toggleSave(job.id)}
-                            className="p-1.5 text-[#6B7694] hover:text-[#1E5BE0] transition cursor-pointer"
-                            title="Bookmark job"
-                          >
-                            <Bookmark
-                              className={`w-4 h-4 ${
-                                savedJobs[job.id] ? "fill-[#1E5BE0] text-[#1E5BE0]" : ""
-                              }`}
-                            />
-                          </button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setShareJobTarget(job)}
+                              className="p-1.5 text-[#6B7694] hover:text-[#1E5BE0] hover:bg-slate-50 rounded-lg transition cursor-pointer"
+                              title="Share job"
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleSave(job.id)}
+                              className="p-1.5 text-[#6B7694] hover:text-[#1E5BE0] hover:bg-slate-50 rounded-lg transition cursor-pointer"
+                              title="Bookmark job"
+                            >
+                              <Bookmark
+                                className={`w-4 h-4 ${
+                                  savedJobs[job.id] ? "fill-[#1E5BE0] text-[#1E5BE0]" : ""
+                                }`}
+                              />
+                            </button>
+                          </div>
                         </div>
 
                         {/* Two Meta Rows with Icons */}
@@ -657,18 +721,6 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => toggleLike(job.id)}
-                            className="p-1.5 rounded-lg text-[#6B7694] hover:bg-slate-50 transition cursor-pointer"
-                            title="Save to favorites"
-                          >
-                            <Heart
-                              className={`w-4 h-4 ${
-                                likedJobs[job.id] ? "fill-[#EF4444] text-[#EF4444]" : ""
-                              }`}
-                            />
-                          </button>
                           <Link
                             href={`/student/jobs/${job.id}`}
                             className="bg-[#1E5BE0] hover:bg-[#1548b8] text-white text-[13px] font-semibold px-4 py-2 rounded-[8px] transition-colors shadow-sm inline-block"
@@ -913,6 +965,38 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
               </Link>
             </div>
 
+            {/* 1.5 Recruiter Profile Views Metric Card */}
+            <div className="bg-gradient-to-br from-purple-50/70 via-white to-indigo-50/50 rounded-[14px] p-3.5 sm:p-5 border border-purple-200/80 shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center shrink-0 shadow-2xs font-bold">
+                    <Eye className="w-4.5 h-4.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-[14px] sm:text-[15px] font-bold text-[#0B1F4B]">Profile Views</h3>
+                    <p className="text-[11px] text-[#6B7694]">Recruiter profile inspections</p>
+                  </div>
+                </div>
+                <span className="text-2xl sm:text-3xl font-black text-[#0B1F4B]">
+                  {stats.profileViews ?? 0}
+                </span>
+              </div>
+              <div className="pt-2.5 border-t border-purple-100 flex items-center justify-between text-[11px]">
+                <span className="text-[#8B5CF6] font-semibold flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" />
+                  {stats.profileViews && stats.profileViews > 0
+                    ? `${stats.profileViews} recruiter visit${stats.profileViews > 1 ? "s" : ""}`
+                    : "Increases when HR inspects your profile"}
+                </span>
+                <Link
+                  href="/student/reports"
+                  className="font-bold text-[#1E5BE0] hover:underline"
+                >
+                  Reports →
+                </Link>
+              </div>
+            </div>
+
             {/* 2. Upcoming Interviews Card */}
             <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-center justify-between mb-4">
@@ -1058,7 +1142,83 @@ export default function StudentDashboardClient({ initialData }: StudentDashboard
                   ))
                 )}</div>
             </div>
+
+            {/* 4. Top Recruiters Card */}
+            {topRecruiters.length > 0 && (
+              <div className="bg-white rounded-[14px] p-3.5 sm:p-5 lg:p-6 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-[#1E5BE0]" />
+                    <h3 className="text-[15px] sm:text-[16px] font-bold text-[#0B1F4B]">Top Recruiters</h3>
+                  </div>
+                  <Link
+                    href="/student/jobs"
+                    className="text-[13px] font-semibold text-[#1E5BE0] hover:underline"
+                  >
+                    View All
+                  </Link>
+                </div>
+
+                <div className="space-y-3">
+                  {topRecruiters.slice(0, 5).map((comp) => (
+                    <Link
+                      key={comp.id}
+                      href={`/student/jobs?search=${encodeURIComponent(comp.name)}`}
+                      className="flex items-center justify-between gap-3 p-2 -mx-2 rounded-xl hover:bg-[#F7F9FD] transition-colors group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-white border border-[#EEF1F7] p-1 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden font-bold text-xs text-[#1E5BE0]">
+                          {comp.logo ? (
+                            <img
+                              src={comp.logo}
+                              alt={comp.name}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const target = e.currentTarget as HTMLImageElement;
+                                target.style.display = "none";
+                                const parent = target.parentElement;
+                                if (parent && !parent.querySelector(".logo-fb")) {
+                                  const fb = document.createElement("span");
+                                  fb.textContent = comp.name.slice(0, 2).toUpperCase();
+                                  fb.className = "font-bold text-xs text-[#1E5BE0] logo-fb";
+                                  parent.appendChild(fb);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <span>{comp.name.slice(0, 2).toUpperCase()}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-[#0B1F4B] text-[13px] truncate group-hover:text-[#1E5BE0] transition-colors">
+                            {comp.name}
+                          </p>
+                          <p className="text-[11px] text-[#6B7694] truncate">
+                            {comp.openings}
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[#FF6B00] group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </aside>
         </div>
+
+      {/* Share Job Modal Popup */}
+      {shareJobTarget && (
+        <ShareJobModal
+          isOpen={Boolean(shareJobTarget)}
+          onClose={() => setShareJobTarget(null)}
+          jobTitle={shareJobTarget.title}
+          companyName={shareJobTarget.company?.name || "Company"}
+          jobUrl={typeof window !== "undefined" ? `${window.location.origin}/jobs/${shareJobTarget.id}` : undefined}
+          location={shareJobTarget.location}
+          jobType={shareJobTarget.jobType}
+        />
+      )}
+    </>
   );
 }

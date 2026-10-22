@@ -141,8 +141,8 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
   // Mark Interview Complete
   const handleMarkComplete = async (interviewId: string) => {
     try {
-      const ok = await hrService.completeInterview(interviewId, "Candidate evaluation completed");
-      if (ok) {
+      const res = await hrService.completeInterview(interviewId, "Candidate evaluation completed");
+      if (res.success) {
         setInterviews((prev) =>
           prev.map((i) => (i.id === interviewId ? { ...i, status: "Completed" } : i))
         );
@@ -150,12 +150,14 @@ export default function HRInterviewsClient({ initialInterviews }: HRInterviewsCl
           (prev ?? []).map((i) => (i.id === interviewId ? { ...i, status: "Completed" } : i))
         );
         queryClient.invalidateQueries({ queryKey: ["hr-interviews"] });
-        showToast("Interview marked as completed!");
+        queryClient.invalidateQueries({ queryKey: ["hr-dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["hr-applications"] });
+        showToast("✓ Interview marked as completed!");
       } else {
-        showToast("Failed to mark interview as completed. Please try again.");
+        showToast(res.message || "Failed to mark interview as completed. Please try again.");
       }
-    } catch {
-      showToast("Failed to update interview status.");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to update interview status.");
     }
   };
 

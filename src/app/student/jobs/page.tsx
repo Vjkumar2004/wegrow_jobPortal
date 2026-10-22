@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import StudentBrowseJobsClient from "./StudentBrowseJobsClient";
 import type { StudentBrowseJobsPageData } from "@/types";
 
@@ -18,5 +18,9 @@ const EMPTY_DATA: StudentBrowseJobsPageData = {
 // Jobs data is fetched client-side via useQuery (auth token available in browser).
 // Server-side fetch is skipped because the apiClient cannot attach the JWT on the server.
 export default function StudentJobsPage() {
-  return <StudentBrowseJobsClient initialData={EMPTY_DATA} />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F8FAFD]" />}>
+      <StudentBrowseJobsClient initialData={EMPTY_DATA} />
+    </Suspense>
+  );
 }

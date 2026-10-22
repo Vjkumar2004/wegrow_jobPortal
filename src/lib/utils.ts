@@ -202,3 +202,54 @@ export function buildIsoInterviewTime(dateStr?: string, timeStr?: string): { sta
   };
 }
 
+/**
+ * Triggers a real browser file download for any URL without opening the browser's PDF viewer.
+ * Converts to a local Blob URL (same-origin) so that the HTML5 `download` attribute is strictly respected.
+ * If CORS prevents direct blob creation, seamlessly falls back to the server-side proxy route.
+ */
+export async function downloadFileDirectly(url: string, filename: string): Promise<void> {
+  const safeFilename = filename?.trim() || "Resume.pdf";
+  const finalFilename = safeFilename.toLowerCase().endsWith(".pdf") ? safeFilename : `${safeFilename}.pdf`;
+
+  try {
+    const response = await fetch(url, { mode: "cors" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.style.display = "none";
+    link.href = blobUrl;
+    link.download = finalFilename;
+    document.body.appendChild(link);
+    link.click();
+
+    document.body.removeChild(link);
+    setTimeout(() => {
+      window.URL.revokeObjectURL(blobUrl);
+    }, 2000);
+  } catch (err) {
+    console.warn("Direct blob download failed, attempting proxy route fallback:", err);
+
+    try {
+      const proxyUrl = `/api/proxy-download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(finalFilename)}`;
+      const link = document.createElement("a");
+      link.style.display = "none";
+      link.href = proxyUrl;
+      link.download = finalFilename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (fallbackErr) {
+      console.error("All direct download strategies failed:", fallbackErr);
+      const fallbackLink = document.createElement("a");
+      fallbackLink.href = url;
+      fallbackLink.download = finalFilename;
+      document.body.appendChild(fallbackLink);
+      fallbackLink.click();
+      document.body.removeChild(fallbackLink);
+    }
+  }
+}
+

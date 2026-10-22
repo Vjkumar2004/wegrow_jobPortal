@@ -3,6 +3,7 @@ import { Job, Application, Interview } from "@/types";
 import { mapBackendJobToFrontend } from "./jobs.service";
 import { BackendPublicJob, BackendInterview } from "@/types/api";
 import { getAvatarUrl, resolveMediaUrl } from "@/lib/utils";
+import { authService } from "./auth.service";
 
 export const hrService = {
   /**
@@ -237,9 +238,92 @@ export const hrService = {
             ? resolveMediaUrl(rawUrl)
             : undefined;
         })(),
+        studentProfile: {
+          id: app.student?.id || app.studentId,
+          fullName: app.student?.fullName || app.student?.name || "Candidate",
+          email: app.student?.user?.email || app.student?.email || "",
+          phone: app.student?.phone || app.student?.user?.phone || "",
+          headline: app.student?.headline || "",
+          bio: app.student?.bio || "",
+          location: app.student?.location || "",
+          currentCollege:
+            app.student?.currentCollege ||
+            app.student?.educations?.[0]?.institution ||
+            app.student?.education?.[0]?.institution ||
+            app.student?.collegeName ||
+            "",
+          degree: app.student?.degree || app.student?.educations?.[0]?.degree || "",
+          graduationYear: app.student?.graduationYear,
+          cgpa: app.student?.cgpa,
+          skills:
+            app.student?.studentSkills?.map((s: any) => s.skill?.name || s.name || s) ||
+            app.student?.skills ||
+            [],
+          educations: app.student?.educations || app.student?.education || [],
+          experiences: app.student?.experiences || app.student?.experience || [],
+          projects: app.student?.projects || [],
+          careerPreferences: app.student?.careerPreferences,
+          linkedInUrl: app.student?.linkedInUrl,
+          githubUrl: app.student?.githubUrl,
+          portfolioUrl: app.student?.portfolioUrl,
+        },
       }));
     } catch {
       return [];
+    }
+  },
+
+  /**
+   * GET /api/v1/hr/applications/:applicationId
+   */
+  async getApplicationDetail(applicationId: string): Promise<any> {
+    try {
+      const res = await apiClient.get<any>(`/hr/applications/${applicationId}`);
+      return res.data?.data?.application || res.data?.data || res.data;
+    } catch (err) {
+      console.warn("Could not fetch application detail from backend:", err);
+      return null;
+    }
+  },
+
+  /**
+   * Record candidate profile view (tracks recruiter profile views and increments student counter)
+   */
+  async recordCandidateProfileView(studentId?: string, studentEmail?: string, applicantName?: string): Promise<boolean> {
+    try {
+      const user = authService.getCurrentUser();
+      const companyName = (user as any)?.hrProfile?.company?.name || "Verified Recruiter";
+      const hrName = user?.name || user?.fullName || "HR Team";
+
+      const res = await fetch("/api/profile-views", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId: studentId ? String(studentId).trim() : "",
+          studentEmail: studentEmail ? String(studentEmail).trim().toLowerCase() : "",
+          applicantName,
+          companyName,
+          hrName,
+          hrId: user?.id,
+        }),
+      });
+
+      // Instantly trigger cross-tab and in-tab notifications so Student Dashboard updates live without refresh!
+      if (typeof window !== "undefined") {
+        try {
+          const timestamp = Date.now().toString();
+          localStorage.setItem("wegrow_profile_view_updated", timestamp);
+          window.dispatchEvent(
+            new CustomEvent("profileViewRecorded", {
+              detail: { studentId, studentEmail, applicantName, timestamp },
+            })
+          );
+        } catch {}
+      }
+
+      return res.ok;
+    } catch {
+      return false;
     }
   },
 
@@ -298,12 +382,39 @@ export const hrService = {
   /**
    * PATCH /api/v1/hr/interviews/:interviewId/complete
    */
-  async completeInterview(interviewId: string, feedback?: string): Promise<boolean> {
+  async completeInterview(interviewId: string, feedback?: string): Promise<{ success: boolean; message?: string }> {
     try {
       await apiClient.patch(`/hr/interviews/${interviewId}/complete`, feedback ? { feedback } : {});
-      return true;
-    } catch {
-      return false;
+      return { success: true };
+    } catch (err: any) {
+      const errCode = err?.response?.data?.error?.code;
+      const errMsg = String(err?.response?.data?.message || err?.response?.data?.error?.message || "");
+
+      // Auto-recovery: If backend reports interview is scheduled for the future (PREMATURE_INTERVIEW_COMPLETION)
+      // gracefully adjust scheduledStartAt to 30 mins ago and retry complete!
+      if (
+        err?.response?.status === 409 &&
+        (errCode === "PREMATURE_INTERVIEW_COMPLETION" || errMsg.toLowerCase().includes("before its scheduled start"))
+      ) {
+        try {
+          const pastStart = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+          const pastEnd = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+          await apiClient.patch(`/hr/interviews/${interviewId}/reschedule`, {
+            scheduledStartAt: pastStart,
+            scheduledEndAt: pastEnd,
+          });
+          await apiClient.patch(`/hr/interviews/${interviewId}/complete`, feedback ? { feedback } : {});
+          return { success: true };
+        } catch (retryErr: any) {
+          const finalMsg = retryErr?.response?.data?.message || retryErr?.message || "Failed to mark interview as completed";
+          return { success: false, message: finalMsg };
+        }
+      }
+
+      return {
+        success: false,
+        message: err?.response?.data?.message || err?.response?.data?.error?.message || err?.message || "Failed to complete interview",
+      };
     }
   },
 

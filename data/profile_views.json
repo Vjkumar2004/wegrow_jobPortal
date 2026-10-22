@@ -1,0 +1,200 @@
+{
+  "students": {
+    "a40ec8e5-9353-4d41-a051-6f15d9288947": {
+      "count": 4,
+      "views": [
+        {
+          "id": "view-1792668402704-r2sgo",
+          "studentId": "a40ec8e5-9353-4d41-a051-6f15d9288947",
+          "studentEmail": "rohinths10@gmail.com",
+          "applicantName": "Rohinth S",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T11:26:42.704Z",
+          "viewedAtText": "22 Oct, 04:56 pm"
+        },
+        {
+          "id": "view-1792668390545-9uaam",
+          "studentId": "a40ec8e5-9353-4d41-a051-6f15d9288947",
+          "studentEmail": "rohinths10@gmail.com",
+          "applicantName": "Rohinth S",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T11:26:30.545Z",
+          "viewedAtText": "22 Oct, 04:56 pm"
+        },
+        {
+          "id": "view-1792666812644-8fbys",
+          "studentId": "a40ec8e5-9353-4d41-a051-6f15d9288947",
+          "studentEmail": "rohinths10@gmail.com",
+          "applicantName": "Rohinth S",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T11:00:12.644Z",
+          "viewedAtText": "22 Oct, 04:30 pm"
+        },
+        {
+          "id": "view-1792666605290-h66zd",
+          "studentId": "a40ec8e5-9353-4d41-a051-6f15d9288947",
+          "studentEmail": "rohinths10@gmail.com",
+          "applicantName": "Rohinth S",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T10:56:45.290Z",
+          "viewedAtText": "22 Oct, 04:26 pm"
+        }
+      ]
+    },
+    "rohinths10@gmail.com": {
+      "count": 4,
+      "views": [
+        {
+          "id": "view-1792668402704-r2sgo",
+          "studentId": "a40ec8e5-9353-4d41-a051-6f15d9288947",
+          "studentEmail": "rohinths10@gmail.com",
+          "applicantName": "Rohinth S",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T11:26:42.704Z",
+          "viewedAtText": "22 Oct, 04:56 pm"
+        },
+        {
+          "id": "view-1792668390545-9uaam",
+          "studentId": "a40ec8e5-9353-4d41-a051-6f15d9288947",
+          "studentEmail": "rohinths10@gmail.com",
+          "applicantName": "Rohinth S",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T11:26:30.545Z",
+          "viewedAtText": "22 Oct, 04:56 pm"
+        },
+        {
+          "id": "view-1792666812644-8fbys",
+          "studentId": "a40ec8e5-9353-4d41-a051-6f15d9288947",
+          "studentEmail": "rohinths10@gmail.com",
+          "applicantName": "Rohinth S",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T11:00:12.644Z",
+          "viewedAtText": "22 Oct, 04:30 pm"
+        },
+        {
+          "id": "view-1792666605290-h66zd",
+          "studentId": "a40ec8e5-9353-4d41-a051-6f15d9288947",
+          "studentEmail": "rohinths10@gmail.com",
+          "applicantName": "Rohinth S",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T10:56:45.290Z",
+          "viewedAtText": "22 Oct, 04:26 pm"
+        }
+      ]
+    },
+    "88975da7-7c2d-4927-ac1c-a35a9afbb81c": {
+      "count": 4,
+      "views": [
+        {
+          "id": "view-1792669048596-l9upv",
+          "studentId": "88975da7-7c2d-4927-ac1c-a35a9afbb81c",
+          "studentEmail": "vijay909232@gmail.com",
+          "applicantName": "Vijayakumar M",
+          "companyName": "Google Cloud",
+          "hrName": "HR Manager",
+          "hrId": "",
+          "viewedAt": "2026-10-22T11:37:28.596Z",
+          "viewedAtText": "22 Oct, 05:07 pm"
+        },
+        {
+          "id": "view-1792668426171-vkmck",
+          "studentId": "88975da7-7c2d-4927-ac1c-a35a9afbb81c",
+          "studentEmail": "vijay909232@gmail.com",
+          "applicantName": "Vijayakumar M",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T11:27:06.171Z",
+          "viewedAtText": "22 Oct, 04:57 pm"
+        },
+        {
+          "id": "view-1792666817211-ey3zg",
+          "studentId": "88975da7-7c2d-4927-ac1c-a35a9afbb81c",
+          "studentEmail": "vijay909232@gmail.com",
+          "applicantName": "Vijayakumar M",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T11:00:17.211Z",
+          "viewedAtText": "22 Oct, 04:30 pm"
+        },
+        {
+          "id": "view-1792666612616-xhrwa",
+          "studentId": "88975da7-7c2d-4927-ac1c-a35a9afbb81c",
+          "studentEmail": "vijay909232@gmail.com",
+          "applicantName": "Vijayakumar M",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T10:56:52.616Z",
+          "viewedAtText": "22 Oct, 04:26 pm"
+        }
+      ]
+    },
+    "vijay909232@gmail.com": {
+      "count": 4,
+      "views": [
+        {
+          "id": "view-1792669048596-l9upv",
+          "studentId": "88975da7-7c2d-4927-ac1c-a35a9afbb81c",
+          "studentEmail": "vijay909232@gmail.com",
+          "applicantName": "Vijayakumar M",
+          "companyName": "Google Cloud",
+          "hrName": "HR Manager",
+          "hrId": "",
+          "viewedAt": "2026-10-22T11:37:28.596Z",
+          "viewedAtText": "22 Oct, 05:07 pm"
+        },
+        {
+          "id": "view-1792668426171-vkmck",
+          "studentId": "88975da7-7c2d-4927-ac1c-a35a9afbb81c",
+          "studentEmail": "vijay909232@gmail.com",
+          "applicantName": "Vijayakumar M",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T11:27:06.171Z",
+          "viewedAtText": "22 Oct, 04:57 pm"
+        },
+        {
+          "id": "view-1792666817211-ey3zg",
+          "studentId": "88975da7-7c2d-4927-ac1c-a35a9afbb81c",
+          "studentEmail": "vijay909232@gmail.com",
+          "applicantName": "Vijayakumar M",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T11:00:17.211Z",
+          "viewedAtText": "22 Oct, 04:30 pm"
+        },
+        {
+          "id": "view-1792666612616-xhrwa",
+          "studentId": "88975da7-7c2d-4927-ac1c-a35a9afbb81c",
+          "studentEmail": "vijay909232@gmail.com",
+          "applicantName": "Vijayakumar M",
+          "companyName": "Wegrow Skill Campus",
+          "hrName": "Gopinath",
+          "hrId": "02d044e8-4cea-4a79-9b38-24997a06b2ca",
+          "viewedAt": "2026-10-22T10:56:52.616Z",
+          "viewedAtText": "22 Oct, 04:26 pm"
+        }
+      ]
+    }
+  }
+}

@@ -22,7 +22,9 @@ import {
   Info,
   ChevronRight,
   Share2,
+  Building,
 } from "lucide-react";
+import authService from "@/services/auth.service";
 import {
   ResponsiveContainer,
   BarChart,
@@ -78,27 +80,82 @@ export default function StudentReportsClient({ initialData = DEFAULT_REPORTS_DAT
   const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [recruiterVisits, setRecruiterVisits] = useState<any[]>([]);
+
+  const fetchReportsData = React.useCallback(async () => {
+    try {
+      const res = await studentService.getReports();
+      if (res) {
+        setData(res);
+      }
+
+      // Also directly query persistent profile views for instant accurate counts
+      const user = authService.getCurrentUser();
+      const sEmail = user?.email || (user as any)?.studentProfile?.email || "";
+      const sId = (user as any)?.studentProfile?.id || (user as any)?.studentId || user?.id || "";
+
+      const params = new URLSearchParams();
+      if (sId) params.set("studentId", sId);
+      if (sEmail) params.set("email", sEmail);
+
+      const pvRes = await fetch(`/api/profile-views?${params.toString()}`, { cache: "no-store" });
+      if (pvRes.ok) {
+        const pvData = await pvRes.json();
+        if (typeof pvData.count === "number") {
+          setData((prev) => ({
+            ...prev,
+            summary: {
+              ...prev.summary,
+              profileViews: Math.max(prev.summary?.profileViews || 0, pvData.count),
+            },
+          }));
+        }
+        if (Array.isArray(pvData.views)) {
+          setRecruiterVisits(pvData.views);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load reports client-side:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   React.useEffect(() => {
     setIsMounted(true);
-    let active = true;
-    studentService
-      .getReports()
-      .then((res) => {
-        if (active && res) {
-          setData(res);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to load reports client-side:", err);
-      })
-      .finally(() => {
-        if (active) setIsLoading(false);
-      });
+    fetchReportsData();
+
+    // 1. Cross-tab real-time storage sync
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "wegrow_profile_view_updated") {
+        fetchReportsData();
+      }
+    };
+
+    // 2. In-tab custom event
+    const handleCustomView = () => {
+      fetchReportsData();
+    };
+
+    // 3. Periodic polling every 4 seconds for live counter update
+    const interval = setInterval(fetchReportsData, 4000);
+
+    // 4. Window focus listener
+    const handleFocus = () => {
+      fetchReportsData();
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("profileViewRecorded", handleCustomView);
+    window.addEventListener("focus", handleFocus);
 
     return () => {
-      active = false;
+      clearInterval(interval);
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("profileViewRecorded", handleCustomView);
+      window.removeEventListener("focus", handleFocus);
     };
-  }, []);
+  }, [fetchReportsData]);
 
   const { summary, monthlyTrends, statusFunnel, domainPerformance, interviewBreakdown, topSkillsDemand } = data;
 
@@ -234,18 +291,62 @@ export default function StudentReportsClient({ initialData = DEFAULT_REPORTS_DAT
         <div className="col-span-2 sm:col-span-1 bg-white rounded-[14px] p-4 sm:p-5 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] hover:shadow-md transition">
           <div className="flex items-center justify-between text-[#6B7694]">
             <span className="text-[11px] font-bold uppercase tracking-wider">Profile Views</span>
-            <div className="w-8 h-8 rounded-lg bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-[#F3EEFF] text-[#8B5CF6] flex items-center justify-center font-bold">
               <Eye className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#0B1F4B] mt-2">
-            {summary.profileViews}
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#0B1F4B] mt-2 flex items-baseline gap-2">
+            <span>{summary.profileViews}</span>
+            <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              Live
+            </span>
           </div>
           <div className="text-[11px] text-[#8B5CF6] font-semibold mt-1">
-            Recruiter visits
+            {summary.profileViews > 0
+              ? `${summary.profileViews} recruiter visit${summary.profileViews > 1 ? "s" : ""}`
+              : "0 visits recorded"}
           </div>
         </div>
       </div>
+
+      {/* Recruiter Activity Log Strip (if visits recorded) */}
+      {recruiterVisits.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-50/70 via-indigo-50/40 to-white rounded-2xl p-4 sm:p-5 border border-purple-200/70 shadow-2xs">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-[#8B5CF6] text-white flex items-center justify-center">
+                <Eye className="w-4 h-4" />
+              </div>
+              <h3 className="text-sm font-bold text-[#0B1F4B]">
+                Recent Recruiter Inspections ({recruiterVisits.length})
+              </h3>
+            </div>
+            <span className="text-[11px] text-[#8B5CF6] font-bold">
+              Real-time Profile Tracking
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            {recruiterVisits.slice(0, 4).map((v) => (
+              <div
+                key={v.id}
+                className="bg-white rounded-xl p-3 border border-purple-100 shadow-2xs space-y-1"
+              >
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#0B1F4B] truncate">
+                  <Building className="w-3.5 h-3.5 text-[#1E5BE0] shrink-0" />
+                  <span className="truncate">{v.companyName || "Verified Recruiter"}</span>
+                </div>
+                <div className="text-[11px] text-slate-500 flex items-center justify-between">
+                  <span>{v.hrName || "Hiring Team"}</span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {v.viewedAtText}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
 
       {/* 3. Primary Charts Row: Monthly Application & Shortlist Trajectory (Recharts) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

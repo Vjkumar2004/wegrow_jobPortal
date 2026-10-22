@@ -20,6 +20,7 @@ import {
   Eye,
   FileDown,
 } from "lucide-react";
+import { generateResourcePdf } from "@/lib/generateResourcePdf";
 
 export interface ResourceItem {
   id: string;
@@ -420,22 +421,27 @@ export default function ResourcesClient() {
     }, 3500);
   };
 
-  const handleDownload = (item: ResourceItem) => {
+  const handleDownload = async (item: ResourceItem) => {
     setIsDownloading(true);
-    showToast(`Preparing download for "${item.title}"...`);
+    showToast(`Generating PDF for "${item.title}"...`);
 
-    setTimeout(() => {
-      // Trigger genuine client-side download of formatted content
+    try {
+      await generateResourcePdf(item);
+      showToast(`✓ "${item.title}" downloaded as PDF!`);
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      // Fallback
       const element = document.createElement("a");
-      const file = new Blob([item.downloadContent], { type: "text/markdown;charset=utf-8" });
+      const file = new Blob([item.downloadContent], { type: "text/plain;charset=utf-8" });
       element.href = URL.createObjectURL(file);
-      element.download = `${item.id}-wegrow-resource.md`;
+      element.download = `${item.id}-wegrow-resource.txt`;
       document.body.appendChild(element);
       element.click();
       document.body.removeChild(element);
+      showToast(`✓ Downloaded "${item.title}"`);
+    } finally {
       setIsDownloading(false);
-      showToast(`✓ "${item.title}" downloaded successfully!`);
-    }, 700);
+    }
   };
 
   const handleCopyContent = (item: ResourceItem) => {

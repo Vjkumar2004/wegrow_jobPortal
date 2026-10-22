@@ -79,6 +79,7 @@ export interface Application {
   resumeName?: string;
   resumeUrl?: string;
   notes?: string;
+  studentProfile?: any;
 }
 
 export interface Interview {
@@ -207,6 +208,8 @@ export interface StudentDashboardStats {
   shortlistedTrend: string;
   offers: number;
   offersTrend: string;
+  profileViews?: number;
+  profileViewsTrend?: string;
 }
 
 export interface ApplicationStatusBreakdown {

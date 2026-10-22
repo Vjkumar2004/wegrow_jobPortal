@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { StudentProfile } from "@/types";
 import Link from "next/link";
@@ -23,6 +23,13 @@ import {
   ArrowRight,
   Filter,
   X,
+  Bookmark,
+  ExternalLink,
+  AlertTriangle,
+  Mail,
+  Send,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import {
   BarChart,
@@ -36,6 +43,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { StudentApplicationsPageData, StudentApplicationTrackerItem } from "@/types";
 import { applicationsService } from "@/services/applications.service";
+import { studentService } from "@/services/student.service";
+import { authService } from "@/services/auth.service";
 
 const DEFAULT_APPLICATIONS_DATA: StudentApplicationsPageData = {
   stats: { totalApplied: 0, underReview: 0, shortlisted: 0, interviews: 0, selected: 0, rejected: 0 },
@@ -66,6 +75,212 @@ export default function StudentApplicationsClient() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [selectedAppForDrawer, setSelectedAppForDrawer] = useState<StudentApplicationTrackerItem | null>(null);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+
+  // Functional 3-dot action states
+  const [savedJobs, setSavedJobs] = useState<Record<string, boolean>>({});
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [withdrawingApp, setWithdrawingApp] = useState<StudentApplicationTrackerItem | null>(null);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [contactingRecruiterApp, setContactingRecruiterApp] = useState<StudentApplicationTrackerItem | null>(null);
+  const [inquiryTopic, setInquiryTopic] = useState("Application Status Follow-up");
+  const [inquirySubject, setInquirySubject] = useState("");
+  const [inquiryMessage, setInquiryMessage] = useState("");
+  const [isSendingInquiry, setIsSendingInquiry] = useState(false);
+  const [sentInquiries, setSentInquiries] = useState<any[]>([]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
+  // Hydrate saved jobs and inquiries from local store
+  useEffect(() => {
+    studentService
+      .getSavedJobs()
+      .then((list) => {
+        if (Array.isArray(list)) {
+          const map: Record<string, boolean> = {};
+          list.forEach((j) => {
+            map[j.id] = true;
+          });
+          setSavedJobs(map);
+        }
+      })
+      .catch(() => {});
+
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("wegrow_student_inquiries");
+        if (stored) {
+          setSentInquiries(JSON.parse(stored));
+        }
+      } catch {}
+    }
+  }, []);
+
+  const handleToggleSaveJob = async (app: StudentApplicationTrackerItem) => {
+    setOpenMenuId(null);
+    const isSaved = !!savedJobs[app.jobId];
+    setSavedJobs((prev) => ({ ...prev, [app.jobId]: !isSaved }));
+    try {
+      if (isSaved) {
+        await studentService.removeSavedJob(app.jobId);
+        showToast(`Removed "${app.title}" from Saved Jobs`);
+      } else {
+        await studentService.saveJob(app.jobId);
+        showToast(`✓ "${app.title}" saved to your Saved Jobs!`);
+      }
+      queryClient.invalidateQueries({ queryKey: ["student-saved-jobs"] });
+    } catch {
+      setSavedJobs((prev) => ({ ...prev, [app.jobId]: isSaved }));
+      showToast("Unable to update saved job. Please try again.");
+    }
+  };
+
+  const handleOpenContactRecruiter = (app: StudentApplicationTrackerItem) => {
+    setOpenMenuId(null);
+    setContactingRecruiterApp(app);
+    setInquiryTopic("Application Status Follow-up");
+    setInquirySubject(`Inquiry: Application for ${app.title} (Ref: ${app.id.slice(0, 8)})`);
+    setInquiryMessage(
+      `Dear ${app.companyName} Recruitment Team,\n\nI am writing to respectfully follow up on the status of my application for the ${app.title} position, submitted on ${app.appliedDateText}.\n\nCould you please provide an update on the evaluation timeline?\n\nThank you for your time and consideration.`
+    );
+  };
+
+  const handleSendRecruiterInquiry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactingRecruiterApp) return;
+
+    setIsSendingInquiry(true);
+
+    const user = authService.getCurrentUser();
+    const applicantName = user?.name || user?.fullName || (user as any)?.studentProfile?.fullName || "Student Candidate";
+    const applicantEmail = user?.email || "";
+    const applicantPhone = (user as any)?.phone || (user as any)?.studentProfile?.phone || "";
+
+    const company = contactingRecruiterApp.companyName || "Recruiter";
+    const nowIso = new Date().toISOString();
+    const newInquiry = {
+      id: `inq-${Date.now()}`,
+      applicationId: contactingRecruiterApp.id,
+      jobId: contactingRecruiterApp.jobId,
+      companyName: company,
+      jobTitle: contactingRecruiterApp.title,
+      applicantName,
+      applicantEmail,
+      applicantPhone,
+      topic: inquiryTopic,
+      subject: inquirySubject,
+      message: inquiryMessage,
+      sentAt: nowIso,
+      sentAtText: new Date().toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      status: "Delivered to HR Desk",
+    };
+
+    // 1. Send to server-side Next.js route handler (works across all browsers/sessions/incognito)
+    try {
+      await fetch("/api/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newInquiry),
+      });
+    } catch (err) {
+      console.warn("Could not post inquiry to /api/inquiries:", err);
+    }
+
+    if (typeof window !== "undefined") {
+      // 2. Store in student inquiries history
+      try {
+        const existing = JSON.parse(localStorage.getItem("wegrow_student_inquiries") || "[]");
+        existing.unshift(newInquiry);
+        localStorage.setItem("wegrow_student_inquiries", JSON.stringify(existing));
+        setSentInquiries(existing);
+      } catch {}
+
+      // 3. Store in HR in-app inquiries as fallback
+      try {
+        const existingHr = JSON.parse(localStorage.getItem("wegrow_hr_inquiries") || "[]");
+        existingHr.unshift(newInquiry);
+        localStorage.setItem("wegrow_hr_inquiries", JSON.stringify(existingHr));
+      } catch {}
+
+      // 4. Create Student In-App Notification
+      try {
+        const localNotifs = JSON.parse(localStorage.getItem("wegrow_local_notifications") || "[]");
+        const newNotif = {
+          id: `notif-inq-${Date.now()}`,
+          title: `Inquiry Dispatched to ${company} HR`,
+          subtitle: `${contactingRecruiterApp.title} • Topic: ${inquiryTopic}`,
+          message: `Your follow-up question "${inquirySubject}" was delivered to ${company}'s recruitment desk.`,
+          type: "blue",
+          timeAgo: "Just now",
+          companyName: company,
+          companyLogo: contactingRecruiterApp.companyLogo,
+          read: false,
+          linkUrl: "/student/applications",
+          createdAt: nowIso,
+        };
+        localNotifs.unshift(newNotif);
+        localStorage.setItem("wegrow_local_notifications", JSON.stringify(localNotifs));
+      } catch {}
+
+      window.dispatchEvent(new CustomEvent("notificationsUpdated"));
+    }
+
+    // Invalidate React Query notification caches
+    queryClient.invalidateQueries({ queryKey: ["student-notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["student-unread-notifs"] });
+    queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
+
+    setTimeout(() => {
+      setIsSendingInquiry(false);
+      setContactingRecruiterApp(null);
+      showToast(`✓ In-App Notification created! Message delivered to ${company} HR.`);
+    }, 600);
+  };
+
+  const handleOpenWithdrawModal = (app: StudentApplicationTrackerItem) => {
+    setOpenMenuId(null);
+    setWithdrawingApp(app);
+  };
+
+  const handleConfirmWithdraw = async () => {
+    if (!withdrawingApp) return;
+    setIsWithdrawing(true);
+    try {
+      const ok = await applicationsService.withdrawApplication(withdrawingApp.id);
+      if (ok) {
+        // Optimistically update query cache
+        queryClient.setQueryData<StudentApplicationsPageData>(["student-applications"], (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            applications: old.applications.filter((a) => a.id !== withdrawingApp.id),
+            stats: {
+              ...old.stats,
+              totalApplied: Math.max(0, old.stats.totalApplied - 1),
+            },
+          };
+        });
+        queryClient.invalidateQueries({ queryKey: ["student-applications"] });
+        showToast(`✓ Application for "${withdrawingApp.title}" was withdrawn.`);
+      } else {
+        showToast("Unable to withdraw application. Please try again.");
+      }
+    } catch {
+      showToast("Error withdrawing application. Please try again.");
+    } finally {
+      setIsWithdrawing(false);
+      setWithdrawingApp(null);
+    }
+  };
 
   // Status Tab filters
   const tabs = [
@@ -398,37 +613,90 @@ export default function StudentApplicationsClient() {
                       <div className="relative">
                         <button
                           type="button"
-                          onClick={() => setOpenMenuId(openMenuId === app.id ? null : app.id)}
-                          className="p-1.5 text-[#6B7694] hover:text-[#0B1F4B] rounded-lg hover:bg-slate-100 transition"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(openMenuId === app.id ? null : app.id);
+                          }}
+                          className="p-1.5 text-[#6B7694] hover:text-[#0B1F4B] rounded-lg hover:bg-slate-100 transition cursor-pointer"
                           aria-label="Options"
                         >
                           <MoreVertical className="w-4 h-4" />
                         </button>
 
                         {openMenuId === app.id && (
-                          <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-lg border border-[#EEF1F7] py-1.5 z-20 text-xs text-[#0B1F4B]">
-                            <button
-                              type="button"
+                          <>
+                            {/* Backdrop to close on click outside */}
+                            <div
+                              className="fixed inset-0 z-20 bg-transparent"
                               onClick={() => setOpenMenuId(null)}
-                              className="w-full text-left px-3.5 py-2 hover:bg-slate-50 cursor-pointer"
-                            >
-                              Withdraw Application
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setOpenMenuId(null)}
-                              className="w-full text-left px-3.5 py-2 hover:bg-slate-50 cursor-pointer"
-                            >
-                              Save Job
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setOpenMenuId(null)}
-                              className="w-full text-left px-3.5 py-2 hover:bg-slate-50 cursor-pointer text-[#1E5BE0]"
-                            >
-                              Contact Recruiter
-                            </button>
-                          </div>
+                            />
+
+                            <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30 text-xs text-[#0B1F4B] animate-in fade-in zoom-in-95 duration-150">
+                              {/* Option 1: View Application Details */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  setSelectedAppForDrawer(app);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 cursor-pointer text-left font-medium text-slate-700"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-[#1E5BE0]" />
+                                <span>Application Details</span>
+                              </button>
+
+                              {/* Option 2: View Job Details */}
+                              <Link
+                                href={`/student/jobs/${app.jobId}`}
+                                onClick={() => setOpenMenuId(null)}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 cursor-pointer text-left font-medium text-slate-700"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+                                <span>View Job Posting</span>
+                              </Link>
+
+                              {/* Option 3: Save / Bookmark Job */}
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSaveJob(app)}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 cursor-pointer text-left font-medium text-slate-700"
+                              >
+                                <Bookmark
+                                  className={`w-3.5 h-3.5 ${
+                                    savedJobs[app.jobId] ? "fill-[#1E5BE0] text-[#1E5BE0]" : "text-slate-500"
+                                  }`}
+                                />
+                                <span>{savedJobs[app.jobId] ? "Saved in Jobs ✓" : "Save Job"}</span>
+                              </button>
+
+                              {/* Option 4: Contact Recruiter */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenContactRecruiter(app)}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 cursor-pointer text-left font-medium text-[#1E5BE0]"
+                              >
+                                <Mail className="w-3.5 h-3.5 text-[#1E5BE0]" />
+                                <span>Contact Recruiter</span>
+                              </button>
+
+                              <div className="my-1 border-t border-slate-100" />
+
+                              {/* Option 5: Withdraw Application */}
+                              <button
+                                type="button"
+                                disabled={app.status === "Rejected"}
+                                onClick={() => handleOpenWithdrawModal(app)}
+                                className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left font-medium ${
+                                  app.status === "Rejected"
+                                    ? "opacity-50 cursor-not-allowed text-slate-400"
+                                    : "hover:bg-red-50 text-red-600 cursor-pointer"
+                                }`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                <span>Withdraw Application</span>
+                              </button>
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
@@ -799,6 +1067,62 @@ export default function StudentApplicationsClient() {
                   })}
                 </div>
               </div>
+
+              {/* Sent Inquiries & Recruiter Follow-ups */}
+              <div className="pt-4 border-t border-[#EEF1F7]">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-bold text-[14px] text-[#0B1F4B] flex items-center gap-1.5">
+                    <Mail className="w-4 h-4 text-[#1E5BE0]" />
+                    <span>Inquiries Sent to Recruiter</span>
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenContactRecruiter(selectedAppForDrawer)}
+                    className="text-xs font-semibold text-[#1E5BE0] hover:underline cursor-pointer"
+                  >
+                    + Send Inquiry
+                  </button>
+                </div>
+
+                {sentInquiries.filter((inq) => inq.applicationId === selectedAppForDrawer.id).length === 0 ? (
+                  <div className="p-3.5 rounded-xl border border-dashed border-[#EEF1F7] text-center text-xs text-[#6B7694] bg-[#F8FAFC]">
+                    <p>No follow-up messages sent yet for this application.</p>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenContactRecruiter(selectedAppForDrawer)}
+                      className="mt-1.5 text-xs font-semibold text-[#1E5BE0] hover:underline cursor-pointer"
+                    >
+                      Have a question? Contact recruiter →
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {sentInquiries
+                      .filter((inq) => inq.applicationId === selectedAppForDrawer.id)
+                      .map((inq) => (
+                        <div
+                          key={inq.id}
+                          className="p-3.5 rounded-xl border border-blue-100 bg-blue-50/40 text-xs space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-[#1E5BE0] bg-blue-100/80 px-2 py-0.5 rounded-md text-[10px]">
+                              {inq.topic}
+                            </span>
+                            <span className="text-[11px] text-[#6B7694]">{inq.sentAtText || "Recent"}</span>
+                          </div>
+                          <p className="font-semibold text-[#0B1F4B]">{inq.subject}</p>
+                          <p className="text-[#6B7694] leading-relaxed line-clamp-3 whitespace-pre-line text-[11px]">
+                            {inq.message}
+                          </p>
+                          <div className="pt-1 flex items-center gap-1 text-[10px] font-semibold text-[#22B573]">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Delivered to HR Desk</span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Bottom Actions */}
@@ -818,6 +1142,154 @@ export default function StudentApplicationsClient() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Withdraw Application Confirmation Modal */}
+      {withdrawingApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mb-4">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <h3 className="text-lg font-bold text-[#0B1F4B]">
+              Withdraw Application?
+            </h3>
+            <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+              Are you sure you want to withdraw your application for{" "}
+              <strong className="text-[#0B1F4B]">{withdrawingApp.title}</strong> at{" "}
+              <strong className="text-[#0B1F4B]">{withdrawingApp.companyName}</strong>?
+            </p>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-xl mt-3">
+              ⚠️ The hiring panel will be notified and your submission will be removed from active consideration.
+            </p>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                disabled={isWithdrawing}
+                onClick={() => setWithdrawingApp(null)}
+                className="px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+              >
+                Keep Application
+              </button>
+              <button
+                type="button"
+                disabled={isWithdrawing}
+                onClick={handleConfirmWithdraw}
+                className="px-5 py-2.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition shadow-md shadow-red-600/20 cursor-pointer flex items-center gap-2"
+              >
+                {isWithdrawing && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>{isWithdrawing ? "Withdrawing..." : "Confirm Withdrawal"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contact Recruiter Modal */}
+      {contactingRecruiterApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E5BE0] flex items-center justify-center">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#0B1F4B]">
+                    Contact {contactingRecruiterApp.companyName} HR
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Ref: {contactingRecruiterApp.id.slice(0, 8)} • {contactingRecruiterApp.title}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setContactingRecruiterApp(null)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendRecruiterInquiry} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Inquiry Topic
+                </label>
+                <select
+                  value={inquiryTopic}
+                  onChange={(e) => setInquiryTopic(e.target.value)}
+                  className="w-full text-xs sm:text-sm bg-[#F8FAFC] border border-slate-200 rounded-xl px-3.5 py-2.5 text-[#0B1F4B] focus:outline-none focus:border-[#1E5BE0] cursor-pointer"
+                >
+                  <option value="Application Status Follow-up">Application Status Follow-up</option>
+                  <option value="Interview Scheduling Query">Interview Scheduling Query</option>
+                  <option value="Portfolio / Document Update">Portfolio / Document Update</option>
+                  <option value="General Recruitment Query">General Recruitment Query</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Subject
+                </label>
+                <input
+                  type="text"
+                  value={inquirySubject}
+                  onChange={(e) => setInquirySubject(e.target.value)}
+                  required
+                  className="w-full text-xs sm:text-sm bg-[#F8FAFC] border border-slate-200 rounded-xl px-3.5 py-2.5 text-[#0B1F4B] focus:outline-none focus:border-[#1E5BE0]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Message to Hiring Team
+                </label>
+                <textarea
+                  rows={4}
+                  value={inquiryMessage}
+                  onChange={(e) => setInquiryMessage(e.target.value)}
+                  required
+                  placeholder="Describe your question or provide additional context to the recruiter..."
+                  className="w-full text-xs sm:text-sm bg-[#F8FAFC] border border-slate-200 rounded-xl p-3.5 text-[#0B1F4B] focus:outline-none focus:border-[#1E5BE0] resize-none leading-relaxed"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setContactingRecruiterApp(null)}
+                  className="px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSendingInquiry}
+                  className="px-5 py-2.5 text-xs sm:text-sm font-bold text-white bg-[#1E5BE0] hover:bg-[#1548b8] rounded-xl transition shadow-md shadow-blue-900/15 cursor-pointer flex items-center gap-2"
+                >
+                  {isSendingInquiry ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  <span>{isSendingInquiry ? "Sending..." : "Send Message"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 bg-[#0B1F4B] text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs sm:text-sm animate-in slide-in-from-top-3 border border-white/10">
+          <CheckCircle2 className="w-4 h-4 text-[#22B573] shrink-0" />
+          <span>{toastMessage}</span>
         </div>
       )}
     </div>

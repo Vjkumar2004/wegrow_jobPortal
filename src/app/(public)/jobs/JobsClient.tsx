@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Job } from "@/types";
@@ -75,6 +75,77 @@ export default function JobsClient({
   useEffect(() => {
     setJobsList(initialJobs);
   }, [initialJobs]);
+
+  const [allPlatformJobs, setAllPlatformJobs] = useState<Job[]>(initialJobs);
+
+  useEffect(() => {
+    if (!initialParams.location || initialParams.location === "All") {
+      setAllPlatformJobs(initialJobs);
+    }
+    jobsService
+      .getJobs({ limit: 100 })
+      .then((all) => {
+        if (all && all.length > 0) {
+          setAllPlatformJobs(all);
+        }
+      })
+      .catch(() => {});
+  }, [initialJobs, initialParams.location]);
+
+  const dynamicLocationOptions: [string, string][] = useMemo(() => {
+    const sourceJobs = allPlatformJobs.length > 0 ? allPlatformJobs : jobsList;
+    function extractCities(loc?: string): string[] {
+      if (!loc) return [];
+      const cleaned = loc.replace(/\([^)]*\)/g, "").trim();
+      const segments = cleaned.split(/[/|;]+/).map((s) => s.trim()).filter(Boolean);
+      const cities: string[] = [];
+      for (const seg of segments) {
+        const city = seg.split(",")[0].trim();
+        if (city && city.length > 1) {
+          const norm = city.toLowerCase() === "bangalore" ? "Bengaluru" : city;
+          const titleCase = norm
+            .split(" ")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(" ");
+          cities.push(titleCase);
+        }
+      }
+      return cities;
+    }
+
+    const counts: Record<string, number> = {};
+    let remoteCount = 0;
+
+    sourceJobs.forEach((j) => {
+      const isRemote = (j.workMode || "").toLowerCase().includes("remote") || (j.location || "").toLowerCase().includes("remote");
+      if (isRemote) remoteCount++;
+
+      const cities = new Set(extractCities(j.location));
+      cities.forEach((c) => {
+        if (c.toLowerCase() !== "remote") {
+          counts[c] = (counts[c] || 0) + 1;
+        }
+      });
+    });
+
+    const sortedCities = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([city, count]) => [city, `${city} (${count})`] as [string, string]);
+
+    const result: [string, string][] = [["All", "All Locations"]];
+
+    if (remoteCount > 0) {
+      result.push(["Remote", `Remote (${remoteCount})`]);
+    }
+
+    result.push(...sortedCities);
+
+    if (location && location !== "All" && !result.some(([v]) => v.toLowerCase() === location.toLowerCase())) {
+      result.push([location, location]);
+    }
+
+    return result;
+  }, [allPlatformJobs, jobsList, location]);
 
   useEffect(() => {
     let isMounted = true;
@@ -271,13 +342,11 @@ export default function JobsClient({
                 onChange={(e) => setLocation(e.target.value)}
                 className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:bg-white focus:border-[#014E9C] focus:ring-2 focus:ring-[#014E9C]/15 outline-none transition-all cursor-pointer"
               >
-                <option value="All">All Locations</option>
-                <option value="Bengaluru">Bengaluru</option>
-                <option value="Chennai">Chennai</option>
-                <option value="Hyderabad">Hyderabad</option>
-                <option value="Pune">Pune</option>
-                <option value="Mumbai">Mumbai</option>
-                <option value="Remote">Remote</option>
+                {dynamicLocationOptions.map(([val, label]) => (
+                  <option key={val} value={val}>
+                    {label}
+                  </option>
+                ))}
               </select>
             </div>
 

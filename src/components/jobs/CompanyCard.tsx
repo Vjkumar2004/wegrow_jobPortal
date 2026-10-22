@@ -6,6 +6,7 @@ import { Company } from "@/types";
 import { Building2, MapPin, Globe, Users } from "lucide-react";
 import { Button } from "../common/Button";
 import { getCompanyLogoUrl, getCompanyLogoProxyUrl } from "@/lib/utils";
+import { authService } from "@/services/auth.service";
 
 export const CompanyCard: React.FC<{ company: Company }> = ({ company }) => {
   return (
@@ -68,7 +69,13 @@ export const CompanyCard: React.FC<{ company: Company }> = ({ company }) => {
         <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
           {company.activeJobsCount} Active Jobs
         </span>
-        <Link href={`/jobs?company=${encodeURIComponent(company.name)}`}>
+        <Link
+          href={
+            typeof window !== "undefined" && authService.getCurrentUser()?.role === "STUDENT"
+              ? `/student/jobs?search=${encodeURIComponent(company.name)}`
+              : `/jobs?company=${encodeURIComponent(company.name)}`
+          }
+        >
           <Button variant="outline" size="sm">
             View Jobs
           </Button>

@@ -43,6 +43,7 @@ import { useSearchParams } from "next/navigation";
 import { Job, Application, Interview, CompanyApprovalStatus } from "@/types";
 import PostJobModal from "@/components/hr/PostJobModal";
 import CompanyProfileSubSection from "@/components/hr/CompanyProfileSubSection";
+import { CandidateProfileModal } from "@/components/hr/CandidateProfileModal";
 import Portal from "@/components/common/Portal";
 import { authService } from "@/services/auth.service";
 import { hrService } from "@/services/hr.service";
@@ -113,6 +114,7 @@ export default function HRDashboardClient({
   // Schedule Interview Modal state
   const [selectedApplicant, setSelectedApplicant] = useState<Application | null>(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [viewingProfileApplicant, setViewingProfileApplicant] = useState<Application | null>(null);
   const [interviewDate, setInterviewDate] = useState(() => new Date(Date.now() + 86400000).toISOString().split("T")[0]);
   const [interviewTime, setInterviewTime] = useState("11:30 AM");
   const [interviewType, setInterviewType] = useState<"Technical" | "HR Discussion" | "Managerial" | "Screening">("Technical");
@@ -989,7 +991,14 @@ export default function HRDashboardClient({
                             )}
                           </div>
                           <div>
-                            <p className="font-bold text-[#0B1F4B]">{app.applicantName}</p>
+                            <button
+                              type="button"
+                              onClick={() => setViewingProfileApplicant(app)}
+                              className="font-bold text-[#0B1F4B] hover:text-[#1E5BE0] text-left hover:underline cursor-pointer block truncate"
+                              title="Click to view candidate full profile"
+                            >
+                              {app.applicantName}
+                            </button>
                             <p className="text-[11px] text-[#6B7694]">{app.applicantEmail}</p>
                           </div>
                         </div>
@@ -1034,6 +1043,14 @@ export default function HRDashboardClient({
                               <span className="hidden sm:inline">Schedule</span>
                             </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => setViewingProfileApplicant(app)}
+                            className="inline-flex items-center px-2 py-1 bg-[#E8F0FF] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white rounded-[6px] text-[11px] font-semibold transition-colors cursor-pointer"
+                            title="View Candidate Full Profile"
+                          >
+                            Profile
+                          </button>
                           <Link
                             href="/hr/applicants"
                             className="inline-flex items-center px-2 py-1 text-[#6B7694] hover:text-[#1E5BE0] hover:bg-[#F1F4F9] rounded-[6px] text-[11px] font-semibold transition-colors"
@@ -1141,6 +1158,13 @@ export default function HRDashboardClient({
                         <span>Schedule</span>
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => setViewingProfileApplicant(app)}
+                      className="px-3 py-2 bg-[#E8F0FF] text-[#1E5BE0] rounded-xl text-xs font-bold active:scale-95 transition-all cursor-pointer"
+                    >
+                      Profile
+                    </button>
                     <Link
                       href="/hr/applicants"
                       className="inline-flex items-center justify-center px-4 py-2 bg-white border border-[#D8E2EE] text-[#0B1F4B] active:bg-[#F1F4F9] rounded-xl text-xs font-semibold"
@@ -1349,6 +1373,15 @@ export default function HRDashboardClient({
         </div>
         </Portal>
       )}
+
+      {/* Candidate Full Profile View Modal */}
+      <CandidateProfileModal
+        isOpen={!!viewingProfileApplicant}
+        onClose={() => setViewingProfileApplicant(null)}
+        application={viewingProfileApplicant}
+        onStatusChange={(id, st) => handleStatusChange({ id } as any, st)}
+        onScheduleInterview={openScheduleModal}
+      />
      </div>
    );
  }

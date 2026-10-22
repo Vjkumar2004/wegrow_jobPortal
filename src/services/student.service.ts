@@ -10,6 +10,7 @@ import {
 } from "@/types/api";
 import { getCompanyLogoUrl } from "@/lib/utils";
 import { mapBackendJobToFrontend } from "./jobs.service";
+import authService from "./auth.service";
 
 /**
  * Ensures date is returned as a valid ISO-8601 string or undefined/null.
@@ -1039,7 +1040,35 @@ export const studentService = {
         }
       });
       const avgResponseDays = matchedCount > 0 ? +(totalDiffDays / matchedCount).toFixed(1) : 0;
-      const profileViews = typeof profileData?.viewsCount === "number" ? profileData.viewsCount : 0;
+      let profileViews = typeof profileData?.viewsCount === "number" ? profileData.viewsCount : 0;
+      try {
+        const user = authService.getCurrentUser();
+        const sId =
+          profileData?.id ||
+          (profileData as any)?.studentProfile?.id ||
+          (user as any)?.studentProfile?.id ||
+          (user as any)?.studentId ||
+          user?.id ||
+          "";
+        const sEmail =
+          user?.email ||
+          profileData?.user?.email ||
+          profileData?.email ||
+          (user as any)?.studentProfile?.email ||
+          "";
+
+        const params = new URLSearchParams();
+        if (sId) params.set("studentId", sId);
+        if (sEmail) params.set("email", sEmail);
+
+        const pvRes = await fetch(`/api/profile-views?${params.toString()}`, { cache: "no-store" });
+        if (pvRes.ok) {
+          const pvData = await pvRes.json();
+          if (typeof pvData.count === "number") {
+            profileViews = Math.max(profileViews, pvData.count);
+          }
+        }
+      } catch {}
 
       return {
         summary: {
@@ -1225,6 +1254,36 @@ export const studentService = {
             }))
         : [];
 
+      let profileViews = 0;
+      try {
+        const user = authService.getCurrentUser();
+        const studentId =
+          stu?.id ||
+          (stu as any)?.studentProfile?.id ||
+          (user as any)?.studentProfile?.id ||
+          (user as any)?.studentId ||
+          user?.id ||
+          "";
+        const studentEmail =
+          stu?.user?.email ||
+          stu?.email ||
+          user?.email ||
+          (user as any)?.studentProfile?.email ||
+          "";
+
+        const params = new URLSearchParams();
+        if (studentId) params.set("studentId", studentId);
+        if (studentEmail) params.set("email", studentEmail);
+
+        const pvRes = await fetch(`/api/profile-views?${params.toString()}`, { cache: "no-store" });
+        if (pvRes.ok) {
+          const pvData = await pvRes.json();
+          profileViews = typeof pvData.count === "number" ? pvData.count : 0;
+        }
+      } catch (err) {
+        console.warn("Could not fetch profile views:", err);
+      }
+
       return {
         student: {
           id: stu?.id || "stu-1",
@@ -1243,6 +1302,8 @@ export const studentService = {
           shortlistedTrend: `${shortlistedCount} shortlisted`,
           offers: offersCount,
           offersTrend: `${offersCount} offers`,
+          profileViews,
+          profileViewsTrend: `${profileViews} views`,
         },
         profileCompletion: {
           percentage: completionPercentage,
@@ -1329,11 +1390,24 @@ export const studentService = {
    * GET /api/v1/students/me/notifications
    */
   async getNotifications(): Promise<StudentNotificationItem[]> {
+    let localItems: StudentNotificationItem[] = [];
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("wegrow_local_notifications");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            localItems = parsed;
+          }
+        }
+      } catch {}
+    }
+
     try {
       const res = await apiClient.get<any>("/students/me/notifications");
       const items = res.data?.data?.items || res.data?.data;
       if (Array.isArray(items)) {
-        return items
+        const backendItems = items
           .filter((n: any) => !isReadAndOlderThan15Days(n))
           .map((n: any) => ({
             id: n.id || String(Math.random()),
@@ -1350,39 +1424,64 @@ export const studentService = {
             createdAt: n.createdAt,
             readAt: n.readAt,
           }));
+
+        return [...localItems, ...backendItems];
       }
     } catch {
       // Endpoint not available
     }
 
-    return [];
+    return localItems;
   },
-
-  /**
-   * PATCH /api/v1/students/me/notifications/read-all
-   */
 
   /**
    * GET /api/v1/students/me/notifications unread count
    */
   async getUnreadCount(): Promise<number> {
+    let localUnread = 0;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("wegrow_local_notifications");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            localUnread = parsed.filter((n: any) => !n.read).length;
+          }
+        }
+      } catch {}
+    }
+
     try {
       const res = await apiClient.get<any>("/students/me/notifications");
       if (typeof res.data?.data?.unreadCount === "number") {
-        return res.data.data.unreadCount;
+        return res.data.data.unreadCount + localUnread;
       }
       const items = res.data?.data?.items || res.data?.data;
       if (Array.isArray(items)) {
-        return items
+        const backendUnread = items
           .filter((n: any) => !isReadAndOlderThan15Days(n))
           .filter((n: any) => !n.read && !n.isRead).length;
+        return backendUnread + localUnread;
       }
     } catch {
       // Fallback
     }
-    return 0;
+    return localUnread;
   },
   async markAllNotificationsAsRead(): Promise<void> {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("wegrow_local_notifications");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const updated = parsed.map((n: any) => ({ ...n, read: true, readAt: new Date().toISOString() }));
+            localStorage.setItem("wegrow_local_notifications", JSON.stringify(updated));
+          }
+        }
+      } catch {}
+    }
+
     try {
       await apiClient.patch("/students/me/notifications/read-all");
     } catch (err) {
@@ -1394,6 +1493,21 @@ export const studentService = {
    * PATCH /api/v1/students/me/notifications/:id/read
    */
   async markNotificationAsRead(id: string): Promise<void> {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("wegrow_local_notifications");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const updated = parsed.map((n: any) =>
+              n.id === id ? { ...n, read: true, readAt: new Date().toISOString() } : n
+            );
+            localStorage.setItem("wegrow_local_notifications", JSON.stringify(updated));
+          }
+        }
+      } catch {}
+    }
+
     try {
       await apiClient.patch(`/students/me/notifications/${id}/read`);
     } catch (err) {
@@ -1405,6 +1519,19 @@ export const studentService = {
    * DELETE /api/v1/students/me/notifications/:id
    */
   async deleteNotification(id: string): Promise<void> {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("wegrow_local_notifications");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const updated = parsed.filter((n: any) => n.id !== id);
+            localStorage.setItem("wegrow_local_notifications", JSON.stringify(updated));
+          }
+        }
+      } catch {}
+    }
+
     try {
       await apiClient.delete(`/students/me/notifications/${id}`);
     } catch (err) {

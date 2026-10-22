@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { studentService } from "@/services/student.service";
+import { downloadFileDirectly } from "@/lib/utils";
 
 interface ResumeItem {
   id?: string;
@@ -51,7 +52,7 @@ async function fetchResumeData(): Promise<ResumeItem | null> {
 export default function StudentResumePage() {
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [activeAction, setActiveAction] = useState<"preview" | "download" | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const { data: activeResume = null, isLoading } = useQuery<ResumeItem | null>({
@@ -102,7 +103,7 @@ export default function StudentResumePage() {
       return;
     }
 
-    setIsDownloading(true);
+    setActiveAction(action);
     try {
       let downloadUrl = activeResume.fileUrl;
 
@@ -120,19 +121,14 @@ export default function StudentResumePage() {
       if (action === "preview") {
         window.open(downloadUrl, "_blank", "noopener,noreferrer");
       } else {
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.target = "_blank";
-        link.download = activeResume.fileName || "Resume.pdf";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        await downloadFileDirectly(downloadUrl, activeResume.fileName || "Resume.pdf");
+        showToast("Resume download started!", "success");
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || "Failed to fetch secure resume download URL";
       showToast(msg, "error");
     } finally {
-      setIsDownloading(false);
+      setActiveAction(null);
     }
   };
 
@@ -193,19 +189,19 @@ export default function StudentResumePage() {
               <button
                 type="button"
                 onClick={() => handleViewOrDownload("preview")}
-                disabled={isDownloading}
-                className="border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white px-3.5 py-1.5 rounded-[8px] text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                disabled={activeAction !== null}
+                className="border border-[#1E5BE0] text-[#1E5BE0] hover:bg-[#1E5BE0] hover:text-white px-3.5 py-1.5 rounded-[8px] text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
               >
-                {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                {activeAction === "preview" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
                 <span>Preview</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleViewOrDownload("download")}
-                disabled={isDownloading}
-                className="bg-[#1E5BE0] hover:bg-[#1548b8] text-white px-3.5 py-1.5 rounded-[8px] text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                disabled={activeAction !== null}
+                className="bg-[#1E5BE0] hover:bg-[#1548b8] text-white px-3.5 py-1.5 rounded-[8px] text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-60"
               >
-                {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                {activeAction === "download" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                 <span>Download</span>
               </button>
             </div>
