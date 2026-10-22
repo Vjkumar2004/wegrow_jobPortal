@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Poppins, Caveat } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
@@ -16,6 +17,8 @@ const caveat = Caveat({
   variable: "--font-caveat",
   weight: ["600", "700"],
 });
+
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_ID || "G-JTXSVDC3Z4";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.wegrowjobz.com"),
@@ -166,6 +169,25 @@ export default function RootLayout({
         />
       </head>
       <body className={`${poppins.className} antialiased text-slate-900`} style={{ background: "#FFF6EE" }}>
+        {/* Google Analytics (gtag.js) */}
+        <Script
+          strategy="afterInteractive"
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+        />
+        <Script
+          id="google-analytics"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${GA_MEASUREMENT_ID}', {
+                page_path: window.location.pathname,
+              });
+            `,
+          }}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>
