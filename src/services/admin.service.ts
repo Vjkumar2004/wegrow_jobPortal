@@ -1,6 +1,6 @@
 import apiClient from "./api";
 import { Company, Job, Application, StudentAdmin } from "@/types";
-import { mapBackendJobToFrontend } from "./jobs.service";
+import { mapBackendJobToFrontend, jobsService } from "./jobs.service";
 import { getCompanyLogoProxyUrl, getAvatarUrl } from "@/lib/utils";
 
 export interface AuditLog {
@@ -38,39 +38,63 @@ export interface AdminReportData {
   }>;
 }
 
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export const adminService = {
   /**
-   * GET /api/v1/admin/companies
+   * GET /api/v1/admin/companies (Paginated, default limit: 10)
    */
-  async getCompanies(): Promise<Company[]> {
+  async getCompanies(params?: { page?: number; limit?: number; status?: string; search?: string }): Promise<PaginatedResult<Company>> {
     try {
-      const response = await apiClient.get<{ success: boolean; data: { items: any[] } }>("/admin/companies?limit=100");
-      const items = response.data?.data?.items;
-      if (Array.isArray(items)) {
-        return items.map((c) => ({
-          id: c.id,
-          name: c.name,
-          logo: c.id ? getCompanyLogoProxyUrl(c.id) : (c.logoUrl || ""),
-          description: c.about || "",
-          website: c.website || "",
-          industry: c.industry || "Technology",
-          location: c.location || "India",
-          size: c.companySize || "50 - 200 employees",
-          about: c.about || "",
-          status: c.approvalStatus === "APPROVED" ? "Approved" : c.approvalStatus === "REJECTED" ? "Rejected" : c.approvalStatus === "SUSPENDED" ? "Suspended" : "Pending",
-          activeJobsCount: c._count?.jobs || 0,
-          joinedDate: new Date(c.createdAt).toLocaleDateString(),
-          tagline: c.tagline,
-          culture: c.culture,
-          hrEmail: c.hrProfiles?.[0]?.user?.email || c.hrEmail,
-          hrPhone: c.hrProfiles?.[0]?.phone || c.hrPhone,
-          recruiterName: c.hrProfiles?.[0]?.fullName,
-          rejectionReason: c.rejectionReason,
-        }));
-      }
-      return [];
+      const page = Math.max(1, Number(params?.page) || 1);
+      const limit = Math.max(1, Number(params?.limit) || 10);
+      const queryParams: Record<string, string | number> = { page, limit };
+      if (params?.status) queryParams.status = params.status;
+      if (params?.search) queryParams.search = params.search;
+
+      const response = await apiClient.get<{ success: boolean; data: { items: any[]; total?: number; page?: number; limit?: number; totalPages?: number } }>(
+        "/admin/companies",
+        { params: queryParams }
+      );
+      const d = response.data?.data;
+      const rawItems = Array.isArray(d?.items) ? d.items : Array.isArray(d) ? d : [];
+      const items: Company[] = rawItems.map((c) => ({
+        id: c.id,
+        name: c.name,
+        logo: c.id ? getCompanyLogoProxyUrl(c.id) : (c.logoUrl || ""),
+        description: c.about || "",
+        website: c.website || "",
+        industry: c.industry || "Technology",
+        location: c.location || "India",
+        size: c.companySize || "50 - 200 employees",
+        about: c.about || "",
+        status: c.approvalStatus === "APPROVED" ? "Approved" : c.approvalStatus === "REJECTED" ? "Rejected" : c.approvalStatus === "SUSPENDED" ? "Suspended" : "Pending",
+        activeJobsCount: c._count?.jobs || 0,
+        joinedDate: new Date(c.createdAt).toLocaleDateString(),
+        tagline: c.tagline,
+        culture: c.culture,
+        hrEmail: c.hrProfiles?.[0]?.user?.email || c.hrEmail,
+        hrPhone: c.hrProfiles?.[0]?.phone || c.hrPhone,
+        recruiterName: c.hrProfiles?.[0]?.fullName,
+        rejectionReason: c.rejectionReason,
+      }));
+
+      const total = typeof d?.total === "number" ? d.total : items.length;
+      return {
+        items,
+        total,
+        page,
+        limit,
+        totalPages: typeof d?.totalPages === "number" ? d.totalPages : Math.max(1, Math.ceil(total / limit)),
+      };
     } catch {
-      return [];
+      return { items: [], total: 0, page: 1, limit: 10, totalPages: 1 };
     }
   },
 
@@ -106,41 +130,45 @@ export const adminService = {
     }
   },
 
-  async getStudents(): Promise<StudentAdmin[]> {
+  /**
+   * GET /api/v1/admin/students (Paginated, default limit: 10)
+   */
+  async getStudents(params?: { page?: number; limit?: number; search?: string }): Promise<PaginatedResult<StudentAdmin>> {
     try {
-      const response = await apiClient.get("/admin/students");
-      const data = response.data?.data?.items || response.data?.data;
-      if (Array.isArray(data)) {
-        return data.map((s: any) => {
-          // Compute a rough completion % from available fields
-          const checks = [
-            Boolean(s.name || s.fullName),
-            Boolean(s.college || s.currentCollege),
-            Boolean(s.degree),
-            Boolean(s.graduationYear || s.gradYear),
-            Boolean(s.cgpa),
-          ];
-          const computedPct = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+      const page = Math.max(1, Number(params?.page) || 1);
+      const limit = Math.max(1, Number(params?.limit) || 10);
+      const queryParams: Record<string, string | number> = { page, limit };
+      if (params?.search) queryParams.search = params.search;
 
-          return {
-            id: s.id,
-            name: s.name || s.fullName || "Unknown",
-            email: s.email || "",
-            college: s.college || s.currentCollege || "WeGrow Skill Campus",
-            gradYear: String(s.graduationYear || s.gradYear || "—"),
-            completionPercentage: s.completionPercentage ?? computedPct,
-            applicationsCount: s.applicationsCount ?? s.appliedJobsCount ?? 0,
-            status: s.status || "Active",
-            avatarUrl: s.avatarUrl || s.profilePhotoUrl || s.photoUrl || getAvatarUrl(s.id),
-            degree: s.degree || undefined,
-            cgpa: s.cgpa ? Number(s.cgpa) : undefined,
-            joinedDate: s.joinedDate || undefined,
-          };
-        });
-      }
-      return [];
+      const response = await apiClient.get("/admin/students", { params: queryParams });
+      const d = response.data?.data;
+      const raw = d?.items || d;
+      const rawItems = Array.isArray(raw) ? raw : [];
+      const items: StudentAdmin[] = rawItems.map((s: any) => ({
+        id: s.id,
+        name: s.name || s.fullName || "Unknown",
+        email: s.email || s.user?.email || "",
+        college: s.college || s.currentCollege || s.education?.[0]?.institution || "Not specified",
+        gradYear: String(s.graduationYear || s.gradYear || "—"),
+        completionPercentage: 0,
+        applicationsCount: s.applicationsCount ?? s.appliedJobsCount ?? s._count?.applications ?? 0,
+        status: s.status || "Active",
+        avatarUrl: s.avatarUrl || s.profilePhotoUrl || s.photoUrl || getAvatarUrl(s.id),
+        degree: s.degree || s.education?.[0]?.degree || undefined,
+        cgpa: s.cgpa ? Number(s.cgpa) : undefined,
+        joinedDate: s.joinedDate || s.createdAt || undefined,
+      }));
+
+      const total = typeof d?.total === "number" ? d.total : items.length;
+      return {
+        items,
+        total,
+        page,
+        limit,
+        totalPages: typeof d?.totalPages === "number" ? d.totalPages : Math.max(1, Math.ceil(total / limit)),
+      };
     } catch {
-      return [];
+      return { items: [], total: 0, page: 1, limit: 10, totalPages: 1 };
     }
   },
 
@@ -155,29 +183,156 @@ export const adminService = {
     return response.data?.data || response.data;
   },
 
-  async getJobs(): Promise<Job[]> {
+  /**
+   * GET /api/v1/admin/jobs (Paginated, default limit: 10)
+   */
+  async getJobs(params?: { page?: number; limit?: number; status?: string; search?: string }): Promise<PaginatedResult<Job>> {
     try {
-      const response = await apiClient.get<{ success: boolean; data: { items: any[] } }>("/jobs?limit=50");
-      const items = response.data?.data?.items;
-      if (Array.isArray(items)) {
-        return items.map(mapBackendJobToFrontend);
+      const page = Math.max(1, Number(params?.page) || 1);
+      const limit = Math.max(1, Number(params?.limit) || 10);
+      const queryParams: Record<string, string | number> = { page, limit };
+      if (params?.status && params.status !== "ALL") queryParams.status = params.status;
+      if (params?.search) queryParams.search = params.search;
+
+      const [adminJobsRes, publicJobsRes, appsRes] = await Promise.all([
+        apiClient.get<any>("/admin/jobs", { params: queryParams }).catch(() => null),
+        apiClient.get<any>("/jobs", { params: { ...queryParams, limit: Math.min(limit, 50) } }).catch(() => null),
+        apiClient.get<any>("/admin/applications", { params: { limit: 50 } }).catch(() => null),
+      ]);
+
+      const adminRaw = adminJobsRes?.data?.data;
+      const adminItems: any[] =
+        (Array.isArray(adminRaw?.items) ? adminRaw.items : null) ??
+        (Array.isArray(adminRaw?.jobs) ? adminRaw.jobs : null) ??
+        (Array.isArray(adminRaw) ? adminRaw : []);
+
+      const publicRaw = publicJobsRes?.data?.data;
+      const publicItems: any[] =
+        (Array.isArray(publicRaw?.items) ? publicRaw.items : null) ??
+        (Array.isArray(publicRaw?.jobs) ? publicRaw.jobs : null) ??
+        (Array.isArray(publicRaw) ? publicRaw : []);
+
+      let items: any[] = adminItems.length > 0 ? adminItems : publicItems;
+
+      if (!items || items.length === 0) {
+        const fallback = await jobsService.getJobs({ page, limit }).catch(() => []);
+        if (fallback.length > 0) {
+          return {
+            items: fallback,
+            total: fallback.length,
+            page,
+            limit,
+            totalPages: 1,
+          };
+        }
       }
-      return [];
+
+      // Extract applications to supplement applicants count if needed
+      const appsRaw = appsRes?.data?.data;
+      const appItems: any[] =
+        (Array.isArray(appsRaw?.items) ? appsRaw.items : null) ??
+        (Array.isArray(appsRaw?.applications) ? appsRaw.applications : null) ??
+        (Array.isArray(appsRaw) ? appsRaw : []);
+
+      const results = items.map((bj: any) => {
+        const mapped = mapBackendJobToFrontend(bj);
+
+        const countFromApps = appItems.filter(
+          (a: any) =>
+            (a.jobId && String(a.jobId) === String(bj.id)) ||
+            (a.job?.id && String(a.job?.id) === String(bj.id)) ||
+            (a.job?.title && bj.title && String(a.job.title).toLowerCase().trim() === String(bj.title).toLowerCase().trim())
+        ).length;
+
+        mapped.applicantsCount = Math.max(
+          typeof (bj as any).applicantsCount === "number" ? (bj as any).applicantsCount : 0,
+          typeof (bj as any).applicationsCount === "number" ? (bj as any).applicationsCount : 0,
+          typeof bj._count?.applications === "number" ? bj._count.applications : 0,
+          Array.isArray(bj.applications) ? bj.applications.length : 0,
+          mapped.applicantsCount || 0,
+          countFromApps
+        );
+
+        return mapped;
+      });
+
+      const total =
+        typeof adminRaw?.total === "number"
+          ? adminRaw.total
+          : typeof publicRaw?.total === "number"
+          ? publicRaw.total
+          : results.length;
+
+      return {
+        items: results,
+        total,
+        page,
+        limit,
+        totalPages:
+          typeof adminRaw?.totalPages === "number"
+            ? adminRaw.totalPages
+            : typeof publicRaw?.totalPages === "number"
+            ? publicRaw.totalPages
+            : Math.max(1, Math.ceil(total / limit)),
+      };
     } catch {
-      return [];
+      const fallback = await jobsService.getJobs({ page: params?.page || 1, limit: params?.limit || 10 }).catch(() => []);
+      return {
+        items: fallback,
+        total: fallback.length,
+        page: params?.page || 1,
+        limit: params?.limit || 10,
+        totalPages: 1,
+      };
     }
   },
 
-  async getApplications(): Promise<Application[]> {
+  /**
+   * PATCH /api/v1/admin/jobs/:jobId/status
+   */
+  async updateJobStatus(jobId: string, status: "Published" | "Paused" | "Closed" | "Draft"): Promise<boolean> {
     try {
-      const response = await apiClient.get("/admin/applications");
-      const data = response.data?.data?.items || response.data?.data;
-      if (Array.isArray(data)) {
-        return data;
+      if (status === "Published") {
+        await (apiClient.patch(`/admin/jobs/${jobId}/publish`).catch(() => apiClient.patch(`/hr/jobs/${jobId}/publish`)));
+      } else if (status === "Paused") {
+        await (apiClient.patch(`/admin/jobs/${jobId}/pause`).catch(() => apiClient.patch(`/hr/jobs/${jobId}/pause`)));
+      } else if (status === "Closed") {
+        await (apiClient.patch(`/admin/jobs/${jobId}/close`).catch(() => apiClient.patch(`/hr/jobs/${jobId}/close`)));
+      } else {
+        await apiClient.patch(`/admin/jobs/${jobId}`, { status: "DRAFT" }).catch(() => null);
       }
-      return [];
+      return true;
     } catch {
-      return [];
+      return false;
+    }
+  },
+
+  /**
+   * GET /api/v1/admin/applications (Paginated, default limit: 10)
+   */
+  async getApplications(params?: { page?: number; limit?: number; status?: string; search?: string }): Promise<PaginatedResult<Application>> {
+    try {
+      const page = Math.max(1, Number(params?.page) || 1);
+      const limit = Math.max(1, Number(params?.limit) || 10);
+      const queryParams: Record<string, string | number> = { page, limit };
+      if (params?.status && params.status !== "ALL") queryParams.status = params.status;
+      if (params?.search) queryParams.search = params.search;
+
+      const response = await apiClient.get("/admin/applications", { params: queryParams });
+      const d = response.data?.data;
+      const raw = d?.items || d;
+      const items: Application[] = Array.isArray(raw) ? raw : [];
+      const total = typeof d?.total === "number" ? d.total : items.length;
+
+      return {
+        items,
+        total,
+        page,
+        limit,
+        totalPages: typeof d?.totalPages === "number" ? d.totalPages : Math.max(1, Math.ceil(total / limit)),
+      };
+    } catch {
+      return { items: [], total: 0, page: 1, limit: 10, totalPages: 1 };
     }
   },
 

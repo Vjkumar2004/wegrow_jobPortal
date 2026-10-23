@@ -8,11 +8,11 @@ export const metadata = {
 };
 
 export default async function AdminHRManagementPage() {
-  const initialCompanies = await adminService.getCompanies();
+  const initialData = await adminService.getCompanies({ page: 1, limit: 10 });
 
   return (
     <AdminLayout>
-      <AdminHRClient initialCompanies={initialCompanies} />
+      <AdminHRClient initialData={initialData} />
     </AdminLayout>
   );
 }

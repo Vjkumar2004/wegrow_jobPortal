@@ -59,13 +59,13 @@ export default function AdminDashboardClient() {
             totalApplications: 0, totalInterviews: 0, totalPlacements: 0, monthlyPlacements: [],
           })),
           adminService.getAuditLogs().catch(() => []),
-          adminService.getCompanies().catch(() => []),
-          adminService.getStudents().catch(() => []),
+          adminService.getCompanies({ limit: 50 }).catch(() => ({ items: [] })),
+          adminService.getStudents({ limit: 50 }).catch(() => ({ items: [] })),
         ]);
         setReports(r);
         setAuditLogs(a);
-        setCompanies(c);
-        setStudents(s);
+        setCompanies((c as any).items || (Array.isArray(c) ? c : []));
+        setStudents((s as any).items || (Array.isArray(s) ? s : []));
       } finally {
         setLoading(false);
       }

@@ -120,17 +120,33 @@ export function mapBackendJobToFrontend(bj: BackendPublicJob): Job {
     postedDate: bj.publishedAt || bj.createdAt,
     deadline: bj.deadline || undefined,
     openings: bj.openings || 1,
-    status: (bj.status === "PUBLISHED" ? "Published" : "Draft") as "Published" | "Draft",
-    applicantsCount:
-      typeof (bj as any).applicantsCount === "number"
-        ? (bj as any).applicantsCount
-        : typeof (bj as any).applicationsCount === "number"
-        ? (bj as any).applicationsCount
-        : typeof bj._count?.applications === "number"
-        ? bj._count.applications
-        : Array.isArray((bj as any).applications)
-        ? (bj as any).applications.length
-        : 0,
+    status: (() => {
+      const raw = String(bj.status || "").toUpperCase().trim();
+      if (raw === "CLOSED" || raw === "ARCHIVED" || raw === "EXPIRED") return "Closed";
+      if (raw === "PAUSED" || raw === "HOLD" || raw === "ON_HOLD") return "Paused";
+      if (raw === "DRAFT" || raw === "PENDING" || raw === "IN_REVIEW") return "Draft";
+      if (raw === "PUBLISHED" || raw === "ACTIVE" || raw === "OPEN") {
+        if (bj.deadline && !isNaN(Date.parse(bj.deadline)) && new Date(bj.deadline).getTime() < Date.now()) {
+          return "Closed";
+        }
+        return "Published";
+      }
+      if (bj.deadline && !isNaN(Date.parse(bj.deadline)) && new Date(bj.deadline).getTime() < Date.now()) {
+        return "Closed";
+      }
+      if (bj.publishedAt || bj.createdAt) {
+        return "Published";
+      }
+      return "Published";
+    })() as "Published" | "Draft" | "Paused" | "Closed",
+    applicantsCount: (() => {
+      const val =
+        (bj as any).applicantsCount ??
+        (bj as any).applicationsCount ??
+        bj._count?.applications ??
+        (Array.isArray((bj as any).applications) ? (bj as any).applications.length : undefined);
+      return val != null && !isNaN(Number(val)) ? Number(val) : 0;
+    })(),
     hasApplied: Boolean((bj as any).hasApplied),
     applicationId: (bj as any).applicationId || undefined,
     hiringStages: Array.isArray((bj as any).hiringStages) ? (bj as any).hiringStages : undefined,

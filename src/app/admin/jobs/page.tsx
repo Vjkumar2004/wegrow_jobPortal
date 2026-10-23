@@ -11,6 +11,9 @@ import {
   Search,
   MapPin,
   Eye,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { getCompanyLogoUrl } from "@/lib/utils";
 
@@ -19,27 +22,91 @@ export default function AdminJobsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("ALL");
+  const [filterStatus, setFilterStatus] = useState("ALL");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const fetchJobs = (pageToFetch: number) => {
+    setIsLoading(true);
+    adminService
+      .getJobs({
+        page: pageToFetch,
+        limit: 10,
+        status: filterStatus !== "ALL" ? filterStatus : undefined,
+        search: searchQuery.trim() || undefined,
+      })
+      .then((res) => {
+        setJobs(res.items);
+        setTotalPages(res.totalPages);
+        setTotalJobs(res.total);
+        setPage(res.page);
+      })
+      .catch(() => {
+        setJobs([]);
+      })
+      .finally(() => setIsLoading(false));
+  };
 
   useEffect(() => {
-    adminService
-      .getJobs()
-      .then((data) => setJobs(data))
-      .catch(() => setJobs([]))
-      .finally(() => setIsLoading(false));
-  }, []);
+    fetchJobs(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filterStatus]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (page === 1) {
+      fetchJobs(1);
+    } else {
+      setPage(1);
+    }
+  };
+
+  const handleStatusChange = async (jobId: string, newStatus: "Published" | "Paused" | "Closed" | "Draft") => {
+    try {
+      const ok = await adminService.updateJobStatus(jobId, newStatus);
+      if (ok) {
+        setJobs((prev) =>
+          prev.map((j) => (j.id === jobId ? { ...j, status: newStatus } : j))
+        );
+        showToast(`Job status updated to ${newStatus}.`);
+      } else {
+        showToast("Failed to update job status.", "error");
+      }
+    } catch {
+      showToast("Error updating job status.", "error");
+    }
+  };
 
   const filteredJobs = jobs.filter((job) => {
-    const matchesSearch =
-      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.location.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = filterType === "ALL" || job.jobType === filterType;
-    return matchesSearch && matchesType;
+    return matchesType;
   });
+
+  const totalApplicantsCount = jobs.reduce((sum, j) => sum + (j.applicantsCount || 0), 0);
 
   return (
     <AdminLayout>
       <div className="p-4 sm:p-6 lg:p-7 space-y-6">
+        {/* Toast Alert */}
+        {toast && (
+          <div
+            className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-xl border text-xs font-semibold flex items-center gap-2 animate-bounce ${
+              toast.type === "success"
+                ? "bg-[#0B1F4B] text-white border-blue-400/20"
+                : "bg-rose-600 text-white border-rose-500/20"
+            }`}
+          >
+            {toast.message}
+          </div>
+        )}
+
         {/* Banner */}
         <div className="relative overflow-hidden rounded-[14px] p-4 sm:p-7 border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] bg-gradient-to-r from-[#FFF5EE] via-[#F4F8FF] to-[#E9F2FF] flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div>
@@ -68,12 +135,19 @@ export default function AdminJobsPage() {
               </div>
               <div className="text-[11px] text-[#6B7694] mt-1">Live Published</div>
             </div>
+            <div className="h-8 w-[1px] bg-slate-200" />
+            <div className="text-center px-3">
+              <div className="text-lg font-bold text-[#0756A8] leading-none">
+                {totalApplicantsCount}
+              </div>
+              <div className="text-[11px] text-[#6B7694] mt-1">Total Applicants</div>
+            </div>
           </div>
         </div>
 
         {/* Filter & Search Bar */}
         <div className="bg-white rounded-[14px] border border-[#EEF1F7] shadow-[0_4px_14px_rgba(11,31,75,0.05)] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
             <div className="relative flex-1 sm:w-72">
               <Search className="w-4 h-4 text-[#6B7694] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -94,6 +168,18 @@ export default function AdminJobsPage() {
               <option value="Full Time">Full Time</option>
               <option value="Internship">Internship</option>
               <option value="Part Time">Part Time</option>
+            </select>
+
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="bg-[#F5F7FB] text-xs text-[#0B1F4B] px-3 py-2 rounded-xl border-none focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="Published">Published</option>
+              <option value="Draft">Draft</option>
+              <option value="Paused">Paused</option>
+              <option value="Closed">Closed</option>
             </select>
           </div>
 
@@ -198,7 +284,9 @@ export default function AdminJobsPage() {
                             ? "bg-[#D8F3E5] text-[#22B573]"
                             : job.status === "Draft"
                             ? "bg-[#FFE9D6] text-[#E8650A]"
-                            : "bg-[#FFE0E0] text-[#D93636]"
+                            : job.status === "Paused"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-slate-100 text-slate-600"
                         }`}
                       >
                         {job.status}
@@ -207,13 +295,26 @@ export default function AdminJobsPage() {
 
                     {/* Actions */}
                     <td className="px-5 py-4 text-right">
-                      <Link
-                        href={`/student/jobs/${job.id}`}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-[#1E5BE0] hover:bg-slate-100 transition inline-flex"
-                        title="View Public Post"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Link>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <select
+                          value={job.status}
+                          onChange={(e) => handleStatusChange(job.id, e.target.value as any)}
+                          className="text-[11px] font-medium bg-[#F5F7FB] hover:bg-slate-100 text-[#0B1F4B] px-2 py-1 rounded-lg border border-[#E3E8F0] cursor-pointer focus:outline-none"
+                          title="Change moderation status"
+                        >
+                          <option value="Published">Publish</option>
+                          <option value="Paused">Pause</option>
+                          <option value="Closed">Close</option>
+                          <option value="Draft">Draft</option>
+                        </select>
+                        <Link
+                          href={`/student/jobs/${job.id}`}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-[#1E5BE0] hover:bg-slate-100 transition inline-flex"
+                          title="View Public Post"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 )))}
@@ -267,7 +368,9 @@ export default function AdminJobsPage() {
                           ? "bg-[#D8F3E5] text-[#22B573]"
                           : job.status === "Draft"
                           ? "bg-[#FFE9D6] text-[#E8650A]"
-                          : "bg-[#FFE0E0] text-[#D93636]"
+                          : job.status === "Paused"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-slate-100 text-slate-600"
                       }`}
                     >
                       {job.status}
@@ -290,14 +393,24 @@ export default function AdminJobsPage() {
                     </span>
                   </div>
 
-                  {/* Bottom: Date, Applicants count, View button */}
-                  <div className="pt-2 border-t border-[#EEF1F7] flex items-center justify-between text-[11px] text-[#6B7694]">
+                  {/* Bottom: Date, Applicants count, Moderation & View button */}
+                  <div className="pt-2 border-t border-[#EEF1F7] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#6B7694]">
                     <span>Posted {formatDate(job.postedDate)}</span>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <span className="font-bold text-[#0756A8]">{job.applicantsCount || 0} Applicants</span>
+                      <select
+                        value={job.status}
+                        onChange={(e) => handleStatusChange(job.id, e.target.value as any)}
+                        className="text-[10px] font-medium bg-[#F5F7FB] text-[#0B1F4B] px-2 py-1 rounded border border-[#E3E8F0] cursor-pointer"
+                      >
+                        <option value="Published">Publish</option>
+                        <option value="Paused">Pause</option>
+                        <option value="Closed">Close</option>
+                        <option value="Draft">Draft</option>
+                      </select>
                       <Link
                         href={`/student/jobs/${job.id}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-[#1E5BE0] font-bold rounded-lg hover:bg-blue-100 transition"
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-[#1E5BE0] font-bold rounded-lg hover:bg-blue-100 transition"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>View</span>
@@ -308,6 +421,54 @@ export default function AdminJobsPage() {
               ))
             )}
           </div>
+
+          {/* Pagination Controls */}
+          {totalJobs > 0 && (
+            <div className="p-4 sm:p-5 border-t border-[#EEF1F7] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs bg-slate-50/50">
+              <span className="text-[#6B7694]">
+                Showing <strong className="text-[#0B1F4B]">{(page - 1) * 10 + 1}</strong> to{" "}
+                <strong className="text-[#0B1F4B]">{Math.min(page * 10, totalJobs)}</strong> of{" "}
+                <strong className="text-[#0B1F4B]">{totalJobs}</strong> postings
+              </span>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || isLoading}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E3E8F0] bg-white text-[#0B1F4B] font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Previous</span>
+                </button>
+
+                <div className="flex items-center gap-1 px-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => (
+                    <button
+                      key={pNum}
+                      onClick={() => setPage(pNum)}
+                      disabled={isLoading}
+                      className={`w-7 h-7 rounded-lg text-xs font-semibold transition ${
+                        page === pNum
+                          ? "bg-[#1E5BE0] text-white shadow-sm"
+                          : "text-[#6B7694] hover:bg-slate-100"
+                      }`}
+                    >
+                      {pNum}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages || isLoading}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E3E8F0] bg-white text-[#0B1F4B] font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </AdminLayout>

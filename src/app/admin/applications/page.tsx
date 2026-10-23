@@ -14,6 +14,8 @@ import {
   ExternalLink,
   CheckCircle2,
   Clock,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 export default function AdminApplicationsPage() {
@@ -21,23 +23,43 @@ export default function AdminApplicationsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalApplications, setTotalApplications] = useState(0);
 
-  useEffect(() => {
+  const fetchApplications = (pageToFetch: number) => {
+    setIsLoading(true);
     adminService
-      .getApplications()
-      .then((data) => setApplications(data))
+      .getApplications({
+        page: pageToFetch,
+        limit: 10,
+        status: filterStatus !== "ALL" ? filterStatus : undefined,
+        search: searchQuery.trim() || undefined,
+      })
+      .then((res) => {
+        setApplications(res.items);
+        setTotalPages(res.totalPages);
+        setTotalApplications(res.total);
+        setPage(res.page);
+      })
       .catch(() => setApplications([]))
       .finally(() => setIsLoading(false));
-  }, []);
+  };
+
+  useEffect(() => {
+    fetchApplications(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filterStatus]);
 
   const filtered = applications.filter((app) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
     const matchesSearch =
-      app.applicantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.applicantEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.jobTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.companyName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === "ALL" || app.status === filterStatus;
-    return matchesSearch && matchesStatus;
+      (app.applicantName || "").toLowerCase().includes(q) ||
+      (app.applicantEmail || "").toLowerCase().includes(q) ||
+      (app.jobTitle || "").toLowerCase().includes(q) ||
+      (app.companyName || "").toLowerCase().includes(q);
+    return matchesSearch;
   });
 
   return (
@@ -282,6 +304,54 @@ export default function AdminApplicationsPage() {
               })
             )}
           </div>
+
+          {/* Pagination Controls */}
+          {totalApplications > 0 && (
+            <div className="p-4 sm:p-5 border-t border-[#EEF1F7] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs bg-slate-50/50">
+              <span className="text-[#6B7694]">
+                Showing <strong className="text-[#0B1F4B]">{(page - 1) * 10 + 1}</strong> to{" "}
+                <strong className="text-[#0B1F4B]">{Math.min(page * 10, totalApplications)}</strong> of{" "}
+                <strong className="text-[#0B1F4B]">{totalApplications}</strong> applications
+              </span>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || isLoading}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E3E8F0] bg-white text-[#0B1F4B] font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Previous</span>
+                </button>
+
+                <div className="flex items-center gap-1 px-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => (
+                    <button
+                      key={pNum}
+                      onClick={() => setPage(pNum)}
+                      disabled={isLoading}
+                      className={`w-7 h-7 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                        page === pNum
+                          ? "bg-[#1E5BE0] text-white shadow-sm"
+                          : "text-[#6B7694] hover:bg-slate-100"
+                      }`}
+                    >
+                      {pNum}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages || isLoading}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E3E8F0] bg-white text-[#0B1F4B] font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </AdminLayout>

@@ -16,32 +16,63 @@ import {
   AlertCircle,
   CheckCircle2,
   Filter,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import { adminService } from "@/services/admin.service";
+import { adminService, PaginatedResult } from "@/services/admin.service";
 import { getCompanyLogoProxyUrl } from "@/lib/utils";
 
-export default function AdminHRClient({ initialCompanies }: { initialCompanies: Company[] }) {
-  const [companies, setCompanies] = useState<Company[]>(initialCompanies);
+export default function AdminHRClient({
+  initialCompanies,
+  initialData,
+}: {
+  initialCompanies?: Company[];
+  initialData?: PaginatedResult<Company>;
+}) {
+  const initialList = initialData?.items || (Array.isArray(initialCompanies) ? initialCompanies : []);
+  const [companies, setCompanies] = useState<Company[]>(initialList);
   const [tab, setTab] = useState<"Pending" | "Approved" | "Suspended" | "Rejected">("Pending");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(initialData?.page || 1);
+  const [totalPages, setTotalPages] = useState(initialData?.totalPages || 1);
+  const [totalCompanies, setTotalCompanies] = useState(initialData?.total || initialList.length);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [rejectingCompanyId, setRejectingCompanyId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [isSubmittingReject, setIsSubmittingReject] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  const refreshCompanies = async () => {
+  const refreshCompanies = async (pageToFetch: number = page, statusToFetch = tab) => {
+    setIsLoading(true);
     try {
-      const res = await adminService.getCompanies();
-      setCompanies(res);
+      const statusMap: Record<string, string> = {
+        Pending: "PENDING",
+        Approved: "APPROVED",
+        Suspended: "SUSPENDED",
+        Rejected: "REJECTED",
+      };
+      const res = await adminService.getCompanies({
+        page: pageToFetch,
+        limit: 10,
+        status: statusMap[statusToFetch],
+        search: searchQuery.trim() || undefined,
+      });
+      setCompanies(res.items);
+      setTotalPages(res.totalPages);
+      setTotalCompanies(res.total);
+      setPage(res.page);
     } catch {
       // Keep existing on network failure
+    } finally {
+      setIsLoading(false);
     }
   };
 
   React.useEffect(() => {
-    refreshCompanies();
-  }, []);
+    refreshCompanies(page, tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, tab]);
 
   const updateStatus = async (companyId: string, status: "Approved" | "Suspended" | "Pending") => {
     setActionError("");
@@ -565,6 +596,54 @@ export default function AdminHRClient({ initialCompanies }: { initialCompanies: 
                 </div>
               </div>
             ))
+          )}
+
+          {/* Pagination Controls */}
+          {totalCompanies > 0 && (
+            <div className="p-4 sm:p-5 border-t border-[#EEF1F7] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs bg-slate-50/50 rounded-b-xl">
+              <span className="text-[#6B7694]">
+                Showing <strong className="text-[#0B1F4B]">{(page - 1) * 10 + 1}</strong> to{" "}
+                <strong className="text-[#0B1F4B]">{Math.min(page * 10, totalCompanies)}</strong> of{" "}
+                <strong className="text-[#0B1F4B]">{totalCompanies}</strong> companies
+              </span>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || isLoading}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E3E8F0] bg-white text-[#0B1F4B] font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Previous</span>
+                </button>
+
+                <div className="flex items-center gap-1 px-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => (
+                    <button
+                      key={pNum}
+                      onClick={() => setPage(pNum)}
+                      disabled={isLoading}
+                      className={`w-7 h-7 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                        page === pNum
+                          ? "bg-[#1E5BE0] text-white shadow-sm"
+                          : "text-[#6B7694] hover:bg-slate-100"
+                      }`}
+                    >
+                      {pNum}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages || isLoading}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E3E8F0] bg-white text-[#0B1F4B] font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

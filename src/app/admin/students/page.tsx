@@ -11,6 +11,8 @@ import {
   Search,
   School,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 export default function AdminStudentsPage() {
@@ -18,14 +20,32 @@ export default function AdminStudentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCollege, setFilterCollege] = useState("ALL");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalStudents, setTotalStudents] = useState(0);
 
-  useEffect(() => {
+  const fetchStudents = (pageToFetch: number) => {
+    setIsLoading(true);
     adminService
-      .getStudents()
-      .then((data) => setStudents(data))
+      .getStudents({
+        page: pageToFetch,
+        limit: 10,
+        search: searchQuery.trim() || undefined,
+      })
+      .then((res) => {
+        setStudents(res.items);
+        setTotalPages(res.totalPages);
+        setTotalStudents(res.total);
+        setPage(res.page);
+      })
       .catch(() => setStudents([]))
       .finally(() => setIsLoading(false));
-  }, []);
+  };
+
+  useEffect(() => {
+    fetchStudents(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -58,7 +78,7 @@ export default function AdminStudentsPage() {
     }
   };
 
-  const colleges = ["ALL", ...Array.from(new Set(students.map((s) => s.college)))];
+  const colleges = ["ALL", ...Array.from(new Set(students.map((s) => s.college).filter(Boolean)))];
 
   const filtered = students.filter((stu) => {
     const matchesSearch =
@@ -163,7 +183,6 @@ export default function AdminStudentsPage() {
                   <th className="px-5 py-3 rounded-l-lg">Student Profile</th>
                   <th className="px-5 py-3">Institution / College</th>
                   <th className="px-5 py-3 text-center">Batch</th>
-                  <th className="px-5 py-3">Profile Completion</th>
                   <th className="px-5 py-3 text-center">Applications</th>
                   <th className="px-5 py-3 text-center">Status</th>
                   <th className="px-5 py-3 text-right rounded-r-lg">Actions</th>
@@ -172,13 +191,13 @@ export default function AdminStudentsPage() {
               <tbody className="divide-y divide-[#EEF1F7] text-[13px]">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-12 text-center text-[#6B7694]">
+                    <td colSpan={6} className="px-5 py-12 text-center text-[#6B7694]">
                       Loading student directory...
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-12 text-center text-[#6B7694]">
+                    <td colSpan={6} className="px-5 py-12 text-center text-[#6B7694]">
                       No student records found.
                     </td>
                   </tr>
@@ -234,22 +253,6 @@ export default function AdminStudentsPage() {
                         {/* Batch */}
                         <td className="px-5 py-4 text-center text-[#6B7694] font-medium">
                           {stu.gradYear}
-                        </td>
-
-                        {/* Completion Progress Bar */}
-                        <td className="px-5 py-4">
-                          <div className="w-36 space-y-1.5">
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span className="font-bold text-[#0B1F4B]">{stu.completionPercentage}%</span>
-                              <span className="text-slate-400">Score</span>
-                            </div>
-                            <div className="w-full bg-[#F1F4F9] rounded-full h-2 overflow-hidden">
-                              <div
-                                className="bg-[#1E5BE0] h-full rounded-full transition-all duration-500"
-                                style={{ width: `${stu.completionPercentage}%` }}
-                              />
-                            </div>
-                          </div>
                         </td>
 
                         {/* Applications count */}
@@ -372,21 +375,10 @@ export default function AdminStudentsPage() {
                       <span className="font-semibold text-slate-700">Class of {stu.gradYear}</span>
                     </div>
 
-                    {/* Progress Bar & Applications Count */}
-                    <div className="space-y-1.5 pt-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-[#6B7694]">Profile Completion</span>
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-[#0756A8]">{stu.applicationsCount} Apps</span>
-                          <span className="font-bold text-[#0B1F4B]">{stu.completionPercentage}%</span>
-                        </div>
-                      </div>
-                      <div className="w-full bg-[#F1F4F9] rounded-full h-2 overflow-hidden">
-                        <div
-                          className="bg-[#1E5BE0] h-full rounded-full transition-all duration-500"
-                          style={{ width: `${stu.completionPercentage}%` }}
-                        />
-                      </div>
+                    {/* Applications Count */}
+                    <div className="flex items-center justify-between text-[11px] pt-1">
+                      <span className="text-[#6B7694]">Total Applications</span>
+                      <span className="font-bold text-[#0756A8]">{stu.applicationsCount} Submissions</span>
                     </div>
 
                     {/* Actions row */}
@@ -417,6 +409,54 @@ export default function AdminStudentsPage() {
               })
             )}
           </div>
+
+          {/* Pagination Controls */}
+          {totalStudents > 0 && (
+            <div className="p-4 sm:p-5 border-t border-[#EEF1F7] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs bg-slate-50/50">
+              <span className="text-[#6B7694]">
+                Showing <strong className="text-[#0B1F4B]">{(page - 1) * 10 + 1}</strong> to{" "}
+                <strong className="text-[#0B1F4B]">{Math.min(page * 10, totalStudents)}</strong> of{" "}
+                <strong className="text-[#0B1F4B]">{totalStudents}</strong> students
+              </span>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || isLoading}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E3E8F0] bg-white text-[#0B1F4B] font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Previous</span>
+                </button>
+
+                <div className="flex items-center gap-1 px-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => (
+                    <button
+                      key={pNum}
+                      onClick={() => setPage(pNum)}
+                      disabled={isLoading}
+                      className={`w-7 h-7 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                        page === pNum
+                          ? "bg-[#1E5BE0] text-white shadow-sm"
+                          : "text-[#6B7694] hover:bg-slate-100"
+                      }`}
+                    >
+                      {pNum}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages || isLoading}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E3E8F0] bg-white text-[#0B1F4B] font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </AdminLayout>
