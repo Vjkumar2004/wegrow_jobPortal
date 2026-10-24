@@ -26,21 +26,46 @@ export default function AdminApplicationsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalApplications, setTotalApplications] = useState(0);
+  const [stats, setStats] = useState({
+    totalSubmissions: 0,
+    shortlisted: 0,
+    interview: 0,
+  });
 
-  const fetchApplications = (pageToFetch: number) => {
+  const refreshStats = async () => {
+    try {
+      const [allAppsRes, shortlistedRes, interviewRes] = await Promise.all([
+        adminService.getApplications({ page: 1, limit: 1 }),
+        adminService.getApplications({ page: 1, limit: 1, status: "Shortlisted" }),
+        adminService.getApplications({ page: 1, limit: 1, status: "Interview" }),
+      ]);
+      setStats({
+        totalSubmissions: allAppsRes?.total ?? 0,
+        shortlisted: shortlistedRes?.total ?? 0,
+        interview: interviewRes?.total ?? 0,
+      });
+    } catch (err) {
+      console.error("Failed to fetch applications stats:", err);
+    }
+  };
+
+  const fetchApplications = (pageToFetch: number = page, search = searchQuery) => {
     setIsLoading(true);
     adminService
       .getApplications({
         page: pageToFetch,
         limit: 10,
         status: filterStatus !== "ALL" ? filterStatus : undefined,
-        search: searchQuery.trim() || undefined,
+        search: search.trim() || undefined,
       })
       .then((res) => {
         setApplications(res.items);
         setTotalPages(res.totalPages);
         setTotalApplications(res.total);
         setPage(res.page);
+        if (filterStatus === "ALL" && !search.trim()) {
+          setStats((prev) => ({ ...prev, totalSubmissions: res.total }));
+        }
       })
       .catch(() => setApplications([]))
       .finally(() => setIsLoading(false));
@@ -50,6 +75,19 @@ export default function AdminApplicationsPage() {
     fetchApplications(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, filterStatus]);
+
+  useEffect(() => {
+    refreshStats();
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchApplications(1, searchQuery);
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   const filtered = applications.filter((app) => {
     const q = searchQuery.toLowerCase().trim();
@@ -82,16 +120,23 @@ export default function AdminApplicationsPage() {
           <div className="flex items-center justify-around sm:justify-start gap-3 bg-white rounded-xl p-3 border border-[#EEF1F7] shadow-sm w-full sm:w-auto shrink-0">
             <div className="text-center px-3">
               <div className="text-lg font-bold text-[#0B1F4B] leading-none">
-                {applications.length}
+                {stats.totalSubmissions || totalApplications}
               </div>
               <div className="text-[11px] text-[#6B7694] mt-1">Logged Submissions</div>
             </div>
             <div className="h-8 w-[1px] bg-slate-200" />
             <div className="text-center px-3">
               <div className="text-lg font-bold text-[#22B573] leading-none">
-                {applications.filter((a) => a.status === "Shortlisted").length}
+                {stats.shortlisted}
               </div>
               <div className="text-[11px] text-[#6B7694] mt-1">Shortlisted</div>
+            </div>
+            <div className="h-8 w-[1px] bg-slate-200" />
+            <div className="text-center px-3">
+              <div className="text-lg font-bold text-[#0756A8] leading-none">
+                {stats.interview}
+              </div>
+              <div className="text-[11px] text-[#6B7694] mt-1">In Interview</div>
             </div>
           </div>
         </div>
@@ -112,7 +157,10 @@ export default function AdminApplicationsPage() {
 
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setPage(1);
+              }}
               className="bg-[#F5F7FB] text-xs text-[#0B1F4B] px-3 py-2 rounded-xl border-none focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Application Statuses</option>
@@ -124,7 +172,8 @@ export default function AdminApplicationsPage() {
           </div>
 
           <span className="text-xs text-[#6B7694] font-medium">
-            Showing <strong className="text-[#0B1F4B]">{filtered.length}</strong> applications
+            Showing <strong className="text-[#0B1F4B]">{filtered.length}</strong> of{" "}
+            <strong className="text-[#0B1F4B]">{totalApplications}</strong> applications
           </span>
         </div>
 

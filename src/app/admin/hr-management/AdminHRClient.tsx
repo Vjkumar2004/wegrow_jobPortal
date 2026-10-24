@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Company } from "@/types";
 import {
   Building2,
@@ -31,19 +31,53 @@ export default function AdminHRClient({
 }) {
   const initialList = initialData?.items || (Array.isArray(initialCompanies) ? initialCompanies : []);
   const [companies, setCompanies] = useState<Company[]>(initialList);
-  const [tab, setTab] = useState<"Pending" | "Approved" | "Suspended" | "Rejected">("Pending");
+  const [tab, setTab] = useState<"Approved" | "Pending" | "Suspended" | "Rejected">("Approved");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(initialData?.page || 1);
   const [totalPages, setTotalPages] = useState(initialData?.totalPages || 1);
   const [totalCompanies, setTotalCompanies] = useState(initialData?.total || initialList.length);
   const [isLoading, setIsLoading] = useState(false);
+  const [statusCounts, setStatusCounts] = useState<{
+    Approved: number;
+    Pending: number;
+    Suspended: number;
+    Rejected: number;
+  }>({
+    Approved: initialData?.total || 0,
+    Pending: 0,
+    Suspended: 0,
+    Rejected: 0,
+  });
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [rejectingCompanyId, setRejectingCompanyId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [isSubmittingReject, setIsSubmittingReject] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  const refreshCompanies = async (pageToFetch: number = page, statusToFetch = tab) => {
+  const refreshStatusCounts = async () => {
+    try {
+      const [approvedRes, pendingRes, rejectedRes, suspendedRes] = await Promise.all([
+        adminService.getCompanies({ status: "APPROVED", limit: 1 }),
+        adminService.getCompanies({ status: "PENDING", limit: 1 }),
+        adminService.getCompanies({ status: "REJECTED", limit: 1 }),
+        adminService.getCompanies({ status: "SUSPENDED", limit: 1 }),
+      ]);
+      setStatusCounts({
+        Approved: approvedRes?.total ?? 0,
+        Pending: pendingRes?.total ?? 0,
+        Rejected: rejectedRes?.total ?? 0,
+        Suspended: suspendedRes?.total ?? 0,
+      });
+    } catch {
+      // Keep existing on network failure
+    }
+  };
+
+  const refreshCompanies = async (
+    pageToFetch: number = page,
+    statusToFetch: "Approved" | "Pending" | "Suspended" | "Rejected" = tab,
+    search: string = searchQuery
+  ) => {
     setIsLoading(true);
     try {
       const statusMap: Record<string, string> = {
@@ -56,12 +90,16 @@ export default function AdminHRClient({
         page: pageToFetch,
         limit: 10,
         status: statusMap[statusToFetch],
-        search: searchQuery.trim() || undefined,
+        search: search.trim() || undefined,
       });
       setCompanies(res.items);
       setTotalPages(res.totalPages);
       setTotalCompanies(res.total);
       setPage(res.page);
+      setStatusCounts((prev) => ({
+        ...prev,
+        [statusToFetch]: res.total,
+      }));
     } catch {
       // Keep existing on network failure
     } finally {
@@ -69,16 +107,36 @@ export default function AdminHRClient({
     }
   };
 
-  React.useEffect(() => {
-    refreshCompanies(page, tab);
+  useEffect(() => {
+    refreshCompanies(page, tab, searchQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, tab]);
+
+  useEffect(() => {
+    refreshStatusCounts();
+  }, []);
+
+  // Debounce search so typing queries the whole database
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      refreshCompanies(1, tab, searchQuery);
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
+  const handleTabChange = (newTab: "Approved" | "Pending" | "Suspended" | "Rejected") => {
+    if (tab === newTab) return;
+    setTab(newTab);
+    setPage(1);
+  };
 
   const updateStatus = async (companyId: string, status: "Approved" | "Suspended" | "Pending") => {
     setActionError("");
     try {
       await adminService.updateCompanyStatus(companyId, status);
       await refreshCompanies();
+      refreshStatusCounts();
       if (selectedCompany && selectedCompany.id === companyId) {
         setSelectedCompany({ ...selectedCompany, status });
       }
@@ -100,6 +158,7 @@ export default function AdminHRClient({
     try {
       await adminService.rejectCompany(rejectingCompanyId, rejectionReason.trim());
       await refreshCompanies();
+      refreshStatusCounts();
       setRejectingCompanyId(null);
       setRejectionReason("");
       if (selectedCompany && selectedCompany.id === rejectingCompanyId) {
@@ -127,25 +186,24 @@ export default function AdminHRClient({
         await adminService.updateCompanyStatus(comp.id, "Suspended");
       }
       await refreshCompanies();
+      refreshStatusCounts();
       if (selectedCompany?.id === comp.id) setSelectedCompany(null);
     } catch (err: any) {
       setActionError(err?.response?.data?.message || "Failed to remove company.");
     }
   };
 
-  const displayed = companies
-    .filter((c) => c.status === tab)
-    .filter(
-      (c) =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.industry?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.location?.toLowerCase().includes(searchQuery.toLowerCase())
+  const displayed = companies.filter((c) => {
+    const statusMatches = !c.status || c.status.toLowerCase() === tab.toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return statusMatches;
+    return (
+      statusMatches &&
+      (c.name.toLowerCase().includes(q) ||
+        c.industry?.toLowerCase().includes(q) ||
+        c.location?.toLowerCase().includes(q))
     );
-
-  const pendingCount = companies.filter((c) => c.status === "Pending").length;
-  const approvedCount = companies.filter((c) => c.status === "Approved").length;
-  const suspendedCount = companies.filter((c) => c.status === "Suspended").length;
-  const rejectedCount = companies.filter((c) => c.status === "Rejected").length;
+  });
 
   return (
     <div className="p-4 sm:p-6 lg:p-7 space-y-6">
@@ -165,22 +223,46 @@ export default function AdminHRClient({
 
         {/* Responsive Counter Pills */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto p-2 bg-white rounded-xl border border-[#EEF1F7] shadow-sm shrink-0">
-          <div className="px-3 py-1.5 rounded-lg bg-emerald-50 text-[#22B573] text-center">
-            <div className="text-base font-bold leading-none">{approvedCount}</div>
+          <button
+            type="button"
+            onClick={() => handleTabChange("Approved")}
+            className={`px-3 py-1.5 rounded-lg text-center transition cursor-pointer text-left sm:text-center ${
+              tab === "Approved" ? "bg-emerald-100 ring-2 ring-[#22B573]" : "bg-emerald-50 hover:bg-emerald-100/70"
+            } text-[#22B573]`}
+          >
+            <div className="text-base font-bold leading-none">{statusCounts.Approved}</div>
             <div className="text-[10px] font-semibold mt-0.5">Approved</div>
-          </div>
-          <div className="px-3 py-1.5 rounded-lg bg-amber-50 text-[#FF6B00] text-center">
-            <div className="text-base font-bold leading-none">{pendingCount}</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("Pending")}
+            className={`px-3 py-1.5 rounded-lg text-center transition cursor-pointer text-left sm:text-center ${
+              tab === "Pending" ? "bg-amber-100 ring-2 ring-[#FF6B00]" : "bg-amber-50 hover:bg-amber-100/70"
+            } text-[#FF6B00]`}
+          >
+            <div className="text-base font-bold leading-none">{statusCounts.Pending}</div>
             <div className="text-[10px] font-semibold mt-0.5">Pending</div>
-          </div>
-          <div className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-center">
-            <div className="text-base font-bold leading-none">{rejectedCount}</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("Rejected")}
+            className={`px-3 py-1.5 rounded-lg text-center transition cursor-pointer text-left sm:text-center ${
+              tab === "Rejected" ? "bg-slate-200 ring-2 ring-slate-400" : "bg-slate-100 hover:bg-slate-200/70"
+            } text-slate-700`}
+          >
+            <div className="text-base font-bold leading-none">{statusCounts.Rejected}</div>
             <div className="text-[10px] font-semibold mt-0.5">Rejected</div>
-          </div>
-          <div className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 text-center">
-            <div className="text-base font-bold leading-none">{suspendedCount}</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("Suspended")}
+            className={`px-3 py-1.5 rounded-lg text-center transition cursor-pointer text-left sm:text-center ${
+              tab === "Suspended" ? "bg-rose-100 ring-2 ring-rose-500" : "bg-rose-50 hover:bg-rose-100/70"
+            } text-rose-600`}
+          >
+            <div className="text-base font-bold leading-none">{statusCounts.Suspended}</div>
             <div className="text-[10px] font-semibold mt-0.5">Suspended</div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -196,8 +278,8 @@ export default function AdminHRClient({
         {/* Modern Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           <button
-            onClick={() => setTab("Approved")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+            onClick={() => handleTabChange("Approved")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
               tab === "Approved"
                 ? "bg-[#E3EEFF] text-[#1E5BE0] shadow-xs"
                 : "text-[#6B7694] hover:bg-slate-50 hover:text-[#0B1F4B]"
@@ -205,12 +287,12 @@ export default function AdminHRClient({
           >
             <span>Approved Partners</span>
             <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-white font-black text-[#1E5BE0]">
-              {approvedCount}
+              {statusCounts.Approved}
             </span>
           </button>
           <button
-            onClick={() => setTab("Pending")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+            onClick={() => handleTabChange("Pending")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
               tab === "Pending"
                 ? "bg-[#FFE9D6] text-[#E8650A] shadow-xs"
                 : "text-[#6B7694] hover:bg-slate-50 hover:text-[#0B1F4B]"
@@ -218,12 +300,12 @@ export default function AdminHRClient({
           >
             <span>Pending Review</span>
             <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-white font-black text-[#E8650A]">
-              {pendingCount}
+              {statusCounts.Pending}
             </span>
           </button>
           <button
-            onClick={() => setTab("Rejected")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+            onClick={() => handleTabChange("Rejected")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
               tab === "Rejected"
                 ? "bg-slate-200 text-slate-800 shadow-xs"
                 : "text-[#6B7694] hover:bg-slate-50 hover:text-[#0B1F4B]"
@@ -231,12 +313,12 @@ export default function AdminHRClient({
           >
             <span>Rejected</span>
             <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-white font-black text-slate-800">
-              {rejectedCount}
+              {statusCounts.Rejected}
             </span>
           </button>
           <button
-            onClick={() => setTab("Suspended")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+            onClick={() => handleTabChange("Suspended")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
               tab === "Suspended"
                 ? "bg-rose-100 text-rose-700 shadow-xs"
                 : "text-[#6B7694] hover:bg-slate-50 hover:text-[#0B1F4B]"
@@ -244,7 +326,7 @@ export default function AdminHRClient({
           >
             <span>Suspended</span>
             <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-white font-black text-rose-700">
-              {suspendedCount}
+              {statusCounts.Suspended}
             </span>
           </button>
         </div>
@@ -278,7 +360,16 @@ export default function AdminHRClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EEF1F7] text-[13px]">
-              {displayed.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-[#6B7694]">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-7 h-7 border-2 border-[#1E5BE0] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs text-[#6B7694]">Loading companies...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : displayed.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-[#6B7694]">
                     <Building2 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
@@ -441,7 +532,14 @@ export default function AdminHRClient({
 
         {/* Mobile Card List View (block md:hidden) */}
         <div className="block md:hidden divide-y divide-[#EEF1F7]">
-          {displayed.length === 0 ? (
+          {isLoading ? (
+            <div className="py-10 px-4 text-center">
+              <div className="flex flex-col items-center justify-center gap-2">
+                <div className="w-7 h-7 border-2 border-[#1E5BE0] border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-[#6B7694]">Loading companies...</span>
+              </div>
+            </div>
+          ) : displayed.length === 0 ? (
             <div className="py-10 px-4 text-center text-[#6B7694]">
               <Building2 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
               <p className="text-xs">No companies match your search or filter.</p>
@@ -597,55 +695,55 @@ export default function AdminHRClient({
               </div>
             ))
           )}
-
-          {/* Pagination Controls */}
-          {totalCompanies > 0 && (
-            <div className="p-4 sm:p-5 border-t border-[#EEF1F7] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs bg-slate-50/50 rounded-b-xl">
-              <span className="text-[#6B7694]">
-                Showing <strong className="text-[#0B1F4B]">{(page - 1) * 10 + 1}</strong> to{" "}
-                <strong className="text-[#0B1F4B]">{Math.min(page * 10, totalCompanies)}</strong> of{" "}
-                <strong className="text-[#0B1F4B]">{totalCompanies}</strong> companies
-              </span>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1 || isLoading}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E3E8F0] bg-white text-[#0B1F4B] font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  <span>Previous</span>
-                </button>
-
-                <div className="flex items-center gap-1 px-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => (
-                    <button
-                      key={pNum}
-                      onClick={() => setPage(pNum)}
-                      disabled={isLoading}
-                      className={`w-7 h-7 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                        page === pNum
-                          ? "bg-[#1E5BE0] text-white shadow-sm"
-                          : "text-[#6B7694] hover:bg-slate-100"
-                      }`}
-                    >
-                      {pNum}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages || isLoading}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E3E8F0] bg-white text-[#0B1F4B] font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
-                >
-                  <span>Next</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Pagination Controls */}
+        {totalCompanies > 0 && (
+          <div className="p-4 sm:p-5 border-t border-[#EEF1F7] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs bg-slate-50/50 rounded-b-xl">
+            <span className="text-[#6B7694]">
+              Showing <strong className="text-[#0B1F4B]">{(page - 1) * 10 + 1}</strong> to{" "}
+              <strong className="text-[#0B1F4B]">{Math.min(page * 10, totalCompanies)}</strong> of{" "}
+              <strong className="text-[#0B1F4B]">{totalCompanies}</strong> companies
+            </span>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1 || isLoading}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E3E8F0] bg-white text-[#0B1F4B] font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Previous</span>
+              </button>
+
+              <div className="flex items-center gap-1 px-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => (
+                  <button
+                    key={pNum}
+                    onClick={() => setPage(pNum)}
+                    disabled={isLoading}
+                    className={`w-7 h-7 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      page === pNum
+                        ? "bg-[#1E5BE0] text-white shadow-sm"
+                        : "text-[#6B7694] hover:bg-slate-100"
+                    }`}
+                  >
+                    {pNum}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages || isLoading}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#E3E8F0] bg-white text-[#0B1F4B] font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Full Company Profile Review Modal */}

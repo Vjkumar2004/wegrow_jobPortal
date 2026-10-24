@@ -26,6 +26,11 @@ export default function AdminJobsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalJobs, setTotalJobs] = useState(0);
+  const [stats, setStats] = useState({
+    totalOpenings: 0,
+    livePublished: 0,
+    totalApplicants: 0,
+  });
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
@@ -33,20 +38,40 @@ export default function AdminJobsPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const fetchJobs = (pageToFetch: number) => {
+  const refreshStats = async () => {
+    try {
+      const [allJobsRes, publishedJobsRes, appsRes] = await Promise.all([
+        adminService.getJobs({ page: 1, limit: 1 }),
+        adminService.getJobs({ page: 1, limit: 1, status: "Published" }),
+        adminService.getApplications({ page: 1, limit: 1 }),
+      ]);
+      setStats({
+        totalOpenings: allJobsRes?.total ?? 0,
+        livePublished: publishedJobsRes?.total ?? 0,
+        totalApplicants: appsRes?.total ?? 0,
+      });
+    } catch (err) {
+      console.error("Failed to fetch jobs stats:", err);
+    }
+  };
+
+  const fetchJobs = (pageToFetch: number = page, search = searchQuery) => {
     setIsLoading(true);
     adminService
       .getJobs({
         page: pageToFetch,
         limit: 10,
         status: filterStatus !== "ALL" ? filterStatus : undefined,
-        search: searchQuery.trim() || undefined,
+        search: search.trim() || undefined,
       })
       .then((res) => {
         setJobs(res.items);
         setTotalPages(res.totalPages);
         setTotalJobs(res.total);
         setPage(res.page);
+        if (filterStatus === "ALL" && !search.trim()) {
+          setStats((prev) => ({ ...prev, totalOpenings: res.total }));
+        }
       })
       .catch(() => {
         setJobs([]);
@@ -59,13 +84,22 @@ export default function AdminJobsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, filterStatus]);
 
+  useEffect(() => {
+    refreshStats();
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchJobs(1, searchQuery);
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (page === 1) {
-      fetchJobs(1);
-    } else {
-      setPage(1);
-    }
+    fetchJobs(1, searchQuery);
   };
 
   const handleStatusChange = async (jobId: string, newStatus: "Published" | "Paused" | "Closed" | "Draft") => {
@@ -75,6 +109,7 @@ export default function AdminJobsPage() {
         setJobs((prev) =>
           prev.map((j) => (j.id === jobId ? { ...j, status: newStatus } : j))
         );
+        refreshStats();
         showToast(`Job status updated to ${newStatus}.`);
       } else {
         showToast("Failed to update job status.", "error");
@@ -88,8 +123,6 @@ export default function AdminJobsPage() {
     const matchesType = filterType === "ALL" || job.jobType === filterType;
     return matchesType;
   });
-
-  const totalApplicantsCount = jobs.reduce((sum, j) => sum + (j.applicantsCount || 0), 0);
 
   return (
     <AdminLayout>
@@ -124,21 +157,21 @@ export default function AdminJobsPage() {
           <div className="flex items-center justify-around sm:justify-start gap-3 bg-white rounded-xl p-3 border border-[#EEF1F7] shadow-sm w-full sm:w-auto shrink-0">
             <div className="text-center px-3">
               <div className="text-lg font-bold text-[#0B1F4B] leading-none">
-                {jobs.length}
+                {stats.totalOpenings || totalJobs}
               </div>
               <div className="text-[11px] text-[#6B7694] mt-1">Total Openings</div>
             </div>
             <div className="h-8 w-[1px] bg-slate-200" />
             <div className="text-center px-3">
               <div className="text-lg font-bold text-[#22B573] leading-none">
-                {jobs.filter((j) => j.status === "Published").length}
+                {stats.livePublished}
               </div>
               <div className="text-[11px] text-[#6B7694] mt-1">Live Published</div>
             </div>
             <div className="h-8 w-[1px] bg-slate-200" />
             <div className="text-center px-3">
               <div className="text-lg font-bold text-[#0756A8] leading-none">
-                {totalApplicantsCount}
+                {stats.totalApplicants}
               </div>
               <div className="text-[11px] text-[#6B7694] mt-1">Total Applicants</div>
             </div>

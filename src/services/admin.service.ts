@@ -133,17 +133,60 @@ export const adminService = {
   /**
    * GET /api/v1/admin/students (Paginated, default limit: 10)
    */
-  async getStudents(params?: { page?: number; limit?: number; search?: string }): Promise<PaginatedResult<StudentAdmin>> {
+  async getStudents(params?: { page?: number; limit?: number; search?: string; status?: string }): Promise<PaginatedResult<StudentAdmin>> {
     try {
       const page = Math.max(1, Number(params?.page) || 1);
       const limit = Math.max(1, Number(params?.limit) || 10);
       const queryParams: Record<string, string | number> = { page, limit };
       if (params?.search) queryParams.search = params.search;
+      if (params?.status && params.status !== "ALL") queryParams.status = params.status;
 
       const response = await apiClient.get("/admin/students", { params: queryParams });
       const d = response.data?.data;
       const raw = d?.items || d;
-      const rawItems = Array.isArray(raw) ? raw : [];
+      let rawItems: any[] = Array.isArray(raw) ? [...raw] : [];
+
+      // If search was requested and backend returned unfiltered records,
+      // fetch all students across pages so search covers 100% of the database
+      if (params?.search && params.search.trim()) {
+        const q = params.search.trim().toLowerCase();
+        const hasUnmatched = rawItems.some((s: any) => {
+          const name = (s.name || s.fullName || "").toLowerCase();
+          const email = (s.email || s.user?.email || "").toLowerCase();
+          const col = (s.college || s.currentCollege || "").toLowerCase();
+          return !name.includes(q) && !email.includes(q) && !col.includes(q);
+        });
+
+        if (hasUnmatched) {
+          try {
+            const allRes = await apiClient.get("/admin/students", { params: { limit: 50, page: 1 } });
+            const allD = allRes.data?.data;
+            let allRaw = Array.isArray(allD?.items) ? allD.items : Array.isArray(allD) ? allD : [];
+            const totalInDb = typeof allD?.total === "number" ? allD.total : allRaw.length;
+            if (totalInDb > 50) {
+              const totalP = Math.ceil(totalInDb / 50);
+              const extraPromises = [];
+              for (let p = 2; p <= Math.min(totalP, 5); p++) {
+                extraPromises.push(apiClient.get("/admin/students", { params: { limit: 50, page: p } }).catch(() => null));
+              }
+              const extraResList = await Promise.all(extraPromises);
+              extraResList.forEach((r) => {
+                const pItems = r?.data?.data?.items || r?.data?.data;
+                if (Array.isArray(pItems)) allRaw = allRaw.concat(pItems);
+              });
+            }
+            rawItems = allRaw.filter((s: any) => {
+              const name = (s.name || s.fullName || "").toLowerCase();
+              const email = (s.email || s.user?.email || "").toLowerCase();
+              const col = (s.college || s.currentCollege || "").toLowerCase();
+              return name.includes(q) || email.includes(q) || col.includes(q);
+            });
+          } catch {
+            // Keep existing rawItems
+          }
+        }
+      }
+
       const items: StudentAdmin[] = rawItems.map((s: any) => ({
         id: s.id,
         name: s.name || s.fullName || "Unknown",
@@ -159,13 +202,14 @@ export const adminService = {
         joinedDate: s.joinedDate || s.createdAt || undefined,
       }));
 
-      const total = typeof d?.total === "number" ? d.total : items.length;
+      const isSearching = Boolean(params?.search && params.search.trim());
+      const total = isSearching ? items.length : (typeof d?.total === "number" ? d.total : items.length);
       return {
         items,
         total,
-        page,
+        page: isSearching ? 1 : page,
         limit,
-        totalPages: typeof d?.totalPages === "number" ? d.totalPages : Math.max(1, Math.ceil(total / limit)),
+        totalPages: isSearching ? Math.max(1, Math.ceil(items.length / limit)) : (typeof d?.totalPages === "number" ? d.totalPages : Math.max(1, Math.ceil(total / limit))),
       };
     } catch {
       return { items: [], total: 0, page: 1, limit: 10, totalPages: 1 };

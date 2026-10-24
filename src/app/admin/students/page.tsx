@@ -23,20 +23,42 @@ export default function AdminStudentsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    activeStudents: 0,
+  });
 
-  const fetchStudents = (pageToFetch: number) => {
+  const refreshStats = async () => {
+    try {
+      const [allRes, activeRes] = await Promise.all([
+        adminService.getStudents({ page: 1, limit: 1 }),
+        adminService.getStudents({ page: 1, limit: 1, status: "Active" }),
+      ]);
+      setStats({
+        totalStudents: allRes?.total ?? 0,
+        activeStudents: activeRes?.total ?? allRes?.total ?? 0,
+      });
+    } catch (err) {
+      console.error("Failed to fetch student stats:", err);
+    }
+  };
+
+  const fetchStudents = (pageToFetch: number = page, search = searchQuery) => {
     setIsLoading(true);
     adminService
       .getStudents({
         page: pageToFetch,
         limit: 10,
-        search: searchQuery.trim() || undefined,
+        search: search.trim() || undefined,
       })
       .then((res) => {
         setStudents(res.items);
         setTotalPages(res.totalPages);
         setTotalStudents(res.total);
         setPage(res.page);
+        if (!search.trim()) {
+          setStats((prev) => ({ ...prev, totalStudents: res.total }));
+        }
       })
       .catch(() => setStudents([]))
       .finally(() => setIsLoading(false));
@@ -46,6 +68,19 @@ export default function AdminStudentsPage() {
     fetchStudents(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
+
+  useEffect(() => {
+    refreshStats();
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchStudents(1, searchQuery);
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -61,6 +96,7 @@ export default function AdminStudentsPage() {
       setStudents((prev) =>
         prev.map((s) => (s.id === stu.id ? { ...s, status: newStatus } : s))
       );
+      refreshStats();
       showToast(`${stu.name} has been ${newStatus === "Suspended" ? "suspended" : "reactivated"}.`);
     } catch (err: any) {
       showToast(err.response?.data?.message || `Failed to update status for ${stu.name}.`, "error");
@@ -72,6 +108,7 @@ export default function AdminStudentsPage() {
     try {
       await adminService.updateStudentStatus(stu.id, "Suspended");
       setStudents((prev) => prev.filter((s) => s.id !== stu.id));
+      refreshStats();
       showToast(`${stu.name} has been removed.`);
     } catch (err: any) {
       showToast(err.response?.data?.message || `Failed to remove ${stu.name}.`, "error");
@@ -127,14 +164,14 @@ export default function AdminStudentsPage() {
           <div className="flex items-center justify-around sm:justify-start gap-3 bg-white rounded-xl p-3 border border-[#EEF1F7] shadow-sm w-full sm:w-auto shrink-0">
             <div className="text-center px-3">
               <div className="text-lg font-bold text-[#0B1F4B] leading-none">
-                {students.length}
+                {stats.totalStudents || totalStudents}
               </div>
               <div className="text-[11px] text-[#6B7694] mt-1">Verified Students</div>
             </div>
             <div className="h-8 w-[1px] bg-slate-200" />
             <div className="text-center px-3">
               <div className="text-lg font-bold text-[#22B573] leading-none">
-                {students.filter((s) => s.status === "Active").length}
+                {stats.activeStudents || totalStudents}
               </div>
               <div className="text-[11px] text-[#6B7694] mt-1">Active Accounts</div>
             </div>
