@@ -1560,6 +1560,14 @@ export const studentService = {
       console.error("Failed to cleanup old notifications", err);
     }
   },
+
+  /**
+   * DELETE /api/v1/students/me
+   * Permanently deletes student profile, resumes, applications, and cascades user record
+   */
+  async deleteAccount(): Promise<void> {
+    await apiClient.delete("/students/me");
+  },
 };
 
 export default studentService;

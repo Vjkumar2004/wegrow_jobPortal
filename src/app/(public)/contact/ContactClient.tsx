@@ -49,9 +49,9 @@ export default function ContactClient() {
               </div>
               <div className="leading-snug">
                 <div className="font-bold text-white text-sm">WeGrow Skill Campus</div>
-                <p className="mt-0.5">100A/5, 1st Floor, Thiruthangal Road,</p>
-                <p>Opposite Bell Hotel, Sivakasi – 626123,</p>
-                <p className="text-[#F79400] font-semibold mt-0.5">Tamil Nadu, India</p>
+                <p className="mt-0.5">193, 1A, Ayyappan Kovil,</p>
+                <p>Opposite Naturals Salon &amp; Spa, Downstairs,</p>
+                <p className="text-[#F79400] font-semibold mt-0.5">Parasakthi Colony, Sivakasi – 626123, Tamil Nadu, India</p>
               </div>
             </div>
 

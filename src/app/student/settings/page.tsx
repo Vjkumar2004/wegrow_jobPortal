@@ -14,12 +14,15 @@ import {
   RefreshCw,
   Sparkles,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api/auth.api";
+import { authService } from "@/services/auth.service";
 import { studentService } from "@/services/student.service";
 
 type PwStep = "idle" | "verify_otp" | "set_password" | "done";
 
 export default function StudentSettingsPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [pwStep, setPwStep] = useState<PwStep>("idle");
   const [otpInput, setOtpInput] = useState("");
@@ -29,6 +32,11 @@ export default function StudentSettingsPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  // Danger zone account deletion state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     studentService
@@ -42,6 +50,28 @@ export default function StudentSettingsPage() {
   const showMsg = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 4500);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmInput.trim().toUpperCase() !== "DELETE") {
+      showMsg('Please type "DELETE" into the confirmation box.', "error");
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await studentService.deleteAccount();
+      await authService.logout();
+      showMsg("Your account and all associated data have been permanently deleted.");
+      setTimeout(() => {
+        router.push("/?deleted=true");
+      }, 1500);
+    } catch (err: any) {
+      showMsg(
+        err?.response?.data?.message || "Failed to delete account. Please try again or contact support.",
+        "error"
+      );
+      setIsDeleting(false);
+    }
   };
 
   const handleRequestOtp = async () => {
@@ -332,6 +362,90 @@ export default function StudentSettingsPage() {
               </button>
             </div>
           </form>
+        )}
+      </div>
+
+      {/* Danger Zone: Account Deletion */}
+      <div className="bg-white rounded-2xl border border-rose-200/90 p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="flex items-center gap-3.5 pb-5 border-b border-rose-100">
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 shadow-inner">
+            <AlertCircle className="w-6 h-6 stroke-[2]" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-rose-950">Danger Zone: Account Deletion</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Permanently erase your student profile, uploaded resumes, and application records
+            </p>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-rose-50/60 border border-rose-100 text-xs text-rose-900 space-y-2">
+          <p className="font-bold">What happens when you delete your account:</p>
+          <ul className="list-disc pl-5 space-y-1 text-rose-800">
+            <li>Your candidate profile, educational history, skills, and projects will be permanently wiped.</li>
+            <li>All uploaded PDF resumes and profile pictures stored in cloud storage will be permanently purged.</li>
+            <li>All active job applications, interview schedules, and saved jobs will be cancelled and deleted.</li>
+            <li>This action is irreversible and your account cannot be recovered.</li>
+          </ul>
+        </div>
+
+        {!showDeleteModal ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+            <div className="text-xs text-slate-500">
+              Need more details on data retention or external deletion? Read our{" "}
+              <a href="/delete-account" target="_blank" className="text-[#0756A8] font-bold hover:underline">
+                Account Deletion Guide
+              </a>
+              .
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteConfirmInput("");
+                setShowDeleteModal(true);
+              }}
+              className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs active:scale-95 shrink-0"
+            >
+              Delete My Account
+            </button>
+          </div>
+        ) : (
+          <div className="p-5 bg-slate-50 rounded-2xl border border-rose-200 space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1">
+                To confirm permanent deletion, type <span className="text-rose-600 font-mono">DELETE</span> below:
+              </label>
+              <input
+                type="text"
+                placeholder="Type DELETE"
+                value={deleteConfirmInput}
+                onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                className="w-full h-11 text-xs text-slate-900 px-3.5 rounded-xl border border-rose-300 bg-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 font-mono"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmInput.trim().toUpperCase() !== "DELETE" || isDeleting}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
+              >
+                {isDeleting ? "Deleting Account…" : "Permanently Delete Account"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmInput("");
+                }}
+                disabled={isDeleting}
+                className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

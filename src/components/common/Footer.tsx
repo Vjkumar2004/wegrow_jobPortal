@@ -336,6 +336,14 @@ export const Footer: React.FC = () => {
                   <span>Terms &amp; Conditions</span>
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/delete-account"
+                  className="text-blue-100/90 hover:text-[#F79400] transition-colors duration-200 flex items-center gap-1.5"
+                >
+                  <span>Delete Account</span>
+                </Link>
+              </li>
             </ul>
           </nav>
 
@@ -386,9 +394,9 @@ export const Footer: React.FC = () => {
                   <MapPin className="w-4 h-4" />
                 </div>
                 <div className="leading-snug">
-                  <p>100A/5, 1st Floor,</p>
-                  <p>Thiruthangal Road, Opposite Bell Hotel,</p>
-                  <p className="font-semibold text-white mt-0.5">Sivakasi – 626123</p>
+                  <p>193, 1A, Ayyappan Kovil,</p>
+                  <p>Opposite Naturals Salon &amp; Spa, Downstairs,</p>
+                  <p className="font-semibold text-white mt-0.5">Parasakthi Colony, Sivakasi – 626123</p>
                 </div>
               </div>
 
@@ -465,6 +473,12 @@ export const Footer: React.FC = () => {
               className="hover:text-[#F79400] transition-colors duration-200"
             >
               Terms & Conditions
+            </Link>
+            <Link
+              href="/delete-account"
+              className="hover:text-[#F79400] transition-colors duration-200"
+            >
+              Delete Account
             </Link>
             <Link
               href="/contact"

@@ -176,7 +176,7 @@ const CAMPUSES = [
     tag: "Main Campus",
     tagColor: "#014E9C",
     tagBg: "#EEF4FD",
-    address: "100A/5, 1st Floor, Thiruthangal Road, Opposite Bell Hotel, Sivakasi – 626123",
+    address: "193, 1A, Ayyappan Kovil, Opposite Naturals Salon & Spa, Downstairs, Parasakthi Colony, Sivakasi – 626123",
     phone: "+91 93443 37331",
     email: "enquiry@wegrowcampus.in",
     hours: "Mon – Sat: 9:00 AM – 7:00 PM",
