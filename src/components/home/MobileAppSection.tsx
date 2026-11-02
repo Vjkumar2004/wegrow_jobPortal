@@ -262,7 +262,7 @@ export default function MobileAppSection() {
                     textTransform: "uppercase",
                   }}
                 >
-                  AVAILABLE SOON
+                  NOW ON GOOGLE PLAY
                 </span>
               </div>
             </div>
@@ -377,13 +377,16 @@ export default function MobileAppSection() {
 
             {/* 5. Store buttons: vertical on mobile, horizontal on sm+ */}
             <div className="flex flex-col sm:flex-row gap-3.5 sm:gap-4 items-center justify-center lg:justify-start w-full max-w-[340px] sm:max-w-none">
-              {/* Google Play Store Button (Disabled look) */}
-              <div
-                className="app-store-btn w-full sm:w-auto justify-center sm:justify-start"
-                title="Coming soon to the Google Play Store"
-                style={{ minWidth: "210px", height: "64px" }}
+              {/* Google Play Store Button (Active) */}
+              <a
+                href="https://play.google.com/store/apps/details?id=com.wegrow.student.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="google-play-btn w-full sm:w-auto justify-center sm:justify-start"
+                title="Download WeGrow Student App on Google Play Store"
+                style={{ minWidth: "210px", height: "64px", textDecoration: "none" }}
               >
-                <div style={{ position: "relative", width: "26px", height: "28px", flexShrink: 0, opacity: 0.55 }}>
+                <div style={{ position: "relative", width: "26px", height: "28px", flexShrink: 0 }}>
                   <Image
                     src="/google-play-icon.svg"
                     alt="Google Play"
@@ -398,19 +401,19 @@ export default function MobileAppSection() {
                       fontSize: "10px",
                       textTransform: "uppercase",
                       letterSpacing: "0.08em",
-                      color: "#8A93A8",
+                      color: "#A0B3D6",
                       lineHeight: 1.1,
                       fontWeight: 500,
                     }}
                   >
-                    Coming Soon
+                    GET IT ON
                   </span>
                   <span
                     style={{
                       fontFamily: "'Poppins', sans-serif",
                       fontWeight: 700,
                       fontSize: "18px",
-                      color: "#8A93A8",
+                      color: "#FFFFFF",
                       lineHeight: 1.25,
                       letterSpacing: "-0.2px",
                     }}
@@ -418,7 +421,7 @@ export default function MobileAppSection() {
                     Google Play
                   </span>
                 </div>
-              </div>
+              </a>
 
               {/* Apple App Store Button (Disabled look) */}
               <div className="app-store-btn w-full sm:w-auto justify-center sm:justify-start" title="Coming soon to the Apple App Store" style={{ minWidth: "210px", height: "64px" }}>

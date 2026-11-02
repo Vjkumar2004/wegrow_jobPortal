@@ -314,6 +314,14 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <Link
+                  href="/recruitment-services"
+                  className="text-blue-100/90 hover:text-[#F79400] transition-colors duration-200 flex items-center gap-1.5"
+                >
+                  <span>Recruitment Packages</span>
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/student/login"
                   className="text-blue-100/90 hover:text-[#F79400] transition-colors duration-200 flex items-center gap-1.5"
                 >

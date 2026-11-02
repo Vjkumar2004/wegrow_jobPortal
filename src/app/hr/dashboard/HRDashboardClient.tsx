@@ -43,6 +43,7 @@ import { useSearchParams } from "next/navigation";
 import { Job, Application, Interview, CompanyApprovalStatus } from "@/types";
 import PostJobModal from "@/components/hr/PostJobModal";
 import CompanyProfileSubSection from "@/components/hr/CompanyProfileSubSection";
+import { RecruitmentPackageWidget } from "@/components/hr/RecruitmentPackageWidget";
 import { CandidateProfileModal } from "@/components/hr/CandidateProfileModal";
 import Portal from "@/components/common/Portal";
 import { authService } from "@/services/auth.service";
@@ -685,6 +686,8 @@ export default function HRDashboardClient({
         <CompanyProfileSubSection />
       ) : (
         <>
+          {/* Active Recruitment Consultancy Package & Inquiries */}
+          <RecruitmentPackageWidget />
 
       {/* ============================================================== */}
       {/* 2. STATS ROW (4 High Aesthetic Cards: Blue, Orange, Green, Purple) */}

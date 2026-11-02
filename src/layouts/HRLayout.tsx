@@ -18,6 +18,7 @@ import {
   X,
   ChevronDown,
   Headphones,
+  Sparkles,
 } from "lucide-react";
 import { authService } from "@/services/auth.service";
 import { hrService } from "@/services/hr.service";
@@ -247,6 +248,7 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
     { label: "Post New Job", href: "/hr/dashboard?action=post-job", icon: PlusCircle },
     { label: "Applicants", href: "/hr/applicants", icon: Users },
     { label: "Interviews", href: "/hr/interviews", icon: Calendar },
+    { label: "Recruitment Packages", href: "/hr/packages", icon: Sparkles },
     { label: "Company Profile", href: "/hr/dashboard?tab=company", icon: Building },
     { label: "Reports & Analytics", href: "/hr/reports", icon: BarChart3 },
   ];
@@ -504,6 +506,15 @@ export const HRLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
                       >
                         <Users className="w-4 h-4 text-[#22B573]" />
                         <span>Candidate Applicants</span>
+                      </Link>
+
+                      <Link
+                        href="/hr/packages"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#0B1F4B] hover:bg-[#F1F4F9] transition"
+                      >
+                        <Sparkles className="w-4 h-4 text-[#FF6B00]" />
+                        <span>Recruitment Packages</span>
                       </Link>
 
                       <Link

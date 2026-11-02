@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import WhyChooseUsSection from "./WhyChooseUsSection";
 import ForEmployersSection from "./ForEmployersSection";
+import RecruitmentPackagesSection from "./RecruitmentPackagesSection";
 import MobileAppSection from "./MobileAppSection";
 import TopCompaniesHiringSection from "./TopCompaniesHiringSection";
 
@@ -835,6 +836,9 @@ export default function HeroPage() {
 
         {/* ══════════════ FOR EMPLOYERS SECTION ═════════════════════════════ */}
         <ForEmployersSection />
+
+        {/* ══════════════ RECRUITMENT PACKAGES SECTION ═════════════ */}
+        <RecruitmentPackagesSection />
 
         {/* ══════════════ MOBILE APP SECTION ════════════════════════════════ */}
         <MobileAppSection />

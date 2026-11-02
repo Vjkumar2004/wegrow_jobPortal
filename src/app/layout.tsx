@@ -15,7 +15,6 @@ const caveat = Caveat({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-caveat",
-  weight: ["600", "700"],
 });
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_ID || "G-JTXSVDC3Z4";
